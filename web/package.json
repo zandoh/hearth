@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "oxlint src",
     "fmt": "oxfmt src",
-    "fmt:check": "oxfmt --check src"
+    "fmt:check": "oxfmt --check src",
+    "test": "bun test"
   },
   "dependencies": {
     "@astryxdesign/core": "^0.1.2",
@@ -20,12 +21,17 @@
   },
   "devDependencies": {
     "@astryxdesign/cli": "^0.1.2",
+    "@playwright/test": "^1.61.1",
+    "@tailwindcss/vite": "^4.3.2",
+    "@types/bun": "^1.3.14",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxfmt": "^0.57.0",
     "oxlint": "^1.71.0",
+    "playwright": "^1.61.1",
+    "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
   }

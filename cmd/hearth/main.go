@@ -17,7 +17,12 @@ import (
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
 	"github.com/zandoh/hearth/internal/widget"
+	"github.com/zandoh/hearth/internal/widgets/calendar"
+	"github.com/zandoh/hearth/internal/widgets/chores"
 	"github.com/zandoh/hearth/internal/widgets/clock"
+	"github.com/zandoh/hearth/internal/widgets/grocery"
+	"github.com/zandoh/hearth/internal/widgets/meds"
+	"github.com/zandoh/hearth/internal/widgets/weather"
 	"github.com/zandoh/hearth/web"
 )
 
@@ -43,6 +48,11 @@ func run(addr, dbPath string) error {
 
 	reg := widget.NewRegistry()
 	reg.Register(clock.New(hub))
+	reg.Register(calendar.New(st, hub))
+	reg.Register(chores.New(st, hub))
+	reg.Register(grocery.New(st, hub))
+	reg.Register(meds.New(st, hub))
+	reg.Register(weather.New(st, hub))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

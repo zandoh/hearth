@@ -14,9 +14,13 @@ web:
 run: build
 	./bin/hearth
 
-# Development: run these in two terminals. The Vite dev server proxies
-# /api to the Go server on :8080.
+# Development: run these in two terminals, then browse localhost:5173.
+# The Vite dev server proxies /api to the Go server on :8080.
+# dev-api auto-restarts on .go/.sql changes (fswatch); dev-web has true HMR.
 dev-api:
+	./scripts/dev-api.sh
+
+dev-api-once:
 	go run ./cmd/hearth
 
 dev-web:
@@ -24,6 +28,7 @@ dev-web:
 
 test:
 	go test ./...
+	cd web && bun test
 
 lint:
 	go vet ./...

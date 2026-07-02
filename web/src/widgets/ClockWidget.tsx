@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import { useTopic } from "../useSSE";
 import type { WidgetProps } from "./registry";
 
@@ -38,18 +40,14 @@ export function ClockWidget(_props: WidgetProps) {
   }, [offsetMs]);
 
   return (
-    <div className="clock">
-      <div className="clock-time">
+    <VStack height="100%" justify="center" align="center" gap={1}>
+      <Text type="display-2" hasTabularNumbers>
         {display.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-      </div>
-      <div className="clock-date">
-        {display.toLocaleDateString([], {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        })}
+      </Text>
+      <Text type="supporting">
+        {display.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
         {zone ? ` · ${zone}` : ""}
-      </div>
-    </div>
+      </Text>
+    </VStack>
   );
 }

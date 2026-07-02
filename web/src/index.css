@@ -1,11 +1,24 @@
-:root {
-  color-scheme: light dark;
-}
+/* Layered setup from @astryxdesign/core/tailwind-theme.css docs: Astryx
+   tokens feed Tailwind v4 utilities (text-primary, bg-surface, ...) and
+   theme/dark-mode switching flows through automatically. */
+@layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "@astryxdesign/core/reset.css";
+@import "@astryxdesign/core/astryx.css";
+@import "@astryxdesign/theme-neutral/theme.css";
+@import "@astryxdesign/core/tailwind-theme.css";
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Custom CSS below is limited to what Astryx components can't express:
+   the RGL board chrome, the calendar month grid, and native form controls.
+   All values are Astryx tokens — no raw hex/px. */
 
 body {
   margin: 0;
-  background: Canvas;
-  color: CanvasText;
+  background: var(--color-background-body);
+  color: var(--color-text-primary);
 }
 
 .app {
@@ -15,71 +28,359 @@ body {
 }
 
 .app-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 20px;
-  border-bottom: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  padding: var(--spacing-3) var(--spacing-5);
+  border-bottom: var(--border-width) solid var(--color-border);
 }
 
 .app-title {
-  font-size: 1.25rem;
+  font-size: var(--spacing-5);
 }
 
-.view-switcher {
-  display: flex;
-  gap: 6px;
-  flex: 1;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
+/* --- board / edit mode --- */
 
 .grid-container {
+  position: relative;
   flex: 1;
-  padding: 12px;
+  padding: var(--spacing-3);
+}
+
+.grid-container.editing {
+  /* kiosk: while editing, gestures move widgets — never scroll/select */
+  user-select: none;
+}
+
+.grid-container.editing .widget-card {
+  touch-action: none;
+}
+
+.widget-palette {
+  padding: var(--spacing-2) var(--spacing-5);
+  border-bottom: var(--border-width) dashed var(--color-border-emphasized);
+}
+
+.palette-chip {
+  font: inherit;
+  font-size: var(--spacing-3-5, 0.85rem);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-element);
+  border: var(--border-width) dashed var(--color-border-emphasized);
+  background: var(--color-background-muted);
+  color: var(--color-text-primary);
+  cursor: grab;
+}
+
+.palette-chip:active {
+  cursor: grabbing;
+}
+
+.grid-guides {
+  position: absolute;
+  top: var(--spacing-3);
+  left: var(--spacing-3);
+  right: var(--spacing-3);
+  padding: 10px; /* must mirror react-grid-layout's containerPadding */
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: 72px; /* must mirror ROW_HEIGHT in App.tsx */
+  gap: 10px; /* must mirror react-grid-layout's margin */
+  pointer-events: none;
+}
+
+.grid-guide-cell {
+  border: var(--border-width) dashed var(--color-border);
+  border-radius: var(--radius-inner);
 }
 
 .widget-card {
   height: 100%;
   overflow: hidden;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
-  background: color-mix(in srgb, Canvas 92%, CanvasText 8%);
+  border-radius: var(--radius-container);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-background-card);
 }
 
 .widget-card.editing {
-  outline: 2px dashed color-mix(in srgb, CanvasText 35%, transparent);
-  outline-offset: -2px;
+  outline: var(--border-width) dashed var(--color-border-emphasized);
+  outline-offset: calc(-1 * var(--border-width));
   cursor: grab;
+}
+
+.widget-card.editing:hover {
+  border-color: var(--color-accent);
+}
+
+.widget-remove {
+  position: absolute;
+  top: var(--spacing-1-5);
+  right: var(--spacing-1-5);
+  z-index: 10;
+  width: var(--size-element-sm);
+  height: var(--size-element-sm);
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--color-background-inverted);
+  color: var(--color-background-surface);
+  cursor: pointer;
+  line-height: 1;
 }
 
 .widget-unknown {
   display: grid;
   place-items: center;
   height: 100%;
-  opacity: 0.6;
-  font-size: 0.9rem;
+  color: var(--color-text-secondary);
 }
 
-.clock {
+/* Drop/drag preview: accent ghost instead of RGL's default red */
+.react-grid-placeholder {
+  background: var(--color-accent) !important;
+  opacity: 0.25;
+  border-radius: var(--radius-container);
+}
+
+/* --- shared widget bits --- */
+
+.widget-body {
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
+  padding: var(--spacing-3) var(--spacing-4);
+  overflow-y: auto;
 }
 
-.clock-time {
-  font-size: 3rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.form-error {
+  color: var(--color-error);
+}
+
+.check-in {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+  accent-color: var(--color-accent);
+}
+
+input[type="color"] {
+  width: var(--size-element-sm);
+  height: var(--size-element-sm);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: none;
+  cursor: pointer;
+}
+
+/* --- chores --- */
+
+.chore-check {
+  width: var(--size-element-sm);
+  height: var(--size-element-sm);
+  border-radius: var(--radius-full);
+  border: var(--border-width) solid var(--color-border-emphasized);
+  background: none;
+  color: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
   line-height: 1;
 }
 
-.clock-date {
-  opacity: 0.7;
+.chore-check:hover {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+/* --- meds --- */
+
+.dose-pill {
+  font: inherit;
+  font-size: var(--font-size-sm, 0.8rem);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  border: var(--border-width) solid var(--color-border-emphasized);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.dose-pill.taken {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-on-success);
+}
+
+/* --- calendar month grid (custom by nature) --- */
+
+.cal {
+  padding: var(--spacing-3) var(--spacing-3);
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: var(--font-size-2xs, 0.7rem);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.cal-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--spacing-1);
+  min-height: 0;
+}
+
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-0-5);
+  padding: var(--spacing-1);
+  border: none;
+  border-radius: var(--radius-element);
+  background: var(--color-background-muted);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.cal-day.out-month {
+  opacity: 0.35;
+}
+
+.cal-day.today {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.cal-day-num {
+  font-size: var(--font-size-xsm, 0.8rem);
+  font-weight: 600;
+}
+
+.cal-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cal-chip {
+  font-size: var(--font-size-3xs, 0.68rem);
+  line-height: 1.4;
+  padding: 0 var(--spacing-1);
+  border-radius: var(--radius-inner);
+  color: var(--color-on-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-more {
+  font-size: var(--font-size-3xs, 0.65rem);
+  color: var(--color-text-secondary);
+}
+
+.cal-dialog-body {
+  padding: var(--spacing-1);
+}
+
+.cal-dot {
+  width: var(--spacing-2-5, 10px);
+  height: var(--spacing-2-5, 10px);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* native select/time inputs inside the calendar dialog */
+.cal-field {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.cal-field select,
+.cal-field input[type="time"] {
+  font: inherit;
+  padding: var(--spacing-1-5) var(--spacing-2);
+  border-radius: var(--radius-element);
+  border: var(--border-width) solid var(--color-border-emphasized);
+  background: var(--color-background-surface);
+  color: inherit;
+}
+
+/* --- weather --- */
+
+.weather-icon {
+  font-size: var(--spacing-10);
+  line-height: 1;
+}
+
+.weather-candidate {
+  font: inherit;
+  width: 100%;
+  text-align: left;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-element);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-background-muted);
+  color: inherit;
+  cursor: pointer;
+}
+
+.weather-hourly {
+  display: flex;
+  gap: var(--spacing-1);
+  overflow-x: auto;
+  padding-bottom: var(--spacing-0-5);
+}
+
+.weather-hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-0-5);
+  font-size: var(--font-size-2xs, 0.75rem);
+  min-width: var(--spacing-11);
+  padding: var(--spacing-1-5) var(--spacing-0-5);
+  border-radius: var(--radius-element);
+  background: var(--color-background-muted);
+}
+
+.weather-precip {
+  color: var(--color-text-blue);
+  min-height: 1em;
+}
+
+/* Edit mode: the whole card is a drag surface. A transparent overlay makes
+   widget content inert — no click-through to calendar days, checkboxes,
+   buttons — and guarantees pointer-down reaches the grid item so drags
+   always start. Remove button (z 10) and resize handles (z 20) stay above. */
+.widget-card.editing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: grab;
+}
+
+.widget-card.editing:active::after {
+  cursor: grabbing;
+}
+
+.react-grid-item > .react-resizable-handle {
+  z-index: 20;
+}
+
+/* dim content slightly so edit mode reads as "layout, not interaction" */
+.widget-card.editing > *:not(.widget-remove) {
+  opacity: 0.75;
 }

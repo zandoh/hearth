@@ -28,12 +28,19 @@ Flags: `-addr :8080`, `-db hearth.db`.
 
 ## Development
 
-Two terminals:
+Two terminals, then browse **http://localhost:5173**:
 
 ```sh
-make dev-api   # Go API on :8080
-make dev-web   # Vite dev server on :5173, proxies /api to :8080
+make dev-api   # Go API on :8080, auto-rebuilds + restarts on .go/.sql changes
+make dev-web   # Vite dev server on :5173 with HMR, proxies /api to :8080
 ```
+
+React edits hot-swap in place (state preserved). Go edits trigger a rebuild
+and restart in about a second (`fswatch` required: `brew install fswatch`;
+without it, `make dev-api` falls back to a plain run and you restart by hand).
+App state survives restarts because it lives in SQLite, not the process — and
+the browser's SSE connection reconnects automatically. `make dev-api-once`
+runs the server without the watcher.
 
 Checks:
 
@@ -78,6 +85,32 @@ internal/widgets/    one package per widget
 web/                 Vite + React + Astryx app (bun)
 web/embed.go         go:embed of web/dist into the binary
 ```
+
+## Google Calendar setup (optional, one-time)
+
+Hearth syncs any number of Google Calendars (a shared family calendar, each
+person's own, etc.). Because Hearth is self-hosted, you bring your own Google
+OAuth credentials — they stay on your server and are **never committed**:
+
+1. Create a project at [console.cloud.google.com](https://console.cloud.google.com)
+   and enable the **Google Calendar API**.
+2. Configure the OAuth consent screen (External, add your household's Google
+   accounts as test users — no verification needed for personal use).
+3. Create an **OAuth client ID** of type **Web application** with redirect URI
+   `http://localhost:8080/api/widgets/calendar/google/callback`
+   (replace host/port with wherever Hearth runs; set `HEARTH_BASE_URL` to match).
+4. Run Hearth with the credentials in the environment:
+
+```sh
+HEARTH_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com \
+HEARTH_GOOGLE_CLIENT_SECRET=yyy \
+./bin/hearth
+```
+
+Then open the calendar widget's ⚙ settings → **Connect Google account**, and
+add whichever calendars the household wants on the board. Events sync every
+5 minutes (plus instantly on "Sync now"); events added in Hearth are written
+straight to Google.
 
 ## Roadmap
 
