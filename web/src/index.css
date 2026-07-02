@@ -1,0 +1,85 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: Canvas;
+  color: CanvasText;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+}
+
+.app-title {
+  font-size: 1.25rem;
+}
+
+.view-switcher {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.grid-container {
+  flex: 1;
+  padding: 12px;
+}
+
+.widget-card {
+  height: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  background: color-mix(in srgb, Canvas 92%, CanvasText 8%);
+}
+
+.widget-card.editing {
+  outline: 2px dashed color-mix(in srgb, CanvasText 35%, transparent);
+  outline-offset: -2px;
+  cursor: grab;
+}
+
+.widget-unknown {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  opacity: 0.6;
+  font-size: 0.9rem;
+}
+
+.clock {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.clock-time {
+  font-size: 3rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.clock-date {
+  opacity: 0.7;
+}

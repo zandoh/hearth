@@ -1,0 +1,21 @@
+# Go
+bin/
+*.db
+*.db-wal
+*.db-shm
+
+# Frontend
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
+
+# Secrets — never commit credentials; runtime config comes from env vars
+.env
+.env.*
+*.pem
+*.key
+client_secret*.json
+credentials*.json
+
+# Misc
+.DS_Store

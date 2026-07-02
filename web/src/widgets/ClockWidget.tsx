@@ -1,0 +1,55 @@
+import { useCallback, useEffect, useState } from "react";
+import { useTopic } from "../useSSE";
+import type { WidgetProps } from "./registry";
+
+// Reference widget: fetches server time once, ticks locally, and resyncs
+// whenever the backend's clock job publishes on the "clock" topic.
+
+interface ClockPayload {
+  now: string;
+  zone: string;
+}
+
+export function ClockWidget(_props: WidgetProps) {
+  const [offsetMs, setOffsetMs] = useState(0);
+  const [zone, setZone] = useState("");
+  const [display, setDisplay] = useState(() => new Date());
+
+  const sync = useCallback((payload: ClockPayload) => {
+    setOffsetMs(new Date(payload.now).getTime() - Date.now());
+    setZone(payload.zone);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/widgets/clock/now")
+      .then((r) => r.json())
+      .then(sync)
+      .catch(() => {});
+  }, [sync]);
+
+  useTopic(
+    "clock",
+    useCallback((data: unknown) => sync(data as ClockPayload), [sync]),
+  );
+
+  useEffect(() => {
+    const id = setInterval(() => setDisplay(new Date(Date.now() + offsetMs)), 1000);
+    return () => clearInterval(id);
+  }, [offsetMs]);
+
+  return (
+    <div className="clock">
+      <div className="clock-time">
+        {display.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+      </div>
+      <div className="clock-date">
+        {display.toLocaleDateString([], {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        })}
+        {zone ? ` · ${zone}` : ""}
+      </div>
+    </div>
+  );
+}

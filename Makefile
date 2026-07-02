@@ -1,0 +1,38 @@
+# Hearth — single-binary home hub.
+# `make build` produces bin/hearth with the frontend embedded.
+
+.PHONY: build web run dev-api dev-web test lint fmt clean
+
+build: web
+	go build -o bin/hearth ./cmd/hearth
+
+# touch .gitkeep after building: vite empties dist/ but the tracked
+# placeholder must survive so go:embed works on a fresh clone
+web:
+	cd web && bun install && bun run build && touch dist/.gitkeep
+
+run: build
+	./bin/hearth
+
+# Development: run these in two terminals. The Vite dev server proxies
+# /api to the Go server on :8080.
+dev-api:
+	go run ./cmd/hearth
+
+dev-web:
+	cd web && bun run dev
+
+test:
+	go test ./...
+
+lint:
+	go vet ./...
+	go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+	cd web && bun run lint && bun run fmt:check
+
+fmt:
+	gofmt -w .
+	cd web && bun run fmt
+
+clean:
+	rm -rf bin web/dist/assets web/dist/index.html
