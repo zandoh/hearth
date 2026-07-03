@@ -9,7 +9,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "react-grid-layout/css/styles.css";
 import "./index.css"; // Astryx + Tailwind layers live here
 import App from "./App";
-import { hearthTheme } from "./theme";
+import { hearthTheme } from "./hearth";
 import { applyFavicon, useThemeMode } from "./themeMode";
 
 function Root() {
