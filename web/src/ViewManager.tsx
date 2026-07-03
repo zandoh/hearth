@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { GripVertical } from "lucide-react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog } from "@astryxdesign/core/Dialog";
@@ -67,15 +68,75 @@ export function ViewManager({
     getNightConfig().then(setNight).catch(console.error);
   }, []);
 
-  // Swap the view with its neighbor and persist the whole order.
-  const move = (view: View, dir: -1 | 1) => {
-    const ids = views.map((v) => v.id);
-    const i = ids.indexOf(view.id);
-    const j = i + dir;
-    if (j < 0 || j >= ids.length) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-    act(() => reorderViews(ids));
+  // Fresh views (post-reorder SSE) supersede the drag overlay.
+  useEffect(() => {
+    if (draggingId === null) setDragOrder(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [views]);
+
+  // Drag-to-reorder: the grip captures the pointer, rows re-slot live in a
+  // local order overlay, and release persists the whole order. The overlay
+  // stays up until the refreshed views arrive so the list never snaps back.
+  const [dragOrder, setDragOrder] = useState<number[] | null>(null);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  // Pointer handlers can fire before React re-renders them (touch bursts);
+  // the ref always carries the live order for the release handler.
+  const dragOrderRef = useRef<number[] | null>(null);
+
+  const orderedViews = dragOrder
+    ? dragOrder.map((id) => views.find((v) => v.id === id)).filter((v): v is View => !!v)
+    : views;
+
+  const gripDown = (v: View, e: React.PointerEvent<HTMLElement>) => {
+    e.preventDefault();
+    setDraggingId(v.id);
+    dragOrderRef.current = views.map((x) => x.id);
+    setDragOrder(dragOrderRef.current);
   };
+
+  // Listeners live on the window for the whole gesture: re-slotting a row
+  // moves its DOM node, and moving a node silently releases pointer capture
+  // — element-bound handlers lose the pointerup and the order never saves.
+  useEffect(() => {
+    if (draggingId === null) return;
+    const move = (e: PointerEvent) => {
+      const list = listRef.current;
+      const prev = dragOrderRef.current;
+      if (!list || !prev) return;
+      const rows = [...list.querySelectorAll("li")];
+      let target = rows.length - 1;
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i].getBoundingClientRect();
+        if (e.clientY < r.top + r.height / 2) {
+          target = i;
+          break;
+        }
+      }
+      const from = prev.indexOf(draggingId);
+      if (from === target) return;
+      const next = [...prev];
+      next.splice(from, 1);
+      next.splice(target, 0, draggingId);
+      dragOrderRef.current = next;
+      setDragOrder(next);
+    };
+    const up = () => {
+      setDraggingId(null);
+      const order = dragOrderRef.current;
+      dragOrderRef.current = null;
+      if (order) act(() => reorderViews(order));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draggingId]);
 
   const rename = (view: View) => {
     const name = (names[view.id] ?? view.name).trim();
@@ -103,137 +164,133 @@ export function ViewManager({
           layout.
         </Text>
 
-        <VStack as="ul" gap={3} className="plain-list">
-          {views.map((v) => (
-            <VStack as="li" key={v.id} gap={1} className="view-row">
-              <HStack gap={2} align="center">
-                <VStack gap={0} className="view-move">
+        <div ref={listRef}>
+          <VStack as="ul" gap={3} className="plain-list">
+            {orderedViews.map((v) => (
+              <VStack
+                as="li"
+                key={v.id}
+                gap={1}
+                className={`view-row${draggingId === v.id ? " view-row-dragging" : ""}`}
+              >
+                <HStack gap={2} align="center">
+                  <span
+                    className="view-drag-handle no-drag"
+                    aria-label={`Reorder ${v.name}`}
+                    onPointerDown={(e) => gripDown(v, e)}
+                  >
+                    <Icon icon={GripVertical} size="sm" />
+                  </span>
+                  <TextInput
+                    label={`Rename ${v.name}`}
+                    isLabelHidden
+                    value={names[v.id] ?? v.name}
+                    onChange={(value) => setNames((n) => ({ ...n, [v.id]: value }))}
+                    onEnter={() => rename(v)}
+                    className="min-w-0 flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    label="Rename"
+                    isDisabled={(names[v.id] ?? v.name).trim() === v.name}
+                    onClick={() => rename(v)}
+                  />
                   <IconButton
                     size="sm"
                     variant="ghost"
-                    label={`Move ${v.name} up`}
-                    icon={<Icon icon="arrowUp" size="sm" />}
-                    isDisabled={views[0]?.id === v.id}
-                    onClick={() => move(v, -1)}
-                  />
-                  <IconButton
-                    size="sm"
-                    variant="ghost"
-                    label={`Move ${v.name} down`}
-                    icon={<Icon icon="arrowDown" size="sm" />}
-                    isDisabled={views[views.length - 1]?.id === v.id}
-                    onClick={() => move(v, 1)}
-                  />
-                </VStack>
-                <TextInput
-                  label={`Rename ${v.name}`}
-                  isLabelHidden
-                  value={names[v.id] ?? v.name}
-                  onChange={(value) => setNames((n) => ({ ...n, [v.id]: value }))}
-                  onEnter={() => rename(v)}
-                  className="min-w-0 flex-1"
-                />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  label="Rename"
-                  isDisabled={(names[v.id] ?? v.name).trim() === v.name}
-                  onClick={() => rename(v)}
-                />
-                <IconButton
-                  size="sm"
-                  variant="ghost"
-                  label={`Delete ${v.name}`}
-                  icon={<Icon icon="close" size="sm" />}
-                  isDisabled={views.length <= 1}
-                  onClick={() =>
-                    confirm(
-                      {
-                        title: `Delete "${v.name}"?`,
-                        description:
-                          "The view's layout is deleted. Widget data (events, lists, chores) is not affected.",
-                        actionLabel: "Delete",
-                      },
-                      () => act(() => deleteView(v.id)),
-                    )
-                  }
-                />
-              </HStack>
-              <HStack gap={2} align="center" wrap="wrap">
-                {v.isDefault ? (
-                  <Badge variant="info" label="Default" />
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    label="Make default"
-                    onClick={() => act(() => setDefaultView(v.id))}
-                  />
-                )}
-                {guest?.guestViewId === v.id ? (
-                  <Badge variant="teal" label="Guest" />
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    label="Set guest"
+                    label={`Delete ${v.name}`}
+                    icon={<Icon icon="close" size="sm" />}
+                    isDisabled={views.length <= 1}
                     onClick={() =>
-                      act(async () => {
-                        await setGuestView(v.id);
-                        setGuest(await getGuestConfig());
-                      })
-                    }
-                  />
-                )}
-                {v.scheduleStart && v.scheduleEnd ? (
-                  <>
-                    <Badge variant="info" label={`${v.scheduleStart}–${v.scheduleEnd}`} />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      label="Clear schedule"
-                      onClick={() => act(() => setViewSchedule(v.id, "", ""))}
-                    />
-                  </>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    label="Schedule"
-                    onClick={() => setSchedulingId(schedulingId === v.id ? null : v.id)}
-                  />
-                )}
-              </HStack>
-              {schedulingId === v.id && (
-                <HStack gap={2} align="end" wrap="wrap">
-                  <TimeInput
-                    label="From"
-                    value={schedStart}
-                    onChange={(t) => t && setSchedStart(t)}
-                    className="w-32"
-                  />
-                  <TimeInput
-                    label="Until"
-                    value={schedEnd}
-                    onChange={(t) => t && setSchedEnd(t)}
-                    className="w-32"
-                  />
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    label="Save schedule"
-                    onClick={() =>
-                      act(async () => {
-                        await setViewSchedule(v.id, schedStart, schedEnd);
-                        setSchedulingId(null);
-                      })
+                      confirm(
+                        {
+                          title: `Delete "${v.name}"?`,
+                          description:
+                            "The view's layout is deleted. Widget data (events, lists, chores) is not affected.",
+                          actionLabel: "Delete",
+                        },
+                        () => act(() => deleteView(v.id)),
+                      )
                     }
                   />
                 </HStack>
-              )}
-            </VStack>
-          ))}
-        </VStack>
+                <HStack gap={2} align="center" wrap="wrap">
+                  {v.isDefault ? (
+                    <Badge variant="info" label="Default" />
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      label="Make default"
+                      onClick={() => act(() => setDefaultView(v.id))}
+                    />
+                  )}
+                  {guest?.guestViewId === v.id ? (
+                    <Badge variant="teal" label="Guest" />
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      label="Set guest"
+                      onClick={() =>
+                        act(async () => {
+                          await setGuestView(v.id);
+                          setGuest(await getGuestConfig());
+                        })
+                      }
+                    />
+                  )}
+                  {v.scheduleStart && v.scheduleEnd ? (
+                    <>
+                      <Badge variant="info" label={`${v.scheduleStart}–${v.scheduleEnd}`} />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        label="Clear schedule"
+                        onClick={() => act(() => setViewSchedule(v.id, "", ""))}
+                      />
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      label="Schedule"
+                      onClick={() => setSchedulingId(schedulingId === v.id ? null : v.id)}
+                    />
+                  )}
+                </HStack>
+                {schedulingId === v.id && (
+                  <HStack gap={2} align="end" wrap="wrap">
+                    <TimeInput
+                      label="From"
+                      value={schedStart}
+                      onChange={(t) => t && setSchedStart(t)}
+                      className="w-32"
+                    />
+                    <TimeInput
+                      label="Until"
+                      value={schedEnd}
+                      onChange={(t) => t && setSchedEnd(t)}
+                      className="w-32"
+                    />
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      label="Save schedule"
+                      onClick={() =>
+                        act(async () => {
+                          await setViewSchedule(v.id, schedStart, schedEnd);
+                          setSchedulingId(null);
+                        })
+                      }
+                    />
+                  </HStack>
+                )}
+              </VStack>
+            ))}
+          </VStack>
+        </div>
 
         <HStack gap={2} align="end">
           <TextInput

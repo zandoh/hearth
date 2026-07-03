@@ -214,6 +214,27 @@ body {
   padding-top: var(--spacing-2);
 }
 
+.view-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1);
+  cursor: grab;
+  touch-action: none;
+  color: var(--color-icon-secondary);
+}
+
+.view-row-dragging {
+  position: relative;
+  z-index: 1;
+  background: var(--color-background-surface);
+  border-radius: var(--radius-element);
+  box-shadow: 0 6px 18px var(--color-shadow);
+}
+
+.view-row-dragging .view-drag-handle {
+  cursor: grabbing;
+}
+
 /* --- countdown widget --- */
 .countdown-row {
   padding: var(--spacing-1) 0;
