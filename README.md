@@ -1,8 +1,17 @@
 # Hearth
 
+[![CI](https://github.com/zandoh/hearth/actions/workflows/ci.yml/badge.svg)](https://github.com/zandoh/hearth/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/zandoh/hearth)](https://github.com/zandoh/hearth/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A self-hosted home hub for an always-on touchscreen: a widget grid the whole
-household shares — calendar, chores, groceries, weather — with rearrangeable
-layouts saved as named views.
+household shares — calendar (with Google sync), chores, groceries, weather,
+medications — with drag-to-arrange layouts saved as named views.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
+  <img alt="The Hearth board: clock, agenda, calendar, groceries, chores, and medications widgets" src="docs/board-light.png">
+</picture>
 
 Ships as a **single Go binary** with the web app embedded. The web UI is the
 first client of an API-first backend; a future mobile app talks to the same
