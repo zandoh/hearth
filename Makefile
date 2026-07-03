@@ -1,7 +1,7 @@
 # Hearth — single-binary home hub.
 # `make build` produces bin/hearth with the frontend embedded.
 
-.PHONY: build web run dev-api dev-web test lint fmt clean
+.PHONY: e2e build web run dev-api dev-web test lint fmt clean
 
 build: web
 	go build -o bin/hearth ./cmd/hearth
@@ -31,6 +31,9 @@ dev-web:
 test:
 	go test ./...
 	cd web && bun test
+
+e2e: build
+	cd web && bun e2e/run.mjs
 
 lint:
 	go vet ./...
