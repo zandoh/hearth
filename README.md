@@ -1,8 +1,17 @@
-# Hearth
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/lockup-dark.png">
+    <img alt="hearth" src="docs/lockup-light.png" height="72">
+  </picture>
+</h1>
 
-[![CI](https://github.com/zandoh/hearth/actions/workflows/ci.yml/badge.svg)](https://github.com/zandoh/hearth/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/zandoh/hearth)](https://github.com/zandoh/hearth/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<p align="center"><em>The quiet fire at the center of your home.</em></p>
+
+<p align="center">
+  <a href="https://github.com/zandoh/hearth/actions/workflows/ci.yml"><img src="https://github.com/zandoh/hearth/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/zandoh/hearth/releases"><img src="https://img.shields.io/github/v/release/zandoh/hearth" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+</p>
 
 A self-hosted home hub for an always-on touchscreen: a widget grid the whole
 household shares — calendar (with Google sync), chores, groceries, weather,
