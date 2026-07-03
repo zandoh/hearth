@@ -16,4 +16,6 @@ export interface View {
   name: string;
   layout: LayoutItem[];
   isDefault: boolean;
+  scheduleStart?: string; // HH:MM daily window; see kiosk.scheduledViewID
+  scheduleEnd?: string;
 }

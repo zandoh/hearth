@@ -59,3 +59,24 @@ export function inQuietWindow(now: Date, start: string, end: string): boolean {
   const n = now.getHours() * 60 + now.getMinutes();
   return s < e ? n >= s && n < e : n >= s || n < e;
 }
+
+// A view may claim a daily window (see views.schedule_start/_end); while
+// the board is at rest the kiosk shows the scheduled view, falling back to
+// the default outside any window. Guest mode overrides all of this — the
+// caller resolves guest first, so a window firing mid-guest cannot switch
+// the board off the guest view.
+export interface SchedulableView {
+  id: number;
+  scheduleStart?: string;
+  scheduleEnd?: string;
+}
+
+/** The id of the view whose window contains `now`, or null. First match wins. */
+export function scheduledViewID(views: SchedulableView[], now: Date): number | null {
+  for (const v of views) {
+    if (v.scheduleStart && v.scheduleEnd && inQuietWindow(now, v.scheduleStart, v.scheduleEnd)) {
+      return v.id;
+    }
+  }
+  return null;
+}

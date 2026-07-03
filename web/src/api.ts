@@ -34,5 +34,11 @@ export const updateView = (id: number, name: string, layout: LayoutItem[]) =>
 
 export const deleteView = (id: number) => apiFetch<void>(`/api/views/${id}`, { method: "DELETE" });
 
+export const setViewSchedule = (id: number, start: string, end: string) =>
+  apiFetch<void>(`/api/views/${id}/schedule`, {
+    method: "PUT",
+    body: JSON.stringify({ start, end }),
+  });
+
 export const setDefaultView = (id: number) =>
   apiFetch<void>(`/api/views/${id}/default`, { method: "POST" });

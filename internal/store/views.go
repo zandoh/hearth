@@ -25,14 +25,21 @@ type View struct {
 	Name      string       `json:"name"`
 	Layout    []LayoutItem `json:"layout"`
 	IsDefault bool         `json:"isDefault"`
+	// Daily window (HH:MM local, may cross midnight) during which the kiosk
+	// shows this view automatically; both empty = unscheduled.
+	ScheduleStart string `json:"scheduleStart,omitempty"`
+	ScheduleEnd   string `json:"scheduleEnd,omitempty"`
 }
 
 func scanView(row interface{ Scan(...any) error }) (View, error) {
 	var v View
 	var layout string
-	if err := row.Scan(&v.ID, &v.Name, &layout, &v.IsDefault); err != nil {
+	var schedStart, schedEnd sql.NullString
+	if err := row.Scan(&v.ID, &v.Name, &layout, &v.IsDefault, &schedStart, &schedEnd); err != nil {
 		return View{}, err
 	}
+	v.ScheduleStart = schedStart.String
+	v.ScheduleEnd = schedEnd.String
 	if err := json.Unmarshal([]byte(layout), &v.Layout); err != nil {
 		return View{}, fmt.Errorf("view %d has corrupt layout: %w", v.ID, err)
 	}
@@ -40,7 +47,7 @@ func scanView(row interface{ Scan(...any) error }) (View, error) {
 }
 
 func (s *Store) ListViews() ([]View, error) {
-	rows, err := s.db.Query("SELECT id, name, layout, is_default FROM views ORDER BY id")
+	rows, err := s.db.Query("SELECT id, name, layout, is_default, schedule_start, schedule_end FROM views ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +64,7 @@ func (s *Store) ListViews() ([]View, error) {
 }
 
 func (s *Store) GetView(id int64) (View, error) {
-	row := s.db.QueryRow("SELECT id, name, layout, is_default FROM views WHERE id = ?", id)
+	row := s.db.QueryRow("SELECT id, name, layout, is_default, schedule_start, schedule_end FROM views WHERE id = ?", id)
 	v, err := scanView(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return View{}, ErrNotFound
@@ -157,4 +164,21 @@ func (s *Store) SetDefaultView(id int64) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// SetViewSchedule claims (or with empty strings clears) a view's daily
+// window. Validation of the HH:MM shape is the caller's job.
+func (s *Store) SetViewSchedule(id int64, start, end string) error {
+	var st, en any
+	if start != "" && end != "" {
+		st, en = start, end
+	}
+	res, err := s.db.Exec("UPDATE views SET schedule_start = ?, schedule_end = ? WHERE id = ?", st, en, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

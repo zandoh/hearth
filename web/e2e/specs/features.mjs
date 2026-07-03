@@ -265,6 +265,51 @@ export default async function features({ browser, base }) {
   });
   await nightCtx.close();
 
+  // --- scheduled views: window takes over at rest, guest mode still wins ---
+  const schedView = await (
+    await fetch(`${base}/api/views`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Sched",
+        layout: [{ i: "mealplan-1", widget: "mealplan", x: 0, y: 0, w: 6, h: 6, config: {} }],
+      }),
+    })
+  ).json();
+  await fetch(`${base}/api/views/${schedView.id}/schedule`, {
+    method: "PUT",
+    body: JSON.stringify({ start: "00:00", end: "23:59" }),
+  });
+  await seedView(base, [{ i: "clock-1", widget: "clock", x: 0, y: 0, w: 4, h: 3, config: {} }]);
+  const schedCtx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const schedPage = await schedCtx.newPage();
+  await schedPage.goto(base);
+  await schedPage.waitForSelector(".widget-card");
+  await schedPage.waitForTimeout(500);
+  step(
+    "scheduled view takes over at rest",
+    (await schedPage.locator(".meal-grid").count()) === 1,
+  );
+  // guest mode must never be escaped by a scheduled window firing
+  await fetch(`${base}/api/views/1/guest`, { method: "POST" });
+  const guestCtx2 = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const guestPage2 = await guestCtx2.newPage();
+  await guestPage2.addInitScript(() => localStorage.setItem("hearth-guest", "1"));
+  await guestPage2.goto(base);
+  await guestPage2.waitForSelector(".widget-card");
+  await guestPage2.waitForTimeout(800);
+  step(
+    "active schedule cannot escape guest mode",
+    (await guestPage2.locator(".meal-grid").count()) === 0 &&
+      (await guestPage2.locator(".widget-card").count()) === 1,
+  );
+  await guestCtx2.close();
+  await fetch(`${base}/api/views/${schedView.id}/schedule`, {
+    method: "PUT",
+    body: JSON.stringify({ start: "", end: "" }),
+  });
+  await fetch(`${base}/api/views/0/guest`, { method: "POST" });
+  await schedCtx.close();
+
   // --- dragging a widget onto an EMPTY board must work ---
   // Regression: react-grid-layout collapses to ~10px with no items, so
   // tray drags over the visibly empty board never hit a drop target.

@@ -6,6 +6,7 @@ import {
   inQuietWindow,
   msUntilNightlyReload,
   nightWakeMs,
+  scheduledViewID,
 } from "./kiosk";
 
 describe("msUntilNightlyReload", () => {
@@ -70,5 +71,28 @@ describe("nightWakeMs", () => {
   test("debug override, garbage falls back", () => {
     expect(nightWakeMs("?nightWakeMs=1500")).toBe(1500);
     expect(nightWakeMs("?nightWakeMs=nah")).toBe(NIGHT_WAKE_MS);
+  });
+});
+
+describe("scheduledViewID", () => {
+  const views = [
+    { id: 1 }, // default, unscheduled
+    { id: 2, scheduleStart: "06:00", scheduleEnd: "09:00" },
+    { id: 3, scheduleStart: "21:00", scheduleEnd: "05:00" }, // crosses midnight
+  ];
+  const at = (h: number, m = 0) => new Date(2026, 6, 3, h, m);
+
+  test("inside a window picks that view", () => {
+    expect(scheduledViewID(views, at(7))).toBe(2);
+  });
+  test("overnight window matches both sides of midnight", () => {
+    expect(scheduledViewID(views, at(23))).toBe(3);
+    expect(scheduledViewID(views, at(4))).toBe(3);
+  });
+  test("outside all windows -> null (default view)", () => {
+    expect(scheduledViewID(views, at(12))).toBe(null);
+  });
+  test("half-configured schedules never match", () => {
+    expect(scheduledViewID([{ id: 9, scheduleStart: "06:00" }], at(7))).toBe(null);
   });
 });

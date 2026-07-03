@@ -29,7 +29,7 @@ import { createCompactor } from "./compactor";
 import { useConfirm } from "./confirm";
 import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
-import { idleReturnMs, msUntilNightlyReload, screensaverMs } from "./kiosk";
+import { idleReturnMs, msUntilNightlyReload, scheduledViewID, screensaverMs } from "./kiosk";
 import { OnScreenKeyboard, oskEnabled, setOskEnabled } from "./OnScreenKeyboard";
 import { nextThemeMode, setThemeMode, useThemeMode } from "./themeMode";
 import { TOPICS } from "./topics";
@@ -186,10 +186,27 @@ export default function App() {
     [views, guestConfig],
   );
 
+  // Scheduled views: while the board is at rest (no manual pick), a view
+  // whose daily window contains now takes over; idle-return clears manual
+  // picks, so the wall drifts back to the schedule. Re-evaluated twice a
+  // minute. Guest mode is resolved before any of this and always wins.
+  const [scheduledId, setScheduledId] = useState<number | null>(null);
+  useEffect(() => {
+    const evaluate = () => setScheduledId(scheduledViewID(views, new Date()));
+    evaluate();
+    const id = setInterval(evaluate, 30_000);
+    return () => clearInterval(id);
+  }, [views]);
+
   const active: View | undefined = useMemo(() => {
     if (guest) return guestView;
-    return views.find((v) => v.id === activeId) ?? views.find((v) => v.isDefault) ?? views[0];
-  }, [guest, guestView, views, activeId]);
+    return (
+      views.find((v) => v.id === activeId) ??
+      views.find((v) => v.id === scheduledId) ??
+      views.find((v) => v.isDefault) ??
+      views[0]
+    );
+  }, [guest, guestView, views, activeId, scheduledId]);
 
   const items = active?.layout ?? [];
   const gridLayout: Layout = items.map(({ i, x, y, w, h }) => ({

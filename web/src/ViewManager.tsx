@@ -13,7 +13,7 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { TimeInput, type ISOTimeString } from "@astryxdesign/core/TimeInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useEffect } from "react";
-import { createView, deleteView, setDefaultView, updateView } from "./api";
+import { createView, deleteView, setDefaultView, setViewSchedule, updateView } from "./api";
 import { useConfirm } from "./confirm";
 import { Avatar } from "./Avatar";
 import { type GuestConfig, getGuestConfig, setGuestPin, setGuestView } from "./guestMode";
@@ -46,6 +46,9 @@ export function ViewManager({
   const [pin, setPin] = useState("");
   const [currentPin, setCurrentPin] = useState("");
   const [night, setNight] = useState<NightConfig | null>(null);
+  const [schedulingId, setSchedulingId] = useState<number | null>(null);
+  const [schedStart, setSchedStart] = useState("07:00" as ISOTimeString);
+  const [schedEnd, setSchedEnd] = useState("09:00" as ISOTimeString);
   const { confirm, confirmDialog } = useConfirm();
   // No reload here: the views list lives in App, which refreshes it over the
   // "views" SSE topic (see the component comment above). Sections that own
@@ -78,7 +81,9 @@ export function ViewManager({
       <VStack gap={3} className="cal-dialog-body">
         <Heading level={2}>Views</Heading>
         <Text type="supporting">
-          The default view is what the kiosk shows on load. Each view keeps its own widget layout.
+          The default view is what the kiosk shows at rest. A scheduled view takes over during its
+          daily window (guests always stay on the guest view). Each view keeps its own widget
+          layout.
         </Text>
 
         <VStack as="ul" gap={3} className="plain-list">
@@ -145,7 +150,52 @@ export function ViewManager({
                     }
                   />
                 )}
+                {v.scheduleStart && v.scheduleEnd ? (
+                  <>
+                    <Badge variant="info" label={`${v.scheduleStart}–${v.scheduleEnd}`} />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      label="Clear schedule"
+                      onClick={() => act(() => setViewSchedule(v.id, "", ""))}
+                    />
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    label="Schedule"
+                    onClick={() => setSchedulingId(schedulingId === v.id ? null : v.id)}
+                  />
+                )}
               </HStack>
+              {schedulingId === v.id && (
+                <HStack gap={2} align="end" wrap="wrap">
+                  <TimeInput
+                    label="From"
+                    value={schedStart}
+                    onChange={(t) => t && setSchedStart(t)}
+                    className="w-32"
+                  />
+                  <TimeInput
+                    label="Until"
+                    value={schedEnd}
+                    onChange={(t) => t && setSchedEnd(t)}
+                    className="w-32"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    label="Save schedule"
+                    onClick={() =>
+                      act(async () => {
+                        await setViewSchedule(v.id, schedStart, schedEnd);
+                        setSchedulingId(null);
+                      })
+                    }
+                  />
+                </HStack>
+              )}
             </VStack>
           ))}
         </VStack>
