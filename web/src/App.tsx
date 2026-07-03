@@ -421,33 +421,9 @@ export default function App() {
   };
 
   // Guest mode with no guest view: the screensaver IS the guest experience.
-  if (guest && !guestView) {
-    return (
-      <div className="app">
-        <Screensaver persistent onExitGuest={() => setExitPin("")} />
-        {exitPin !== null && (
-          <Dialog isOpen width={360} onOpenChange={(open) => !open && setExitPin(null)}>
-            <VStack gap={3} className="cal-dialog-body">
-              <Heading level={2}>Exit guest mode</Heading>
-              <TextInput
-                label="Guest PIN"
-                type="password"
-                value={exitPin}
-                onChange={setExitPin}
-                onEnter={tryExitGuest}
-                hasAutoFocus
-              />
-              {exitError && <Text className="form-error">{exitError}</Text>}
-              <HStack justify="end" gap={2}>
-                <Button size="sm" variant="ghost" label="Cancel" onClick={() => setExitPin(null)} />
-                <Button size="sm" variant="primary" label="Unlock" onClick={tryExitGuest} />
-              </HStack>
-            </VStack>
-          </Dialog>
-        )}
-      </div>
-    );
-  }
+  // Rendered as an overlay (never an early return) so the board — and
+  // react-grid-layout's container-width observer — stay mounted underneath.
+  const guestSaver = guest && !guestView;
 
   return (
     <div className="app">
@@ -653,7 +629,11 @@ export default function App() {
           );
         })()}
       {confirmDialog}
-      {saverOn && <Screensaver onWake={() => setSaverOn(false)} />}
+      {guestSaver ? (
+        <Screensaver persistent onExitGuest={() => setExitPin("")} />
+      ) : (
+        saverOn && <Screensaver onWake={() => setSaverOn(false)} />
+      )}
       {exitPin !== null && (
         <Dialog isOpen width={360} onOpenChange={(open) => !open && setExitPin(null)}>
           <VStack gap={3} className="cal-dialog-body">
