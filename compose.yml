@@ -1,0 +1,19 @@
+services:
+  hearth:
+    image: ghcr.io/zandoh/hearth:latest
+    # To build locally instead of pulling: comment `image:` and uncomment:
+    # build: .
+    container_name: hearth
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # Everything stateful lives here: hearth.db (+ optional .env).
+      - ./data:/data
+    environment:
+      # Local timezone matters: chores due dates, med windows, nightly reload.
+      TZ: America/New_York
+      # Google Calendar OAuth (or put a .env file in ./data instead):
+      # HEARTH_GOOGLE_CLIENT_ID: xxx.apps.googleusercontent.com
+      # HEARTH_GOOGLE_CLIENT_SECRET: yyy
+      # HEARTH_BASE_URL: http://your-server:8080

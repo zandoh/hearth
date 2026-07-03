@@ -19,12 +19,43 @@ API.
 
 ## Quick start
 
+**Docker (recommended for a home server):**
+
+```sh
+mkdir hearth && cd hearth
+curl -O https://raw.githubusercontent.com/zandoh/hearth/main/compose.yml
+docker compose up -d     # board on http://localhost:8080
+```
+
+State lives in `./data/` (SQLite + optional `.env`); back it up by copying
+the folder. Images are multi-arch (amd64 + arm64) at `ghcr.io/zandoh/hearth`.
+
+**Prebuilt binary:** grab your platform's tarball from
+[Releases](https://github.com/zandoh/hearth/releases), unpack, `./hearth`.
+
+**From source:**
+
 ```sh
 make build   # builds web/ with bun, embeds it, produces bin/hearth
 ./bin/hearth # serves everything on :8080, creates hearth.db
 ```
 
 Flags: `-addr :8080`, `-db hearth.db`.
+
+### Hosting at a friendly name (e.g. hearth.local)
+
+Hearth binds any hostname — point DNS/mDNS at the box and it works. On a
+Mac mini host the easiest route is System Settings → General → Sharing →
+Local hostname → "hearth", which advertises `hearth.local` over Bonjour
+(Apple devices and most modern platforms resolve it; some Android versions
+don't — a hostname entry in your router's DNS covers everything).
+
+One caveat: Google's OAuth console only accepts plain-http redirect URIs
+for `localhost`. If `HEARTH_BASE_URL` is `http://hearth.local:8080`, do the
+one-time Google connect through a localhost tunnel instead:
+`ssh -L 8080:localhost:8080 you@hearth.local`, then connect at
+`http://localhost:8080` with `HEARTH_BASE_URL` unset. Day-to-day use at
+`hearth.local` is unaffected — only the consent redirect cares.
 
 ## Development
 

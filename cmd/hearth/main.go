@@ -12,6 +12,10 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	// Embed the timezone database: container images (distroless/scratch)
+	// ship no zoneinfo, and chores/meds/nightly-reload all depend on local
+	// time. TZ env still selects the zone.
+	_ "time/tzdata"
 
 	"github.com/zandoh/hearth/internal/server"
 	"github.com/zandoh/hearth/internal/sse"

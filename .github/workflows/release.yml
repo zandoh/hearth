@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build frontend
+        run: |
+          cd web
+          bun install --frozen-lockfile
+          VITE_BUILD_ID=${{ github.ref_name }} bun run build
+
+      - name: Cross-compile binaries
+        run: |
+          mkdir -p release
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            os=${target%/*}; arch=${target#*/}
+            out="hearth-${{ github.ref_name }}-${os}-${arch}"
+            CGO_ENABLED=0 GOOS=$os GOARCH=$arch \
+              go build -trimpath -ldflags="-s -w" -o "release/$out/hearth" ./cmd/hearth
+            cp .env.example "release/$out/"
+            tar -czf "release/$out.tar.gz" -C release "$out"
+            rm -r "release/$out"
+          done
+          (cd release && shasum -a 256 *.tar.gz > SHA256SUMS)
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.tar.gz
+            release/SHA256SUMS
+          generate_release_notes: true
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            BUILD_ID=${{ github.ref_name }}
+          tags: |
+            ghcr.io/zandoh/hearth:${{ github.ref_name }}
+            ghcr.io/zandoh/hearth:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/zandoh/hearth
