@@ -1,8 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- App icon (Guidelines §4): char tile, mark centered at 60% tile width -->
-  <rect width="64" height="64" rx="14" fill="#1B1916"/>
-  <g transform="translate(32 32) scale(0.6) translate(-32 -32)">
-    <circle cx="32" cy="32" r="20" fill="none" stroke="#F4F1EB" stroke-width="4"/>
+  <!-- Mark alone, scaled to fill the tab. Ring adapts to the tab bar's
+       scheme; the house is always ember. -->
+  <style>
+    .ring { stroke: #1B1916; }
+    @media (prefers-color-scheme: dark) { .ring { stroke: #F4F1EB; } }
+  </style>
+  <g transform="translate(32 32) scale(1.35) translate(-32 -32)">
+    <circle class="ring" cx="32" cy="32" r="20" fill="none" stroke-width="4"/>
     <polygon points="32,22 41,30 41,41 23,41 23,30" fill="#D97742"/>
   </g>
 </svg>
