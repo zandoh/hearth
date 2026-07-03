@@ -112,6 +112,33 @@ body {
   background: var(--color-background-card);
 }
 
+/* Widgets ease in on mount (view switches, drops, first load) instead of
+   snapping. The card fades only — its grid position is an inline transform
+   react-grid-layout owns, so keyframes must never touch transform here.
+   The inner content carries the gentle rise instead. */
+@media (prefers-reduced-motion: no-preference) {
+  .widget-card {
+    animation: card-in 260ms ease-out;
+  }
+
+  .widget-card .widget-content {
+    animation: content-rise 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  @keyframes card-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes content-rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+}
+
 .widget-card:hover {
   border-color: var(--color-border-emphasized);
 }
