@@ -41,7 +41,17 @@ func main() {
 	dbPath := flag.String("db", "hearth.db", "path to SQLite database")
 	resetGuestPin := flag.Bool("reset-guest-pin", false,
 		"clear the guest-mode PIN and exit (admin recovery for a forgotten PIN)")
+	restore := flag.String("restore", "",
+		"restore the database from a backup file and exit (stop the server first)")
 	flag.Parse()
+
+	if *restore != "" {
+		if err := doRestore(*restore, *dbPath); err != nil {
+			slog.Error("restore failed", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	if *resetGuestPin {
 		if err := doResetGuestPin(*dbPath); err != nil {

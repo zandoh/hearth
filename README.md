@@ -52,6 +52,18 @@ Hearth also snapshots its own database nightly into `backups/` beside the
 DB (last 7 kept), and Views → Backups has a "Download backup" button for
 an on-demand copy.
 
+To restore one, stop the server, then:
+
+```sh
+./hearth -restore backups/hearth-2026-07-01.db          # binary install
+docker compose stop hearth
+docker compose run --rm hearth /hearth -restore /data/backups/hearth-2026-07-01.db -db /data/hearth.db
+docker compose start hearth
+```
+
+The current database is kept beside the restored one as
+`hearth.db.pre-restore-<stamp>`, so a restore never destroys anything.
+
 **Prebuilt binary:** grab your platform's tarball from
 [Releases](https://github.com/zandoh/hearth/releases), unpack, `./hearth`.
 
