@@ -9,8 +9,13 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 import boardSpec from "./specs/board.mjs";
-import featuresSpec from "./specs/features.mjs";
+import calendarSpec from "./specs/calendar.mjs";
+import guestSpec from "./specs/guest.mjs";
+import guestbookSpec from "./specs/guestbook.mjs";
+import nightSpec from "./specs/night.mjs";
 import onboardingSpec from "./specs/onboarding.mjs";
+import viewsSpec from "./specs/views.mjs";
+import widgetsSpec from "./specs/widgets.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const BIN = process.env.HEARTH_BIN ?? join(here, "..", "..", "bin", "hearth");
@@ -30,10 +35,17 @@ async function waitForHealthy() {
   throw new Error("server did not become healthy");
 }
 
+// One spec per concern; the runner's fresh binary + throwaway DB per
+// entry IS the isolation — no spec depends on another's leftovers.
 const specs = [
   ["onboarding", onboardingSpec],
   ["board", boardSpec],
-  ["features", featuresSpec],
+  ["views", viewsSpec],
+  ["calendar", calendarSpec],
+  ["widgets", widgetsSpec],
+  ["guestbook", guestbookSpec],
+  ["night", nightSpec],
+  ["guest", guestSpec],
 ];
 
 let totalFailures = 0;

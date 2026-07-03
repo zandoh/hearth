@@ -120,7 +120,9 @@ describe("resolveActiveView", () => {
     );
   });
   test("guest with no guest view -> undefined (screensaver branch)", () => {
-    expect(resolveActiveView(views, { ...base, guest: true, guestView: undefined })).toBeUndefined();
+    expect(
+      resolveActiveView(views, { ...base, guest: true, guestView: undefined }),
+    ).toBeUndefined();
   });
   test("stale ids fall through cleanly", () => {
     expect(resolveActiveView(views, { ...base, activeId: 99, scheduledId: 98 })).toBe(home);

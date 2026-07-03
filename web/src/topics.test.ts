@@ -16,7 +16,7 @@ describe("topics contract", () => {
     const goTopics = [...goSource.matchAll(/^\t\w+\s*=\s*"([a-z0-9-]+)"$/gm)]
       .map((m) => m[1])
       .sort();
-    const tsTopics = Object.values(TOPICS).sort();
+    const tsTopics = (Object.values(TOPICS) as string[]).sort();
 
     expect(goTopics.length).toBeGreaterThan(0);
     expect(tsTopics).toEqual(goTopics);

@@ -147,9 +147,7 @@ export function editedDates(
     return {
       startsAt,
       endsAt:
-        duration > 0
-          ? rfc3339Local(new Date(new Date(startsAt).getTime() + duration))
-          : undefined,
+        duration > 0 ? rfc3339Local(new Date(new Date(startsAt).getTime() + duration)) : undefined,
     };
   }
   return {
