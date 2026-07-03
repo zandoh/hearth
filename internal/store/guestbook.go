@@ -10,9 +10,11 @@ type GuestbookNote struct {
 	CreatedAt string  `json:"createdAt"`
 }
 
+const guestbookCols = "id, author, message, color, x, y, created_at"
+
 func (s *Store) ListGuestbookNotes() ([]GuestbookNote, error) {
 	rows, err := s.db.Query(
-		"SELECT id, author, message, color, x, y, created_at FROM guestbook_notes ORDER BY id DESC")
+		"SELECT " + guestbookCols + " FROM guestbook_notes ORDER BY id DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +42,7 @@ func (s *Store) AddGuestbookNote(author, message, color string) (GuestbookNote, 
 		return GuestbookNote{}, err
 	}
 	row := s.db.QueryRow(
-		"SELECT id, author, message, color, x, y, created_at FROM guestbook_notes WHERE id = ?", id)
+		"SELECT "+guestbookCols+" FROM guestbook_notes WHERE id = ?", id)
 	var n GuestbookNote
 	err = row.Scan(&n.ID, &n.Author, &n.Message, &n.Color, &n.X, &n.Y, &n.CreatedAt)
 	return n, err

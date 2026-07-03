@@ -13,6 +13,8 @@ type Chore struct {
 	AssigneeID int64  `json:"assigneeId,omitempty"`
 }
 
+const choreCols = "id, title, every_days, last_done, assignee_id"
+
 func scanChore(row interface{ Scan(...any) error }) (Chore, error) {
 	var c Chore
 	var lastDone sql.NullString
@@ -27,7 +29,7 @@ func scanChore(row interface{ Scan(...any) error }) (Chore, error) {
 
 func (s *Store) ListChores() ([]Chore, error) {
 	rows, err := s.db.Query(
-		"SELECT id, title, every_days, last_done, assignee_id FROM chores ORDER BY id")
+		"SELECT " + choreCols + " FROM chores ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +62,7 @@ func (s *Store) CreateChore(title string, everyDays int, assigneeID int64) (Chor
 		return Chore{}, err
 	}
 	row := s.db.QueryRow(
-		"SELECT id, title, every_days, last_done, assignee_id FROM chores WHERE id = ?", id)
+		"SELECT "+choreCols+" FROM chores WHERE id = ?", id)
 	return scanChore(row)
 }
 

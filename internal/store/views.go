@@ -32,6 +32,10 @@ type View struct {
 	ScheduleEnd   string `json:"scheduleEnd,omitempty"`
 }
 
+// viewCols is the one authoritative column list; scanView is its one
+// decode point — Scan order and this list must move together.
+const viewCols = "id, name, layout, is_default, hidden, schedule_start, schedule_end"
+
 func scanView(row interface{ Scan(...any) error }) (View, error) {
 	var v View
 	var layout string
@@ -49,7 +53,7 @@ func scanView(row interface{ Scan(...any) error }) (View, error) {
 
 func (s *Store) ListViews() ([]View, error) {
 	rows, err := s.db.Query(
-		"SELECT id, name, layout, is_default, hidden, schedule_start, schedule_end FROM views ORDER BY sort_order, id")
+		"SELECT " + viewCols + " FROM views ORDER BY sort_order, id")
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +70,7 @@ func (s *Store) ListViews() ([]View, error) {
 }
 
 func (s *Store) GetView(id int64) (View, error) {
-	row := s.db.QueryRow("SELECT id, name, layout, is_default, hidden, schedule_start, schedule_end FROM views WHERE id = ?", id)
+	row := s.db.QueryRow("SELECT "+viewCols+" FROM views WHERE id = ?", id)
 	v, err := scanView(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return View{}, ErrNotFound
