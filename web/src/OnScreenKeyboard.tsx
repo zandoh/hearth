@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
 
@@ -107,7 +108,16 @@ export function OnScreenKeyboard() {
 
   if (!enabled || !target) return null;
 
-  return (
+  // Astryx dialogs are native <dialog> shown with showModal(): they live in
+  // the browser's top layer, above any z-index, and make everything outside
+  // inert — the keyboard rendered underneath and untappable. Portaling the
+  // dock INTO the open dialog makes it a dialog descendant: interactive,
+  // painted with the modal, and gone with it when the dialog closes. The
+  // host is resolved per render, and every focus change re-renders.
+  const dialogs = document.querySelectorAll<HTMLElement>("dialog[open]");
+  const host = dialogs[dialogs.length - 1] ?? document.body;
+
+  return createPortal(
     <div
       className="osk-dock"
       // Keep pointer-downs on keys from stealing focus off the input.
@@ -141,6 +151,7 @@ export function OnScreenKeyboard() {
         }}
         onKeyPress={onKeyPress}
       />
-    </div>
+    </div>,
+    host,
   );
 }
