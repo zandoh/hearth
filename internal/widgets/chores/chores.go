@@ -38,35 +38,40 @@ type choreView struct {
 	NeverDone bool   `json:"neverDone"`
 }
 
+// dueView computes a chore's due state as of now: never-done chores are due
+// today; otherwise due lastDone + everyDays, with dueIn counted in whole
+// days and clamped to 0 when the due date is today.
+func dueView(c store.Chore, now time.Time) choreView {
+	v := choreView{Chore: c}
+	today := now.Format("2006-01-02")
+	if c.LastDone == "" {
+		v.DueOn = today
+		v.NeverDone = true
+		return v
+	}
+	last, err := time.Parse("2006-01-02", c.LastDone)
+	if err != nil {
+		last = now
+	}
+	due := last.AddDate(0, 0, c.EveryDays)
+	v.DueOn = due.Format("2006-01-02")
+	v.DueIn = int(due.Sub(now).Hours() / 24)
+	if v.DueOn == today {
+		v.DueIn = 0
+	}
+	return v
+}
+
 func (w *Widget) handleList(rw http.ResponseWriter, r *http.Request) {
 	chores, err := w.store.ListChores()
 	if err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
-	today := time.Now()
-	todayStr := today.Format("2006-01-02")
+	now := time.Now()
 	views := make([]choreView, 0, len(chores))
 	for _, c := range chores {
-		v := choreView{Chore: c}
-		if c.LastDone == "" {
-			// Never done: due today.
-			v.DueOn = todayStr
-			v.DueIn = 0
-			v.NeverDone = true
-		} else {
-			last, err := time.Parse("2006-01-02", c.LastDone)
-			if err != nil {
-				last = today
-			}
-			due := last.AddDate(0, 0, c.EveryDays)
-			v.DueOn = due.Format("2006-01-02")
-			v.DueIn = int(due.Sub(today).Hours() / 24)
-			if due.Format("2006-01-02") == todayStr {
-				v.DueIn = 0
-			}
-		}
-		views = append(views, v)
+		views = append(views, dueView(c, now))
 	}
 	httpx.JSON(rw, http.StatusOK, views)
 }
