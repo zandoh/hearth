@@ -24,6 +24,7 @@ import {
   verifyGuestPin,
 } from "./guestMode";
 import { NightShade } from "./NightShade";
+import { useIdleTimer } from "./useIdleTimer";
 import { Onboarding } from "./Onboarding";
 import { Screensaver } from "./Screensaver";
 import { createCompactor } from "./compactor";
@@ -124,22 +125,7 @@ export default function App() {
   useTopic(TOPICS.guest, loadGuestConfig);
 
   // Screensaver: long-idle burn-in protection, woken by any touch.
-  useEffect(() => {
-    const ms = screensaverMs(window.location.search);
-    let last = Date.now();
-    const touch = () => {
-      last = Date.now();
-    };
-    const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
-    for (const ev of events) window.addEventListener(ev, touch, { passive: true });
-    const id = setInterval(() => {
-      if (Date.now() - last >= ms) setSaverOn(true);
-    }, 1000);
-    return () => {
-      clearInterval(id);
-      for (const ev of events) window.removeEventListener(ev, touch);
-    };
-  }, []);
+  useIdleTimer(screensaverMs(window.location.search), () => setSaverOn(true));
 
   useEffect(() => {
     if (connection === "connected") {
@@ -164,29 +150,16 @@ export default function App() {
     return () => clearTimeout(id);
   }, []);
 
-  // After a stretch with no touches, return to the default view and leave
-  // edit mode — the wall screen should always come back to rest.
-  useEffect(() => {
-    const idleMs = idleReturnMs(window.location.search);
-    let last = Date.now();
-    const touch = () => {
-      last = Date.now();
-    };
-    const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
-    for (const ev of events) window.addEventListener(ev, touch, { passive: true });
-    const id = setInterval(() => {
-      if (Date.now() - last < idleMs) return;
-      last = Date.now();
-      setEditing(false);
-      setActiveId(null); // null falls back to the default view
-      setManagingViews(false);
-      setConfigFor(null);
-    }, 1000);
-    return () => {
-      clearInterval(id);
-      for (const ev of events) window.removeEventListener(ev, touch);
-    };
-  }, []);
+  // After a stretch with no touches, come back to rest: leave edit mode,
+  // close modals, clear the manual view pick (schedule/default reassert).
+  // Every mode or modal added to App must be reset here or it survives
+  // an idle reset — this cross-concern list is inherently App's.
+  useIdleTimer(idleReturnMs(window.location.search), () => {
+    setEditing(false);
+    setActiveId(null); // null falls back to the scheduled/default view
+    setManagingViews(false);
+    setConfigFor(null);
+  });
 
   const guestView = useMemo(
     () => views.find((v) => v.id === guestConfig?.guestViewId),

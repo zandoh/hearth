@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { usePointerDrag } from "./usePointerDrag";
 import { GripVertical } from "lucide-react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
@@ -89,19 +90,11 @@ export function ViewManager({
     ? dragOrder.map((id) => views.find((v) => v.id === id)).filter((v): v is View => !!v)
     : views;
 
-  const gripDown = (v: View, e: React.PointerEvent<HTMLElement>) => {
-    e.preventDefault();
-    setDraggingId(v.id);
-    dragOrderRef.current = views.map((x) => x.id);
-    setDragOrder(dragOrderRef.current);
-  };
-
-  // Listeners live on the window for the whole gesture: re-slotting a row
-  // moves its DOM node, and moving a node silently releases pointer capture
-  // — element-bound handlers lose the pointerup and the order never saves.
-  useEffect(() => {
-    if (draggingId === null) return;
-    const move = (e: PointerEvent) => {
+  // Domain half of the reorder drag: midpoint re-slotting over the live
+  // order; transport (window listeners, ref-carried gesture) is
+  // usePointerDrag's.
+  const drag = usePointerDrag<number>({
+    onMove: (e, id) => {
       const list = listRef.current;
       const prev = dragOrderRef.current;
       if (!list || !prev) return;
@@ -114,30 +107,28 @@ export function ViewManager({
           break;
         }
       }
-      const from = prev.indexOf(draggingId);
+      const from = prev.indexOf(id);
       if (from === target) return;
       const next = [...prev];
       next.splice(from, 1);
-      next.splice(target, 0, draggingId);
+      next.splice(target, 0, id);
       dragOrderRef.current = next;
       setDragOrder(next);
-    };
-    const up = () => {
+    },
+    onEnd: () => {
       setDraggingId(null);
       const order = dragOrderRef.current;
       dragOrderRef.current = null;
       if (order) act(() => reorderViews(order));
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", up);
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", up);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draggingId]);
+    },
+  });
+
+  const gripDown = (v: View, e: React.PointerEvent<HTMLElement>) => {
+    setDraggingId(v.id);
+    dragOrderRef.current = views.map((x) => x.id);
+    setDragOrder(dragOrderRef.current);
+    drag.start(v.id, e);
+  };
 
   const rename = (view: View) => {
     const name = (names[view.id] ?? view.name).trim();

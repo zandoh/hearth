@@ -10,6 +10,7 @@ import { TextArea } from "@astryxdesign/core/TextArea";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useConfirm } from "../confirm";
+import { usePointerDrag } from "../usePointerDrag";
 import { useMutate } from "../useMutate";
 import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
@@ -42,11 +43,40 @@ export function GuestbookWidget(_props: WidgetProps) {
   const wallRef = useRef<HTMLDivElement>(null);
   const [moved, setMoved] = useState<Record<number, { x: number; y: number }>>({});
   const [draggingId, setDraggingId] = useState<number | null>(null);
-  const grip = useRef<{ id: number; dx: number; dy: number } | null>(null);
+  const lastPos = useRef<{ x: number; y: number } | null>(null);
+  const activeIdRef = useRef<number | null>(null);
+
+  // Domain half of the corkboard drag: clamp the note inside the wall in
+  // fractional coordinates. Transport (window listeners, ref-carried
+  // gesture payload) is usePointerDrag's.
+  const drag = usePointerDrag<{ id: number; dx: number; dy: number; w: number; h: number }>({
+    onMove: (e, g) => {
+      const wall = wallRef.current;
+      if (!wall) return;
+      const wallRect = wall.getBoundingClientRect();
+      const maxX = Math.max(wallRect.width - g.w, 1);
+      const maxY = Math.max(wallRect.height - g.h, 1);
+      const x = Math.min(Math.max(e.clientX - g.dx - wallRect.left, 0), maxX) / wallRect.width;
+      const y = Math.min(Math.max(e.clientY - g.dy - wallRect.top, 0), maxY) / wallRect.height;
+      lastPos.current = { x, y };
+      setMoved((m) => ({ ...m, [g.id]: { x, y } }));
+    },
+    onEnd: (g) => {
+      activeIdRef.current = null;
+      setDraggingId(null);
+      const pos = lastPos.current;
+      lastPos.current = null;
+      if (!pos) return;
+      // The optimistic local position stays put; a successful reload
+      // confirms it and a failure snaps the note back to server truth.
+      mutate(() => moveNote(g.id, pos));
+    },
+  });
+
   useEffect(() => {
     setMoved((m) => {
-      const active = grip.current?.id;
-      if (active !== undefined && m[active]) return { [active]: m[active] };
+      const active = activeIdRef.current;
+      if (active !== null && m[active]) return { [active]: m[active] };
       return {};
     });
   }, [data]);
@@ -56,34 +86,18 @@ export function GuestbookWidget(_props: WidgetProps) {
   const startDrag = (n: Note, e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest("button")) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    grip.current = { id: n.id, dx: e.clientX - rect.left, dy: e.clientY - rect.top };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    activeIdRef.current = n.id;
     setDraggingId(n.id);
-  };
-
-  const moveDrag = (n: Note, e: React.PointerEvent<HTMLDivElement>) => {
-    const g = grip.current;
-    const wall = wallRef.current;
-    if (!g || g.id !== n.id || !wall) return;
-    const wallRect = wall.getBoundingClientRect();
-    const noteRect = e.currentTarget.getBoundingClientRect();
-    const maxX = Math.max(wallRect.width - noteRect.width, 1);
-    const maxY = Math.max(wallRect.height - noteRect.height, 1);
-    const x = Math.min(Math.max(e.clientX - g.dx - wallRect.left, 0), maxX) / wallRect.width;
-    const y = Math.min(Math.max(e.clientY - g.dy - wallRect.top, 0), maxY) / wallRect.height;
-    setMoved((m) => ({ ...m, [n.id]: { x, y } }));
-  };
-
-  const endDrag = (n: Note) => {
-    const g = grip.current;
-    if (!g || g.id !== n.id) return;
-    grip.current = null;
-    setDraggingId(null);
-    const pos = moved[n.id];
-    if (!pos) return;
-    // The optimistic local position stays put; a successful reload confirms
-    // it and a failure snaps the note back to the server's truth.
-    mutate(() => moveNote(n.id, pos));
+    drag.start(
+      {
+        id: n.id,
+        dx: e.clientX - rect.left,
+        dy: e.clientY - rect.top,
+        w: rect.width,
+        h: rect.height,
+      },
+      e,
+    );
   };
 
   const add = () =>
@@ -164,9 +178,6 @@ export function GuestbookWidget(_props: WidgetProps) {
                 transform: `rotate(${draggingId === n.id ? 0 : tilt(n.id)}deg)`,
               }}
               onPointerDown={(e) => startDrag(n, e)}
-              onPointerMove={(e) => moveDrag(n, e)}
-              onPointerUp={() => endDrag(n)}
-              onPointerCancel={() => endDrag(n)}
             >
               <IconButton
                 size="sm"
