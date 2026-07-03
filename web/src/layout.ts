@@ -5,8 +5,8 @@ export const GRID_COLS = 12;
 
 // Smallest useful widget on the kiosk; resize stops here and anything
 // smaller in a saved layout gets clamped up on render.
-export const MIN_WIDGET_W = 3;
-export const MIN_WIDGET_H = 3;
+export const MIN_WIDGET_W = 2;
+export const MIN_WIDGET_H = 2;
 
 /** First position (row-major scan) where a w×h widget fits without overlap. */
 export function firstFit(items: LayoutItem[], w: number, h: number): { x: number; y: number } {
