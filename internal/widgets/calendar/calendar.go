@@ -386,7 +386,9 @@ func (w *Widget) handleCreateEvent(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, err.Error())
 		return
 	}
-	event, err := w.createEvent(r.Context(), req)
+	// WithoutCancel: a kiosk browser dropping the connection mid-flight must
+	// not abandon a write-through half-done (remote applied, local skipped).
+	event, err := w.createEvent(context.WithoutCancel(r.Context()), req)
 	if err != nil {
 		writeErr(rw, err)
 		return
@@ -407,7 +409,7 @@ func (w *Widget) handleUpdateEvent(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, err.Error())
 		return
 	}
-	event, err := w.updateEvent(r.Context(), id, req)
+	event, err := w.updateEvent(context.WithoutCancel(r.Context()), id, req)
 	if err != nil {
 		writeErr(rw, err)
 		return
@@ -420,7 +422,7 @@ func (w *Widget) handleDeleteEvent(rw http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := w.deleteEvent(r.Context(), id); err != nil {
+	if err := w.deleteEvent(context.WithoutCancel(r.Context()), id); err != nil {
 		writeErr(rw, err)
 		return
 	}

@@ -216,7 +216,7 @@ func (g *googleClient) apiCall(ctx context.Context, method, path string, query u
 		return err
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return fmt.Errorf("google api %s %s: %s: %s", method, path, res.Status, resBody)
+		return &apiStatusError{Code: res.StatusCode, Method: method, Path: path, Body: string(resBody)}
 	}
 	if out == nil {
 		return nil
@@ -317,5 +317,26 @@ func (g *googleClient) updateEvent(ctx context.Context, calendarID, eventID stri
 
 func (g *googleClient) deleteEvent(ctx context.Context, calendarID, eventID string) error {
 	path := "/calendars/" + url.PathEscape(calendarID) + "/events/" + url.PathEscape(eventID)
-	return g.apiCall(ctx, http.MethodDelete, path, nil, nil, nil)
+	err := g.apiCall(ctx, http.MethodDelete, path, nil, nil, nil)
+	// 404/410 mean the event is already gone remotely — which is the goal
+	// state of a delete. Treating them as failure wedges the local copy:
+	// it can never be deleted again (seen live after an interrupted first
+	// attempt that had in fact succeeded on Google).
+	var se *apiStatusError
+	if errors.As(err, &se) && (se.Code == http.StatusNotFound || se.Code == http.StatusGone) {
+		return nil
+	}
+	return err
+}
+
+// apiStatusError is a non-2xx Google response, typed so callers can key off
+// the status code.
+type apiStatusError struct {
+	Code         int
+	Method, Path string
+	Body         string
+}
+
+func (e *apiStatusError) Error() string {
+	return fmt.Sprintf("google api %s %s: %d: %s", e.Method, e.Path, e.Code, e.Body)
 }
