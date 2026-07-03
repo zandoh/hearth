@@ -123,6 +123,25 @@ export default async function features({ browser, base }) {
   step("note position persisted", gbNotes[0].x > 0 && gbNotes[0].y > 0, `x=${gbNotes[0].x?.toFixed(2)} y=${gbNotes[0].y?.toFixed(2)}`);
   await nbCtx.close();
 
+  // --- widget mutations must not depend on SSE for their own feedback ---
+  // Regression: adds/toggles used to rely solely on the SSE topic to refresh,
+  // so with a dead stream the data saved but the screen never showed it.
+  const sseCtx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const ssePage = await sseCtx.newPage();
+  await ssePage.route("**/api/stream", (r) => r.abort());
+  await ssePage.goto(base);
+  await ssePage.waitForSelector(".sticky-note");
+  const notesBefore = await ssePage.locator(".sticky-note").count();
+  await ssePage.locator('button:has-text("+ Leave a note")').click();
+  await ssePage.getByLabel("Your note").fill("n".repeat(280));
+  await ssePage.locator('button:has-text("Stick it")').click();
+  await ssePage.waitForTimeout(800);
+  step(
+    "note renders with SSE down (280 chars)",
+    (await ssePage.locator(".sticky-note").count()) === notesBefore + 1,
+  );
+  await sseCtx.close();
+
   // --- guest mode round-trip must not disturb the board ---
   // Regression: the no-guest-view screensaver used to unmount the grid, which
   // zeroed react-grid-layout's container width for good — after the PIN exit

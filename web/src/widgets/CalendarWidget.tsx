@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog } from "@astryxdesign/core/Dialog";
 import { Icon } from "@astryxdesign/core/Icon";
@@ -244,10 +245,12 @@ export function CalendarWidget({ item, saveConfig }: WidgetProps) {
               ))}
           </VStack>
           <HStack>
-            <Button
+            <IconButton
               size="sm"
               variant="secondary"
-              label="+ Add event"
+              label="Add event"
+              tooltip="Add event"
+              icon={<Icon icon={Plus} size="sm" />}
               onClick={() => setSelectedDay(days[0])}
             />
           </HStack>
@@ -296,10 +299,13 @@ export function CalendarWidget({ item, saveConfig }: WidgetProps) {
           events={events.filter((e) => eventOnDay(e, selectedDay))}
           calendars={calendars}
           colorOf={colorOf}
+          onChanged={reload}
           onClose={() => setSelectedDay(null)}
         />
       )}
-      {settingsOpen && <CalendarSettings onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <CalendarSettings onChanged={reload} onClose={() => setSettingsOpen(false)} />
+      )}
     </VStack>
   );
 }
@@ -309,12 +315,14 @@ function DayDialog({
   events,
   calendars,
   colorOf,
+  onChanged,
   onClose,
 }: {
   day: string;
   events: CalEvent[];
   calendars: Calendar[];
   colorOf: (id: number) => string;
+  onChanged: () => void;
   onClose: () => void;
 }) {
   const writable = calendars.filter((c) => c.enabled);
@@ -347,6 +355,7 @@ function DayDialog({
       setAdding(false);
       setTitle("");
       setError("");
+      onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed to save");
     }
@@ -375,7 +384,7 @@ function DayDialog({
                 variant="ghost"
                 label={`Delete ${e.title}`}
                 icon={<Icon icon="close" size="sm" />}
-                onClick={() => deleteEvent(e.id).catch(console.error)}
+                onClick={() => deleteEvent(e.id).then(onChanged).catch(console.error)}
               />
             </HStack>
           ))}
@@ -395,15 +404,24 @@ function DayDialog({
             {error && <Text className="form-error">{error}</Text>}
             <HStack justify="end" gap={2}>
               <Button size="sm" variant="ghost" label="Cancel" onClick={() => setAdding(false)} />
-              <Button size="sm" variant="primary" label="Add event" onClick={submit} />
+              <IconButton
+                size="sm"
+                variant="primary"
+                label="Add event"
+                tooltip="Add event"
+                icon={<Icon icon={Plus} size="sm" />}
+                onClick={submit}
+              />
             </HStack>
           </VStack>
         ) : (
           <HStack justify="end" gap={2}>
-            <Button
+            <IconButton
               size="sm"
               variant="secondary"
-              label="+ Add event"
+              label="Add event"
+              tooltip="Add event"
+              icon={<Icon icon={Plus} size="sm" />}
               onClick={() => setAdding(true)}
             />
             <Button size="sm" variant="ghost" label="Close" onClick={onClose} />

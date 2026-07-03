@@ -89,7 +89,7 @@ interface Candidate {
 const api = "/api/widgets/weather";
 
 export function WeatherWidget(_props: WidgetProps) {
-  const { data } = useWidgetData<ForecastResponse>("weather", "/forecast");
+  const { data, reload } = useWidgetData<ForecastResponse>("weather", "/forecast");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [error, setError] = useState("");
@@ -120,6 +120,7 @@ export function WeatherWidget(_props: WidgetProps) {
       return;
     }
     setCandidates(null);
+    reload();
   };
 
   if (!data) {

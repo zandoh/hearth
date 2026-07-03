@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -19,7 +22,7 @@ interface Item {
 const api = "/api/widgets/grocery";
 
 export function GroceryWidget(_props: WidgetProps) {
-  const { data } = useWidgetData<Item[]>("grocery");
+  const { data, reload } = useWidgetData<Item[]>("grocery");
   const items = data ?? [];
   const [name, setName] = useState("");
 
@@ -27,15 +30,16 @@ export function GroceryWidget(_props: WidgetProps) {
     const trimmed = name.trim();
     if (!trimmed) return;
     setName("");
-    await apiFetch(api, { method: "POST", body: JSON.stringify({ name: trimmed }) }).catch(
-      console.error,
-    );
+    await apiFetch(api, { method: "POST", body: JSON.stringify({ name: trimmed }) })
+      .then(reload)
+      .catch(console.error);
   };
 
   const toggle = (id: number) =>
-    apiFetch(`${api}/${id}/toggle`, { method: "POST" }).catch(console.error);
+    apiFetch(`${api}/${id}/toggle`, { method: "POST" }).then(reload).catch(console.error);
 
-  const clearDone = () => apiFetch(`${api}/clear-checked`, { method: "POST" }).catch(console.error);
+  const clearDone = () =>
+    apiFetch(`${api}/clear-checked`, { method: "POST" }).then(reload).catch(console.error);
 
   const doneCount = items.filter((i) => i.checked).length;
 
@@ -57,7 +61,14 @@ export function GroceryWidget(_props: WidgetProps) {
           onEnter={add}
           className="min-w-0 flex-1"
         />
-        <Button size="sm" variant="secondary" label="Add" onClick={add} />
+        <IconButton
+          size="sm"
+          variant="secondary"
+          label="Add item"
+          tooltip="Add item"
+          icon={<Icon icon={Plus} size="sm" />}
+          onClick={add}
+        />
       </HStack>
 
       <VStack as="ul" gap={1.5} className="plain-list">

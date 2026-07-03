@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog } from "@astryxdesign/core/Dialog";
 import { HStack } from "@astryxdesign/core/HStack";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Switch } from "@astryxdesign/core/Switch";
 import { Text } from "@astryxdesign/core/Text";
@@ -28,7 +31,13 @@ import {
 
 // Household calendar management: local calendars, plus connecting a Google
 // account and picking which of its calendars Hearth should show.
-export function CalendarSettings({ onClose }: { onClose: () => void }) {
+export function CalendarSettings({
+  onChanged,
+  onClose,
+}: {
+  onChanged: () => void;
+  onClose: () => void;
+}) {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [google, setGoogle] = useState<GoogleStatus | null>(null);
   const [available, setAvailable] = useState<AvailableGoogleCalendar[] | null>(null);
@@ -58,6 +67,10 @@ export function CalendarSettings({ onClose }: { onClose: () => void }) {
     setError("");
     try {
       await fn();
+      // Refresh this dialog and the widget behind it directly — SSE only
+      // covers other screens, not our own action.
+      reload();
+      onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "request failed");
     } finally {
@@ -137,10 +150,12 @@ export function CalendarSettings({ onClose }: { onClose: () => void }) {
             onChange={(e) => setNewColor(e.target.value)}
             title="Color"
           />
-          <Button
+          <IconButton
             size="sm"
             variant="secondary"
-            label="Add"
+            label="Add calendar"
+            tooltip="Add calendar"
+            icon={<Icon icon={Plus} size="sm" />}
             isDisabled={busy !== ""}
             onClick={addLocal}
           />

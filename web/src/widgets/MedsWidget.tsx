@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@astryxdesign/core/Button";
+import { Plus } from "lucide-react";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { Icon } from "@astryxdesign/core/Icon";
 import { IconButton } from "@astryxdesign/core/IconButton";
@@ -50,7 +50,7 @@ const SLOT_LABELS: Record<string, string> = {
 const slotLabel = (slot: string) => SLOT_LABELS[slot] ?? slot;
 
 export function MedsWidget(_props: WidgetProps) {
-  const { data } = useWidgetData<{ medications: Med[] }>("meds", "/today");
+  const { data, reload } = useWidgetData<{ medications: Med[] }>("meds", "/today");
   const meds = data?.medications ?? [];
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -63,7 +63,9 @@ export function MedsWidget(_props: WidgetProps) {
     apiFetch(`${api}/${medId}/toggle`, {
       method: "POST",
       body: JSON.stringify({ slot }),
-    }).catch(console.error);
+    })
+      .then(reload)
+      .catch(console.error);
 
   const remove = (id: number, medName: string) =>
     confirm(
@@ -72,7 +74,7 @@ export function MedsWidget(_props: WidgetProps) {
         description: "The medication and its dose history will be deleted.",
         actionLabel: "Remove",
       },
-      () => apiFetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error),
+      () => apiFetch(`${api}/${id}`, { method: "DELETE" }).then(reload).catch(console.error),
     );
 
   const add = async () => {
@@ -90,15 +92,18 @@ export function MedsWidget(_props: WidgetProps) {
     setName("");
     setPerson("");
     setAdding(false);
+    reload();
   };
 
   return (
     <VStack className="widget-body" gap={2}>
       <HStack justify="end">
-        <Button
+        <IconButton
           size="sm"
           variant="ghost"
-          label={adding ? "×" : "+ Add"}
+          label={adding ? "Cancel" : "Add medication"}
+          tooltip={adding ? "Cancel" : "Add medication"}
+          icon={<Icon icon={adding ? "close" : Plus} size="sm" />}
           onClick={() => setAdding(!adding)}
         />
       </HStack>
@@ -115,7 +120,14 @@ export function MedsWidget(_props: WidgetProps) {
           />
           {error && <Text className="form-error">{error}</Text>}
           <HStack justify="end">
-            <Button size="sm" variant="primary" label="Add" onClick={add} />
+            <IconButton
+              size="sm"
+              variant="primary"
+              label="Add medication"
+              tooltip="Add medication"
+              icon={<Icon icon={Plus} size="sm" />}
+              onClick={add}
+            />
           </HStack>
         </VStack>
       )}

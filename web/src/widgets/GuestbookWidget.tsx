@@ -39,7 +39,7 @@ const scatter = (id: number) => ({
 });
 
 export function GuestbookWidget(_props: WidgetProps) {
-  const { data } = useWidgetData<Note[]>("guestbook");
+  const { data, reload } = useWidgetData<Note[]>("guestbook");
   const notes = data ?? [];
   const [adding, setAdding] = useState(false);
   const [author, setAuthor] = useState("");
@@ -95,7 +95,9 @@ export function GuestbookWidget(_props: WidgetProps) {
     apiFetch(`${api}/${n.id}/position`, {
       method: "PUT",
       body: JSON.stringify(pos),
-    }).catch(console.error);
+    })
+      .then(reload)
+      .catch(console.error);
   };
 
   const add = async () => {
@@ -112,6 +114,8 @@ export function GuestbookWidget(_props: WidgetProps) {
     setAuthor("");
     setMessage("");
     setAdding(false);
+    // SSE echoes this to other screens; our own screen must not depend on it.
+    reload();
   };
 
   const remove = (note: Note) =>
@@ -121,7 +125,7 @@ export function GuestbookWidget(_props: WidgetProps) {
         description: `"${note.message.slice(0, 60)}" will be taken off the board.`,
         actionLabel: "Remove",
       },
-      () => apiFetch(`${api}/${note.id}`, { method: "DELETE" }).catch(console.error),
+      () => apiFetch(`${api}/${note.id}`, { method: "DELETE" }).then(reload).catch(console.error),
     );
 
   return (

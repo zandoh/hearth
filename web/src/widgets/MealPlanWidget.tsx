@@ -61,7 +61,9 @@ export function MealPlanWidget(_props: WidgetProps) {
     await apiFetch(`${api}/entry`, {
       method: "PUT",
       body: JSON.stringify(editing),
-    }).catch(console.error);
+    })
+      .then(reload)
+      .catch(console.error);
     setEditing(null);
   };
 

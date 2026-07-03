@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { Badge } from "@astryxdesign/core/Badge";
-import { Button } from "@astryxdesign/core/Button";
 import { Icon } from "@astryxdesign/core/Icon";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
@@ -52,7 +52,7 @@ const SUGGESTIONS: { title: string; everyDays: number }[] = [
 ];
 
 export function ChoresWidget(_props: WidgetProps) {
-  const { data } = useWidgetData<Chore[]>("chores");
+  const { data, reload } = useWidgetData<Chore[]>("chores");
   const chores = useMemo(() => [...(data ?? [])].sort((a, b) => a.dueIn - b.dueIn), [data]);
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
@@ -64,7 +64,7 @@ export function ChoresWidget(_props: WidgetProps) {
   const suggestions = SUGGESTIONS.filter((s) => !existing.has(s.title.toLowerCase()));
 
   const complete = (id: number) =>
-    apiFetch(`${api}/${id}/complete`, { method: "POST" }).catch(console.error);
+    apiFetch(`${api}/${id}/complete`, { method: "POST" }).then(reload).catch(console.error);
 
   const remove = (id: number, name: string) =>
     confirm(
@@ -73,14 +73,16 @@ export function ChoresWidget(_props: WidgetProps) {
         description: "The chore and its completion history will be deleted.",
         actionLabel: "Delete",
       },
-      () => apiFetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error),
+      () => apiFetch(`${api}/${id}`, { method: "DELETE" }).then(reload).catch(console.error),
     );
 
   const create = async (name: string, interval: number) => {
     await apiFetch(api, {
       method: "POST",
       body: JSON.stringify({ title: name, everyDays: interval }),
-    }).catch(console.error);
+    })
+      .then(reload)
+      .catch(console.error);
   };
 
   const add = async () => {
@@ -93,10 +95,12 @@ export function ChoresWidget(_props: WidgetProps) {
   return (
     <VStack className="widget-body" gap={2}>
       <HStack justify="end">
-        <Button
+        <IconButton
           size="sm"
           variant="ghost"
-          label={adding ? "×" : "+ Add"}
+          label={adding ? "Cancel" : "Add chore"}
+          tooltip={adding ? "Cancel" : "Add chore"}
+          icon={<Icon icon={adding ? "close" : Plus} size="sm" />}
           onClick={() => setAdding(!adding)}
         />
       </HStack>
@@ -123,7 +127,14 @@ export function ChoresWidget(_props: WidgetProps) {
                 className="w-24"
               />
             )}
-            <Button size="sm" variant="primary" label="Add" onClick={add} />
+            <IconButton
+              size="sm"
+              variant="primary"
+              label="Add chore"
+              tooltip="Add chore"
+              icon={<Icon icon={Plus} size="sm" />}
+              onClick={add}
+            />
           </HStack>
           <Switch
             label="Repeats"
