@@ -26,3 +26,15 @@ export function useThemeMode(): ThemeMode {
     return () => listeners.delete(l);
   }, getThemeMode);
 }
+
+/** The mode actually in effect right now (system resolved via the OS). */
+export function resolveThemeMode(mode: ThemeMode): "light" | "dark" {
+  if (mode === "light" || mode === "dark") return mode;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+/** Point the favicon at the variant matching the active theme. */
+export function applyFavicon(mode: ThemeMode) {
+  const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (link) link.href = `/favicon-${resolveThemeMode(mode)}.svg`;
+}
