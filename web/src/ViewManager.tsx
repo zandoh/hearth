@@ -9,8 +9,10 @@ import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { useEffect } from "react";
 import { createView, deleteView, setDefaultView, updateView } from "./api";
 import { useConfirm } from "./confirm";
+import { type GuestConfig, getGuestConfig, setGuestPin, setGuestView } from "./guestMode";
 import type { View } from "./types";
 
 // Manage saved views: rename, set the kiosk's default, delete, create.
@@ -28,7 +30,14 @@ export function ViewManager({
   const [names, setNames] = useState<Record<number, string>>({});
   const [newName, setNewName] = useState("");
   const [error, setError] = useState("");
+  const [guest, setGuest] = useState<GuestConfig | null>(null);
+  const [pin, setPin] = useState("");
+  const [currentPin, setCurrentPin] = useState("");
   const { confirm, confirmDialog } = useConfirm();
+
+  useEffect(() => {
+    getGuestConfig().then(setGuest).catch(console.error);
+  }, []);
 
   const act = (fn: () => Promise<unknown>) => {
     setError("");
@@ -87,6 +96,21 @@ export function ViewManager({
                   onClick={() => act(() => setDefaultView(v.id))}
                 />
               )}
+              {guest?.guestViewId === v.id ? (
+                <Badge variant="teal" label="Guest" />
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  label="Set guest"
+                  onClick={() =>
+                    act(async () => {
+                      await setGuestView(v.id);
+                      setGuest(await getGuestConfig());
+                    })
+                  }
+                />
+              )}
               <IconButton
                 size="sm"
                 variant="ghost"
@@ -119,6 +143,56 @@ export function ViewManager({
             className="min-w-0 flex-1"
           />
           <Button size="sm" variant="secondary" label="Add view" onClick={add} />
+        </HStack>
+
+        <Heading level={3}>Guest mode</Heading>
+        <Text type="supporting">
+          Guests see only the guest view (or the screensaver if none is set). Leaving guest mode
+          asks for this PIN.
+        </Text>
+        <HStack gap={2} align="end" wrap="wrap">
+          {guest?.pinSet && (
+            <TextInput
+              label="Current PIN"
+              type="password"
+              value={currentPin}
+              onChange={setCurrentPin}
+              className="w-32"
+            />
+          )}
+          <TextInput
+            label={guest?.pinSet ? "New PIN" : "Guest PIN"}
+            type="password"
+            value={pin}
+            onChange={setPin}
+            className="w-32"
+          />
+          <Button
+            size="sm"
+            variant="secondary"
+            label={guest?.pinSet ? "Change PIN" : "Set PIN"}
+            onClick={() =>
+              act(async () => {
+                await setGuestPin(pin, currentPin);
+                setPin("");
+                setCurrentPin("");
+                setGuest(await getGuestConfig());
+              })
+            }
+          />
+          {guest?.guestViewId ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              label="Clear guest view"
+              onClick={() =>
+                act(async () => {
+                  await setGuestView(0);
+                  setGuest(await getGuestConfig());
+                })
+              }
+            />
+          ) : null}
         </HStack>
 
         {error && <Text className="form-error">{error}</Text>}

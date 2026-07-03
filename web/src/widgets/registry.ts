@@ -5,6 +5,8 @@ import { CalendarWidget } from "./CalendarWidget";
 import { ChoresWidget } from "./ChoresWidget";
 import { ClockSettings, ClockWidget } from "./ClockWidget";
 import { GroceryWidget } from "./GroceryWidget";
+import { GuestbookWidget } from "./GuestbookWidget";
+import { MealPlanWidget } from "./MealPlanWidget";
 import { MedsWidget } from "./MedsWidget";
 import { WeatherSettings, WeatherWidget } from "./WeatherWidget";
 
@@ -74,5 +76,15 @@ export const widgetRegistry: Record<string, WidgetDef> = {
     component: WeatherWidget,
     defaultSize: { w: 4, h: 5 },
     settings: WeatherSettings,
+  },
+  guestbook: {
+    title: "Guest book",
+    component: GuestbookWidget,
+    defaultSize: { w: 5, h: 5 },
+  },
+  mealplan: {
+    title: "Meal plan",
+    component: MealPlanWidget,
+    defaultSize: { w: 5, h: 5 },
   },
 };

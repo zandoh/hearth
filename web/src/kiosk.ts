@@ -22,3 +22,13 @@ export function idleReturnMs(search: string): number {
   const n = raw ? Number(raw) : NaN;
   return Number.isFinite(n) && n >= 1000 ? n : IDLE_RETURN_MS;
 }
+
+// After this long without a touch, the screensaver takes over to spare the
+// panel from burn-in. Overridable for testing via ?saverMs=.
+export const SCREENSAVER_MS = 30 * 60 * 1000;
+
+export function screensaverMs(search: string): number {
+  const raw = new URLSearchParams(search).get("saverMs");
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 1000 ? n : SCREENSAVER_MS;
+}

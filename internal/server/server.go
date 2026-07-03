@@ -34,6 +34,11 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 	s.mux.HandleFunc("PUT /api/views/{id}", s.handleUpdateView)
 	s.mux.HandleFunc("DELETE /api/views/{id}", s.handleDeleteView)
 	s.mux.HandleFunc("POST /api/views/{id}/default", s.handleSetDefaultView)
+	s.mux.HandleFunc("POST /api/views/{id}/guest", s.handleSetGuestView)
+
+	s.mux.HandleFunc("GET /api/guest", s.handleGuestConfig)
+	s.mux.HandleFunc("POST /api/guest/pin", s.handleSetGuestPin)
+	s.mux.HandleFunc("POST /api/guest/verify", s.handleVerifyGuestPin)
 
 	reg.Mount(s.mux)
 

@@ -10,16 +10,25 @@ import { Banner } from "@astryxdesign/core/Banner";
 import { Dialog } from "@astryxdesign/core/Dialog";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Icon } from "@astryxdesign/core/Icon";
-import { Keyboard as KeyboardGlyph, Moon, Pencil, Sun, SunMoon } from "lucide-react";
+import { Eye, EyeOff, Keyboard as KeyboardGlyph, Moon, Pencil, Sun, SunMoon } from "lucide-react";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import { TextInput } from "@astryxdesign/core/TextInput";
 import { getViews, updateView } from "./api";
+import {
+  type GuestConfig,
+  getGuestConfig,
+  setGuestActive,
+  useGuestActive,
+  verifyGuestPin,
+} from "./guestMode";
+import { Screensaver } from "./Screensaver";
 import { useConfirm } from "./confirm";
 import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
-import { idleReturnMs, msUntilNightlyReload } from "./kiosk";
+import { idleReturnMs, msUntilNightlyReload, screensaverMs } from "./kiosk";
 import { OnScreenKeyboard, oskEnabled, setOskEnabled } from "./OnScreenKeyboard";
 import { nextThemeMode, setThemeMode, useThemeMode } from "./themeMode";
 import { useConnectionState, useTopic } from "./useSSE";
@@ -150,6 +159,11 @@ export default function App() {
   const { confirm, confirmDialog } = useConfirm();
   const [managingViews, setManagingViews] = useState(false);
   const [oskOn, setOskOn] = useState(oskEnabled);
+  const guest = useGuestActive();
+  const [guestConfig, setGuestConfig] = useState<GuestConfig | null>(null);
+  const [exitPin, setExitPin] = useState<string | null>(null); // null = dialog closed
+  const [exitError, setExitError] = useState("");
+  const [saverOn, setSaverOn] = useState(false);
   const themeMode = useThemeMode();
   const connection = useConnectionState();
   // Debounce the offline banner so sub-second blips never flash it.
@@ -163,6 +177,30 @@ export default function App() {
 
   useEffect(loadViews, [loadViews]);
   useTopic("views", loadViews);
+
+  const loadGuestConfig = useCallback(() => {
+    getGuestConfig().then(setGuestConfig).catch(console.error);
+  }, []);
+  useEffect(loadGuestConfig, [loadGuestConfig]);
+  useTopic("guest", loadGuestConfig);
+
+  // Screensaver: long-idle burn-in protection, woken by any touch.
+  useEffect(() => {
+    const ms = screensaverMs(window.location.search);
+    let last = Date.now();
+    const touch = () => {
+      last = Date.now();
+    };
+    const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+    for (const ev of events) window.addEventListener(ev, touch, { passive: true });
+    const id = setInterval(() => {
+      if (Date.now() - last >= ms) setSaverOn(true);
+    }, 1000);
+    return () => {
+      clearInterval(id);
+      for (const ev of events) window.removeEventListener(ev, touch);
+    };
+  }, []);
 
   useEffect(() => {
     if (connection === "connected") {
@@ -211,10 +249,15 @@ export default function App() {
     };
   }, []);
 
-  const active: View | undefined = useMemo(
-    () => views.find((v) => v.id === activeId) ?? views.find((v) => v.isDefault) ?? views[0],
-    [views, activeId],
+  const guestView = useMemo(
+    () => views.find((v) => v.id === guestConfig?.guestViewId),
+    [views, guestConfig],
   );
+
+  const active: View | undefined = useMemo(() => {
+    if (guest) return guestView;
+    return views.find((v) => v.id === activeId) ?? views.find((v) => v.isDefault) ?? views[0];
+  }, [guest, guestView, views, activeId]);
 
   const items = active?.layout ?? [];
   const gridLayout: Layout = items.map(({ i, x, y, w, h }) => ({
@@ -334,6 +377,78 @@ export default function App() {
     ]).catch(console.error);
   };
 
+  const enterGuestMode = () => {
+    if (!guestConfig?.pinSet) {
+      confirm(
+        {
+          title: "Set a guest PIN first",
+          description:
+            "Guest mode locks the board until the PIN is entered. Set one under Manage views → Guest mode.",
+          actionLabel: "Open view manager",
+        },
+        () => {
+          setEditing(true);
+          setManagingViews(true);
+        },
+      );
+      return;
+    }
+    confirm(
+      {
+        title: "Enter guest mode?",
+        description: guestView
+          ? `The board shows only "${guestView.name}" until the guest PIN is entered.`
+          : "No guest view is set, so guests see the screensaver. The PIN brings the board back.",
+        actionLabel: "Enter guest mode",
+      },
+      () => {
+        setEditing(false);
+        setManagingViews(false);
+        setGuestActive(true);
+      },
+    );
+  };
+
+  const tryExitGuest = async () => {
+    try {
+      await verifyGuestPin(exitPin ?? "");
+      setExitPin(null);
+      setExitError("");
+      setGuestActive(false);
+    } catch (err) {
+      setExitError(err instanceof Error ? err.message : "incorrect PIN");
+    }
+  };
+
+  // Guest mode with no guest view: the screensaver IS the guest experience.
+  if (guest && !guestView) {
+    return (
+      <div className="app">
+        <Screensaver persistent onExitGuest={() => setExitPin("")} />
+        {exitPin !== null && (
+          <Dialog isOpen width={360} onOpenChange={(open) => !open && setExitPin(null)}>
+            <VStack gap={3} className="cal-dialog-body">
+              <Heading level={2}>Exit guest mode</Heading>
+              <TextInput
+                label="Guest PIN"
+                type="password"
+                value={exitPin}
+                onChange={setExitPin}
+                onEnter={tryExitGuest}
+                hasAutoFocus
+              />
+              {exitError && <Text className="form-error">{exitError}</Text>}
+              <HStack justify="end" gap={2}>
+                <Button size="sm" variant="ghost" label="Cancel" onClick={() => setExitPin(null)} />
+                <Button size="sm" variant="primary" label="Unlock" onClick={tryExitGuest} />
+              </HStack>
+            </VStack>
+          </Dialog>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <HStack as="header" className="app-header" gap={4} align="center">
@@ -342,15 +457,16 @@ export default function App() {
           <span className="brand-wordmark">hearth</span>
         </span>
         <HStack as="nav" gap={1.5} className="flex-1">
-          {views.map((v) => (
-            <Button
-              key={v.id}
-              size="sm"
-              variant={v.id === active?.id ? "primary" : "ghost"}
-              label={v.name}
-              onClick={() => setActiveId(v.id)}
-            />
-          ))}
+          {!guest &&
+            views.map((v) => (
+              <Button
+                key={v.id}
+                size="sm"
+                variant={v.id === active?.id ? "primary" : "ghost"}
+                label={v.name}
+                onClick={() => setActiveId(v.id)}
+              />
+            ))}
           {editing && (
             <IconButton
               size="sm"
@@ -361,6 +477,14 @@ export default function App() {
             />
           )}
         </HStack>
+        <IconButton
+          size="sm"
+          variant={guest ? "secondary" : "ghost"}
+          label={guest ? "Exit guest mode" : "Enter guest mode"}
+          tooltip={guest ? "Exit guest mode" : "Guest mode"}
+          icon={<Icon icon={guest ? EyeOff : Eye} size="sm" />}
+          onClick={() => (guest ? setExitPin("") : enterGuestMode())}
+        />
         <IconButton
           size="sm"
           variant="ghost"
@@ -385,14 +509,16 @@ export default function App() {
             setOskOn(!oskOn);
           }}
         />
-        <IconButton
-          size="sm"
-          variant={editing ? "primary" : "ghost"}
-          label={editing ? "Done editing" : "Edit layout"}
-          tooltip={editing ? "Done editing" : "Edit layout"}
-          icon={<Icon icon={Pencil} size="sm" />}
-          onClick={() => setEditing(!editing)}
-        />
+        {!guest && (
+          <IconButton
+            size="sm"
+            variant={editing ? "primary" : "ghost"}
+            label={editing ? "Done editing" : "Edit layout"}
+            tooltip={editing ? "Done editing" : "Edit layout"}
+            icon={<Icon icon={Pencil} size="sm" />}
+            onClick={() => setEditing(!editing)}
+          />
+        )}
       </HStack>
 
       {showOffline && (
@@ -527,6 +653,27 @@ export default function App() {
           );
         })()}
       {confirmDialog}
+      {saverOn && <Screensaver onWake={() => setSaverOn(false)} />}
+      {exitPin !== null && (
+        <Dialog isOpen width={360} onOpenChange={(open) => !open && setExitPin(null)}>
+          <VStack gap={3} className="cal-dialog-body">
+            <Heading level={2}>Exit guest mode</Heading>
+            <TextInput
+              label="Guest PIN"
+              type="password"
+              value={exitPin}
+              onChange={setExitPin}
+              onEnter={tryExitGuest}
+              hasAutoFocus
+            />
+            {exitError && <Text className="form-error">{exitError}</Text>}
+            <HStack justify="end" gap={2}>
+              <Button size="sm" variant="ghost" label="Cancel" onClick={() => setExitPin(null)} />
+              <Button size="sm" variant="primary" label="Unlock" onClick={tryExitGuest} />
+            </HStack>
+          </VStack>
+        </Dialog>
+      )}
       <OnScreenKeyboard />
     </div>
   );

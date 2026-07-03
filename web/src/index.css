@@ -571,3 +571,148 @@ input[type="color"] {
   font-family: var(--font-family-code, "IBM Plex Mono", monospace);
   font-weight: 500;
 }
+
+/* --- screensaver --- */
+
+.screensaver {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: #000;
+  overflow: hidden;
+  cursor: none;
+}
+
+.screensaver-logo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  will-change: transform;
+}
+
+.screensaver-wordmark {
+  font-family: var(--font-family-heading, "Space Grotesk", sans-serif);
+  font-weight: 600;
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  color: var(--saver-ring, #f4f1eb);
+}
+
+.screensaver-exit {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: auto;
+}
+
+/* --- guest book sticky notes --- */
+
+.note-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-3);
+  overflow-y: auto;
+  padding: var(--spacing-1);
+}
+
+.sticky-note {
+  position: relative;
+  min-height: 120px;
+  padding: var(--spacing-3);
+  border-radius: 2px;
+  box-shadow: 0 4px 10px var(--color-shadow);
+  color: #1b1916;
+  display: flex;
+  flex-direction: column;
+}
+
+.sticky-note > button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  opacity: 0.4;
+}
+
+.sticky-message {
+  margin: 0;
+  font-size: 0.9rem;
+  flex: 1;
+  overflow-wrap: break-word;
+}
+
+.sticky-author {
+  margin: var(--spacing-2) 0 0;
+  font-size: 0.78rem;
+  opacity: 0.7;
+  text-align: right;
+}
+
+.note-yellow {
+  background: #f6e27f;
+}
+.note-pink {
+  background: #f4b8c8;
+}
+.note-blue {
+  background: #a8cef0;
+}
+.note-green {
+  background: #b5dfae;
+}
+
+.note-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-inner);
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.note-swatch.picked {
+  border-color: var(--color-accent);
+}
+
+/* --- meal plan grid --- */
+
+.meal-grid {
+  display: grid;
+  grid-template-columns: auto repeat(3, 1fr);
+  gap: var(--spacing-1);
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.meal-cell {
+  font: inherit;
+  font-size: 0.8rem;
+  min-height: 30px;
+  padding: var(--spacing-0-5) var(--spacing-1-5);
+  border-radius: var(--radius-inner);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-background-muted);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.meal-cell.filled {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-emphasized);
+}
+
+.meal-cell.today {
+  border-color: var(--color-accent);
+}
+
+.meal-today {
+  color: var(--color-accent);
+}
