@@ -37,6 +37,7 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 	s.mux.HandleFunc("POST /api/views/{id}/guest", s.handleSetGuestView)
 	s.mux.HandleFunc("PUT /api/views/{id}/schedule", s.handleSetViewSchedule)
 	s.mux.HandleFunc("PUT /api/views/order", s.handleReorderViews)
+	s.mux.HandleFunc("PUT /api/views/{id}/hidden", s.handleSetViewHidden)
 
 	s.mux.HandleFunc("GET /api/guest", s.handleGuestConfig)
 	s.mux.HandleFunc("POST /api/guest/pin", s.handleSetGuestPin)
@@ -167,6 +168,25 @@ func (s *Server) handleSetDefaultView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.SetDefaultView(id); err != nil {
+		httpx.Fail(w, err)
+		return
+	}
+	s.changed(w, topics.Views, http.StatusNoContent, nil)
+}
+
+// handleSetViewHidden toggles a view's presence in the header switcher.
+func (s *Server) handleSetViewHidden(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.ID(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Hidden bool `json:"hidden"`
+	}
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	if err := s.store.SetViewHidden(id, req.Hidden); err != nil {
 		httpx.Fail(w, err)
 		return
 	}

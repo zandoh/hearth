@@ -378,15 +378,20 @@ export default function App() {
         </span>
         <HStack as="nav" gap={1.5} className="flex-1">
           {!guest &&
-            views.map((v) => (
-              <Button
-                key={v.id}
-                size="sm"
-                variant={v.id === active?.id ? "primary" : "ghost"}
-                label={v.name}
-                onClick={() => setActiveId(v.id)}
-              />
-            ))}
+            views
+              // Hidden views stay off the toolbar — unless one is active
+              // (scheduled, or just hidden while viewing it), so the board
+              // is never unlabeled.
+              .filter((v) => !v.hidden || v.id === active?.id)
+              .map((v) => (
+                <Button
+                  key={v.id}
+                  size="sm"
+                  variant={v.id === active?.id ? "primary" : "ghost"}
+                  label={v.name}
+                  onClick={() => setActiveId(v.id)}
+                />
+              ))}
           {editing && (
             <IconButton
               size="sm"

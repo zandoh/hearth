@@ -34,6 +34,12 @@ export const updateView = (id: number, name: string, layout: LayoutItem[]) =>
 
 export const deleteView = (id: number) => apiFetch<void>(`/api/views/${id}`, { method: "DELETE" });
 
+export const setViewHidden = (id: number, hidden: boolean) =>
+  apiFetch<void>(`/api/views/${id}/hidden`, {
+    method: "PUT",
+    body: JSON.stringify({ hidden }),
+  });
+
 export const reorderViews = (ids: number[]) =>
   apiFetch<void>("/api/views/order", { method: "PUT", body: JSON.stringify({ ids }) });
 

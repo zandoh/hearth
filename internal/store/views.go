@@ -25,6 +25,7 @@ type View struct {
 	Name      string       `json:"name"`
 	Layout    []LayoutItem `json:"layout"`
 	IsDefault bool         `json:"isDefault"`
+	Hidden    bool         `json:"hidden"`
 	// Daily window (HH:MM local, may cross midnight) during which the kiosk
 	// shows this view automatically; both empty = unscheduled.
 	ScheduleStart string `json:"scheduleStart,omitempty"`
@@ -35,7 +36,7 @@ func scanView(row interface{ Scan(...any) error }) (View, error) {
 	var v View
 	var layout string
 	var schedStart, schedEnd sql.NullString
-	if err := row.Scan(&v.ID, &v.Name, &layout, &v.IsDefault, &schedStart, &schedEnd); err != nil {
+	if err := row.Scan(&v.ID, &v.Name, &layout, &v.IsDefault, &v.Hidden, &schedStart, &schedEnd); err != nil {
 		return View{}, err
 	}
 	v.ScheduleStart = schedStart.String
@@ -48,7 +49,7 @@ func scanView(row interface{ Scan(...any) error }) (View, error) {
 
 func (s *Store) ListViews() ([]View, error) {
 	rows, err := s.db.Query(
-		"SELECT id, name, layout, is_default, schedule_start, schedule_end FROM views ORDER BY sort_order, id")
+		"SELECT id, name, layout, is_default, hidden, schedule_start, schedule_end FROM views ORDER BY sort_order, id")
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +66,7 @@ func (s *Store) ListViews() ([]View, error) {
 }
 
 func (s *Store) GetView(id int64) (View, error) {
-	row := s.db.QueryRow("SELECT id, name, layout, is_default, schedule_start, schedule_end FROM views WHERE id = ?", id)
+	row := s.db.QueryRow("SELECT id, name, layout, is_default, hidden, schedule_start, schedule_end FROM views WHERE id = ?", id)
 	v, err := scanView(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return View{}, ErrNotFound
@@ -200,4 +201,16 @@ func (s *Store) ReorderViews(ids []int64) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// SetViewHidden toggles a view's presence in the header switcher.
+func (s *Store) SetViewHidden(id int64, hidden bool) error {
+	res, err := s.db.Exec("UPDATE views SET hidden = ? WHERE id = ?", hidden, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

@@ -19,6 +19,7 @@ import {
   deleteView,
   reorderViews,
   setDefaultView,
+  setViewHidden,
   setViewSchedule,
   updateView,
 } from "./api";
@@ -239,6 +240,24 @@ export function ViewManager({
                           setGuest(await getGuestConfig());
                         })
                       }
+                    />
+                  )}
+                  {v.hidden ? (
+                    <>
+                      <Badge variant="neutral" label="Hidden" />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        label="Show"
+                        onClick={() => act(() => setViewHidden(v.id, false))}
+                      />
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      label="Hide"
+                      onClick={() => act(() => setViewHidden(v.id, true))}
                     />
                   )}
                   {v.scheduleStart && v.scheduleEnd ? (

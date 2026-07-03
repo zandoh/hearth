@@ -68,3 +68,25 @@ func TestReorderViews(t *testing.T) {
 		t.Fatalf("reorder not applied: %+v", views)
 	}
 }
+
+func TestSetViewHidden(t *testing.T) {
+	s := openTestStore(t)
+	v, _ := s.CreateView("Guest", nil)
+	if err := s.SetViewHidden(v.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetView(v.ID)
+	if err != nil || !got.Hidden {
+		t.Fatalf("hidden not persisted: %+v err=%v", got, err)
+	}
+	if err := s.SetViewHidden(v.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = s.GetView(v.ID)
+	if got.Hidden {
+		t.Fatal("unhide not persisted")
+	}
+	if err := s.SetViewHidden(9999, true); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing view = %v, want ErrNotFound", err)
+	}
+}
