@@ -175,12 +175,12 @@ export function WeatherWidget(_props: WidgetProps) {
 
   return (
     <VStack className="widget-body" gap={3}>
-      <HStack gap={3} align="center">
+      <HStack gap={3} align="center" className="weather-head">
         <span className="weather-icon">{icon}</span>
         <Text type="display-2" hasTabularNumbers className="brand-data">
           {Math.round(f.current.temperature_2m)}°
         </Text>
-        <VStack gap={0.5} className="min-w-0">
+        <VStack gap={0.5} className="weather-meta min-w-0">
           <Text weight="semibold">{condition}</Text>
           <Text type="supporting" size="xsm" maxLines={1}>
             feels {Math.round(f.current.apparent_temperature)}° · {f.location.name}

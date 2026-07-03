@@ -139,6 +139,9 @@ body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  /* Widgets resize with the grid, not the viewport — container queries
+     are how a widget adapts its layout to its own width. */
+  container-type: inline-size;
 }
 
 .widget-unknown {
@@ -401,6 +404,28 @@ dialog[open]:has(.osk-settled) {
 .weather-precip {
   color: var(--color-text-blue);
   min-height: 1em;
+}
+
+/* Narrow widget (2 grid columns): the header reflows instead of clipping —
+   icon and temperature stay on the first line, the conditions block drops
+   to its own full-width row so nothing truncates or escapes the card. */
+@container (max-width: 380px) {
+  .weather-head {
+    flex-wrap: wrap;
+    row-gap: var(--spacing-1);
+  }
+
+  .weather-meta {
+    flex-basis: 100%;
+  }
+
+  .weather-icon {
+    font-size: var(--spacing-8);
+  }
+
+  .weather-hour {
+    min-width: var(--spacing-9);
+  }
 }
 
 /* Resize handles exist only in edit mode — RGL renders them even when
