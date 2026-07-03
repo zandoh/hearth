@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { useTopic } from "../useSSE";
+import { apiFetch } from "../api";
+import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
 
 // WMO weather interpretation codes → label + emoji.
@@ -86,27 +87,21 @@ interface Candidate {
 const api = "/api/widgets/weather";
 
 export function WeatherWidget(_props: WidgetProps) {
-  const [data, setData] = useState<ForecastResponse | null>(null);
+  const { data } = useWidgetData<ForecastResponse>("weather", "/forecast");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [error, setError] = useState("");
-
-  const reload = useCallback(() => {
-    fetch(`${api}/forecast`)
-      .then((r) => r.json())
-      .then(setData)
-      .catch(console.error);
-  }, []);
-
-  useEffect(reload, [reload]);
-  useTopic("weather", reload);
 
   const search = async () => {
     if (!query.trim()) return;
     setError("");
     setCandidates(null);
-    const res = await fetch(`${api}/geocode?q=${encodeURIComponent(query.trim())}`);
-    const found = res.ok ? ((await res.json()) as Candidate[]) : [];
+    let found: Candidate[] = [];
+    try {
+      found = await apiFetch<Candidate[]>(`${api}/geocode?q=${encodeURIComponent(query.trim())}`);
+    } catch {
+      // fall through to the empty-result message
+    }
     if (found.length === 0) {
       setError(`no places found for "${query}"`);
       return;
@@ -116,14 +111,10 @@ export function WeatherWidget(_props: WidgetProps) {
 
   const choose = async (c: Candidate) => {
     setError("");
-    const res = await fetch(`${api}/location`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(c),
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(body.error ?? "failed to set location");
+    try {
+      await apiFetch(`${api}/location`, { method: "PUT", body: JSON.stringify(c) });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to set location");
       return;
     }
     setCandidates(null);

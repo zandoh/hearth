@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { Icon } from "@astryxdesign/core/Icon";
@@ -8,8 +8,9 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { apiFetch } from "../api";
 import { useConfirm } from "../confirm";
-import { useTopic } from "../useSSE";
+import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
 
 interface Dose {
@@ -28,7 +29,8 @@ interface Med {
 const api = "/api/widgets/meds";
 
 export function MedsWidget(_props: WidgetProps) {
-  const [meds, setMeds] = useState<Med[]>([]);
+  const { data } = useWidgetData<{ medications: Med[] }>("meds", "/today");
+  const meds = data?.medications ?? [];
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [person, setPerson] = useState("");
@@ -36,20 +38,9 @@ export function MedsWidget(_props: WidgetProps) {
   const [error, setError] = useState("");
   const { confirm, confirmDialog } = useConfirm();
 
-  const reload = useCallback(() => {
-    fetch(`${api}/today`)
-      .then((r) => r.json())
-      .then((data: { medications: Med[] }) => setMeds(data.medications))
-      .catch(console.error);
-  }, []);
-
-  useEffect(reload, [reload]);
-  useTopic("meds", reload);
-
   const toggle = (medId: number, slot: string) =>
-    fetch(`${api}/${medId}/toggle`, {
+    apiFetch(`${api}/${medId}/toggle`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ slot }),
     }).catch(console.error);
 
@@ -60,7 +51,7 @@ export function MedsWidget(_props: WidgetProps) {
         description: "The medication and its dose history will be deleted.",
         actionLabel: "Remove",
       },
-      () => fetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error),
+      () => apiFetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error),
     );
 
   const add = async () => {
@@ -69,14 +60,13 @@ export function MedsWidget(_props: WidgetProps) {
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
-    const res = await fetch(api, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), person: person.trim(), times: slots }),
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(body.error ?? "failed to add");
+    try {
+      await apiFetch(api, {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim(), person: person.trim(), times: slots }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to add");
       return;
     }
     setName("");

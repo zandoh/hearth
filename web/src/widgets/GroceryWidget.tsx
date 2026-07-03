@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
@@ -6,7 +6,8 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { useTopic } from "../useSSE";
+import { apiFetch } from "../api";
+import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
 
 interface Item {
@@ -18,34 +19,23 @@ interface Item {
 const api = "/api/widgets/grocery";
 
 export function GroceryWidget(_props: WidgetProps) {
-  const [items, setItems] = useState<Item[]>([]);
+  const { data } = useWidgetData<Item[]>("grocery");
+  const items = data ?? [];
   const [name, setName] = useState("");
-
-  const reload = useCallback(() => {
-    fetch(api)
-      .then((r) => r.json())
-      .then(setItems)
-      .catch(console.error);
-  }, []);
-
-  useEffect(reload, [reload]);
-  useTopic("grocery", reload);
 
   const add = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
     setName("");
-    await fetch(api, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: trimmed }),
-    }).catch(console.error);
+    await apiFetch(api, { method: "POST", body: JSON.stringify({ name: trimmed }) }).catch(
+      console.error,
+    );
   };
 
   const toggle = (id: number) =>
-    fetch(`${api}/${id}/toggle`, { method: "POST" }).catch(console.error);
+    apiFetch(`${api}/${id}/toggle`, { method: "POST" }).catch(console.error);
 
-  const clearDone = () => fetch(`${api}/clear-checked`, { method: "POST" }).catch(console.error);
+  const clearDone = () => apiFetch(`${api}/clear-checked`, { method: "POST" }).catch(console.error);
 
   const doneCount = items.filter((i) => i.checked).length;
 

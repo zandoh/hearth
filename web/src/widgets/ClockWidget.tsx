@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import { apiFetch } from "../api";
 import { useTopic } from "../useSSE";
 import type { WidgetProps } from "./registry";
 
@@ -23,8 +24,7 @@ export function ClockWidget(_props: WidgetProps) {
   }, []);
 
   useEffect(() => {
-    fetch("/api/widgets/clock/now")
-      .then((r) => r.json())
+    apiFetch<ClockPayload>("/api/widgets/clock/now")
       .then(sync)
       .catch(() => {});
   }, [sync]);

@@ -1,6 +1,8 @@
 // API client + types for the calendar widget's backend
 // (internal/widgets/calendar). Go structs are the source of truth.
 
+import { apiFetch } from "../api";
+
 export interface Calendar {
   id: number;
   name: string;
@@ -47,24 +49,7 @@ export interface AvailableGoogleCalendar {
 
 const base = "/api/widgets/calendar";
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(base + path, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-  if (!res.ok) {
-    let message = `${res.status}`;
-    try {
-      const body = (await res.json()) as { error?: string };
-      if (body.error) message = body.error;
-    } catch {
-      // non-JSON error body; keep the status code
-    }
-    throw new Error(message);
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
-}
+const call = <T>(path: string, init?: RequestInit) => apiFetch<T>(base + path, init);
 
 export const getCalendars = () => call<Calendar[]>("/calendars");
 

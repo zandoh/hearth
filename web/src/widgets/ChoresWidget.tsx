@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { Icon } from "@astryxdesign/core/Icon";
@@ -9,8 +9,9 @@ import { NumberInput } from "@astryxdesign/core/NumberInput";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { apiFetch } from "../api";
 import { useConfirm } from "../confirm";
-import { useTopic } from "../useSSE";
+import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
 
 interface Chore {
@@ -26,24 +27,15 @@ interface Chore {
 const api = "/api/widgets/chores";
 
 export function ChoresWidget(_props: WidgetProps) {
-  const [chores, setChores] = useState<Chore[]>([]);
+  const { data } = useWidgetData<Chore[]>("chores");
+  const chores = useMemo(() => [...(data ?? [])].sort((a, b) => a.dueIn - b.dueIn), [data]);
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [everyDays, setEveryDays] = useState(7);
   const { confirm, confirmDialog } = useConfirm();
 
-  const reload = useCallback(() => {
-    fetch(api)
-      .then((r) => r.json())
-      .then((list: Chore[]) => setChores(list.sort((a, b) => a.dueIn - b.dueIn)))
-      .catch(console.error);
-  }, []);
-
-  useEffect(reload, [reload]);
-  useTopic("chores", reload);
-
   const complete = (id: number) =>
-    fetch(`${api}/${id}/complete`, { method: "POST" }).catch(console.error);
+    apiFetch(`${api}/${id}/complete`, { method: "POST" }).catch(console.error);
 
   const remove = (id: number, name: string) =>
     confirm(
@@ -52,14 +44,13 @@ export function ChoresWidget(_props: WidgetProps) {
         description: "The chore and its completion history will be deleted.",
         actionLabel: "Delete",
       },
-      () => fetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error),
+      () => apiFetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error),
     );
 
   const add = async () => {
     if (!title.trim()) return;
-    await fetch(api, {
+    await apiFetch(api, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: title.trim(), everyDays }),
     }).catch(console.error);
     setTitle("");
