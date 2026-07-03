@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog } from "@astryxdesign/core/Dialog";
@@ -31,6 +31,7 @@ import {
   ymd,
 } from "./calendarApi";
 import { CalendarSettings } from "./CalendarSettings";
+import { assignLanes, hourRange, nowLine, placeEvent } from "./timeGrid";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -199,74 +200,14 @@ export function CalendarWidget({ item, saveConfig }: WidgetProps) {
         </div>
       )}
 
-      {view !== "month" && view !== "day" && (
-        <div
-          className="cal-week-grid"
-          style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}
-        >
-          {days.map((d) => {
-            const dayEvents = events.filter((e) => eventOnDay(e, d));
-            const dayDate = new Date(`${d}T12:00:00`);
-            return (
-              <button
-                key={d}
-                className={`cal-week-col${d === today ? " today" : ""}`}
-                onClick={() => setSelectedDay(d)}
-              >
-                <span className="cal-week-head">
-                  {dayDate.toLocaleDateString([], { weekday: "short" })}{" "}
-                  <strong>{dayDate.getDate()}</strong>
-                </span>
-                <span className="cal-week-events">
-                  {dayEvents.map((e) => (
-                    <span
-                      key={e.id}
-                      className="cal-week-event"
-                      style={{ borderLeftColor: colorOf(e.calendarId) }}
-                    >
-                      <span className="cal-week-time">{eventTimeLabel(e)}</span>
-                      {e.title}
-                    </span>
-                  ))}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {view === "day" && (
-        <VStack gap={2} className="cal-day-view">
-          {events.filter((e) => eventOnDay(e, days[0])).length === 0 && (
-            <Text type="supporting">Nothing scheduled.</Text>
-          )}
-          <VStack as="ul" gap={2} className="plain-list">
-            {events
-              .filter((e) => eventOnDay(e, days[0]))
-              .map((e) => (
-                <HStack as="li" key={e.id} gap={2} align="center">
-                  <span className="cal-dot" style={{ background: colorOf(e.calendarId) }} />
-                  <Text type="supporting" hasTabularNumbers className="min-w-16">
-                    {eventTimeLabel(e)}
-                  </Text>
-                  <Text maxLines={1} className="flex-1">
-                    {e.title}
-                    {e.location ? ` · ${e.location}` : ""}
-                  </Text>
-                </HStack>
-              ))}
-          </VStack>
-          <HStack>
-            <IconButton
-              size="sm"
-              variant="secondary"
-              label="Add event"
-              tooltip="Add event"
-              icon={<Icon icon={Plus} size="sm" />}
-              onClick={() => setSelectedDay(days[0])}
-            />
-          </HStack>
-        </VStack>
+      {view !== "month" && (
+        <TimeGrid
+          days={days}
+          events={events}
+          today={today}
+          colorOf={colorOf}
+          onPickDay={setSelectedDay}
+        />
       )}
 
       {view === "month" && (
@@ -501,5 +442,127 @@ function DayDialog({
         )}
       </VStack>
     </Dialog>
+  );
+}
+
+// The shared time-grid for week / work week / day: an hour gutter, events
+// placed by their times (overlaps share the column via lanes), an all-day
+// band, and a live now-line. All geometry comes from timeGrid.ts.
+function TimeGrid({
+  days,
+  events,
+  today,
+  colorOf,
+  onPickDay,
+}: {
+  days: string[];
+  events: CalEvent[];
+  today: string;
+  colorOf: (id: number) => string;
+  onPickDay: (day: string) => void;
+}) {
+  // The now-line creeps; re-render once a minute.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const range = hourRange(events, days);
+  const hours = [];
+  for (let h = range.startHour; h < range.endHour; h++) hours.push(h);
+  const hourLabel = (h: number) =>
+    new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric" });
+  const anyAllDay = days.some((d) => events.some((e) => e.allDay && eventOnDay(e, d)));
+
+  return (
+    <div className="cal-tg" style={{ "--tg-cols": days.length } as React.CSSProperties}>
+      <div className="cal-tg-row cal-tg-heads">
+        <span />
+        {days.map((d) => {
+          const date = new Date(`${d}T12:00:00`);
+          return (
+            <button
+              key={d}
+              className={`cal-tg-head no-drag${d === today ? " today" : ""}`}
+              onClick={() => onPickDay(d)}
+            >
+              {date.toLocaleDateString([], { weekday: "short" })} <strong>{date.getDate()}</strong>
+            </button>
+          );
+        })}
+      </div>
+
+      {anyAllDay && (
+        <div className="cal-tg-row cal-tg-allday">
+          <span className="cal-tg-gutter-label">all day</span>
+          {days.map((d) => (
+            <button key={d} className="cal-tg-allday-cell no-drag" onClick={() => onPickDay(d)}>
+              {events
+                .filter((e) => e.allDay && eventOnDay(e, d))
+                .map((e) => (
+                  <span
+                    key={e.id}
+                    className="cal-tg-chip"
+                    style={{ borderLeftColor: colorOf(e.calendarId) }}
+                  >
+                    {e.title}
+                  </span>
+                ))}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="cal-tg-row cal-tg-body">
+        <div className="cal-tg-gutter">
+          {hours.map((h) => (
+            <span key={h} style={{ top: `${((h - range.startHour) / hours.length) * 100}%` }}>
+              {hourLabel(h)}
+            </span>
+          ))}
+        </div>
+        {days.map((d) => {
+          const lanes = assignLanes(events.filter((e) => placeEvent(e, d, range) !== null));
+          const line = nowLine(now, d, range);
+          return (
+            <button
+              key={d}
+              className={`cal-tg-col no-drag${d === today ? " today" : ""}`}
+              style={{ "--tg-rows": hours.length } as React.CSSProperties}
+              onClick={() => onPickDay(d)}
+            >
+              {events.map((e) => {
+                const pos = placeEvent(e, d, range);
+                if (!pos) return null;
+                const lane = lanes.get(e.id) ?? { lane: 0, lanes: 1 };
+                return (
+                  <span
+                    key={e.id}
+                    className="cal-tg-event"
+                    style={{
+                      top: `${pos.top}%`,
+                      height: `${pos.height}%`,
+                      left: `calc(${(lane.lane / lane.lanes) * 100}% + 2px)`,
+                      width: `calc(${100 / lane.lanes}% - 4px)`,
+                      borderLeftColor: colorOf(e.calendarId),
+                    }}
+                  >
+                    <span className="cal-tg-event-time">
+                      {new Date(e.startsAt).toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span className="cal-tg-event-title">{e.title}</span>
+                  </span>
+                );
+              })}
+              {line !== null && <span className="cal-tg-now" style={{ top: `${line}%` }} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

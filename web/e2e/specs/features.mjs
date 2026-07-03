@@ -56,7 +56,7 @@ export default async function features({ browser, base }) {
   await page.waitForTimeout(200);
   await page.getByText("Work week", { exact: true }).last().click();
   await page.waitForTimeout(500);
-  step("work week renders 5 columns", (await page.locator(".cal-week-col").count()) === 5);
+  step("work week renders 5 columns", (await page.locator(".cal-tg-col").count()) === 5);
   layout = await getLayout(base);
   step(
     "calendar view persisted",
