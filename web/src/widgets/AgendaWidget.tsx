@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
+import { NumberInput } from "@astryxdesign/core/NumberInput";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useTopic } from "../useSSE";
-import type { WidgetProps } from "./registry";
+import type { WidgetProps, WidgetSettingsProps } from "./registry";
 import {
   type CalEvent,
   type Calendar,
@@ -15,10 +17,16 @@ import {
   ymd,
 } from "./calendarApi";
 
-const DAYS_AHEAD = 7;
+const DEFAULT_DAYS_AHEAD = 7;
+
+const daysAheadFrom = (config: Record<string, unknown>): number => {
+  const n = Number(config.daysAhead);
+  return Number.isInteger(n) && n >= 1 && n <= 30 ? n : DEFAULT_DAYS_AHEAD;
+};
 
 // "What's coming up" — the same event feed as the month widget, as a list.
-export function AgendaWidget(_props: WidgetProps) {
+export function AgendaWidget({ item }: WidgetProps) {
+  const DAYS_AHEAD = daysAheadFrom(item.config);
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
 
@@ -30,7 +38,7 @@ export function AgendaWidget(_props: WidgetProps) {
       .then(setEvents)
       .catch(console.error);
     getCalendars().then(setCalendars).catch(console.error);
-  }, []);
+  }, [DAYS_AHEAD]);
 
   useEffect(reload, [reload]);
   useTopic("calendar", reload);
@@ -82,6 +90,30 @@ export function AgendaWidget(_props: WidgetProps) {
           ))}
         </VStack>
       ))}
+    </VStack>
+  );
+}
+
+export function AgendaSettings({ config, save }: WidgetSettingsProps) {
+  const [days, setDays] = useState(daysAheadFrom(config));
+
+  return (
+    <VStack gap={3}>
+      <NumberInput
+        label="Days ahead"
+        min={1}
+        max={30}
+        value={days}
+        onChange={(v) => setDays(Math.min(30, Math.max(1, v ?? DEFAULT_DAYS_AHEAD)))}
+      />
+      <HStack justify="end">
+        <Button
+          size="sm"
+          variant="primary"
+          label="Save"
+          onClick={() => save({ ...config, daysAhead: days })}
+        />
+      </HStack>
     </VStack>
   );
 }

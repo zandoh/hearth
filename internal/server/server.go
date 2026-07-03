@@ -4,6 +4,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -32,6 +33,7 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 	s.mux.HandleFunc("POST /api/views", s.handleCreateView)
 	s.mux.HandleFunc("PUT /api/views/{id}", s.handleUpdateView)
 	s.mux.HandleFunc("DELETE /api/views/{id}", s.handleDeleteView)
+	s.mux.HandleFunc("POST /api/views/{id}/default", s.handleSetDefaultView)
 
 	reg.Mount(s.mux)
 
@@ -121,6 +123,24 @@ func (s *Server) handleDeleteView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.DeleteView(id); err != nil {
+		if errors.Is(err, store.ErrLastView) {
+			httpx.BadRequest(w, "a board needs at least one view")
+			return
+		}
+		httpx.Fail(w, err)
+		return
+	}
+	s.hub.Publish("views", "changed")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleSetDefaultView(w http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.ID(r)
+	if !ok {
+		httpx.BadRequest(w, "invalid id")
+		return
+	}
+	if err := s.store.SetDefaultView(id); err != nil {
 		httpx.Fail(w, err)
 		return
 	}

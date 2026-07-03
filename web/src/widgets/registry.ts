@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 import type { LayoutItem } from "../types";
-import { AgendaWidget } from "./AgendaWidget";
+import { AgendaSettings, AgendaWidget } from "./AgendaWidget";
 import { CalendarWidget } from "./CalendarWidget";
 import { ChoresWidget } from "./ChoresWidget";
-import { ClockWidget } from "./ClockWidget";
+import { ClockSettings, ClockWidget } from "./ClockWidget";
 import { GroceryWidget } from "./GroceryWidget";
 import { MedsWidget } from "./MedsWidget";
 import { WeatherWidget } from "./WeatherWidget";
@@ -15,11 +15,22 @@ export interface WidgetProps {
   item: LayoutItem;
 }
 
+// Per-instance settings form, opened from the gear in the widget's chrome
+// bar (edit mode). It renders its fields plus its own Save action, calling
+// `save` with the new config — the platform persists it into the layout
+// item and closes the dialog.
+export interface WidgetSettingsProps {
+  config: Record<string, unknown>;
+  save: (config: Record<string, unknown>) => void;
+}
+
 export interface WidgetDef {
   title: string;
   component: ComponentType<WidgetProps>;
   // Grid units used when the widget is first added to a view.
   defaultSize: { w: number; h: number };
+  // Optional per-instance settings dialog body.
+  settings?: ComponentType<WidgetSettingsProps>;
 }
 
 export const widgetRegistry: Record<string, WidgetDef> = {
@@ -27,6 +38,7 @@ export const widgetRegistry: Record<string, WidgetDef> = {
     title: "Clock",
     component: ClockWidget,
     defaultSize: { w: 4, h: 3 },
+    settings: ClockSettings,
   },
   calendar: {
     title: "Calendar",
@@ -37,6 +49,7 @@ export const widgetRegistry: Record<string, WidgetDef> = {
     title: "Agenda",
     component: AgendaWidget,
     defaultSize: { w: 3, h: 5 },
+    settings: AgendaSettings,
   },
   chores: {
     title: "Chores",

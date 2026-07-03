@@ -99,13 +99,62 @@ func (s *Store) UpdateView(id int64, name string, layout []LayoutItem) (View, er
 	return s.GetView(id)
 }
 
+// ErrLastView guards the invariant that a household always has at least
+// one view to render.
+var ErrLastView = errors.New("cannot delete the last view")
+
 func (s *Store) DeleteView(id int64) error {
-	res, err := s.db.Exec("DELETE FROM views WHERE id = ?", id)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var wasDefault bool
+	if err := tx.QueryRow("SELECT is_default FROM views WHERE id = ?", id).
+		Scan(&wasDefault); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	var count int
+	if err := tx.QueryRow("SELECT COUNT(*) FROM views").Scan(&count); err != nil {
+		return err
+	}
+	if count <= 1 {
+		return ErrLastView
+	}
+	if _, err := tx.Exec("DELETE FROM views WHERE id = ?", id); err != nil {
+		return err
+	}
+	// The board must always have a default to fall back to.
+	if wasDefault {
+		if _, err := tx.Exec(
+			"UPDATE views SET is_default = 1 WHERE id = (SELECT MIN(id) FROM views)",
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// SetDefaultView makes the given view the one the kiosk falls back to.
+func (s *Store) SetDefaultView(id int64) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec("UPDATE views SET is_default = 1 WHERE id = ?", id)
 	if err != nil {
 		return err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	if _, err := tx.Exec("UPDATE views SET is_default = 0 WHERE id != ?", id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

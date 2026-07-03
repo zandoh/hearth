@@ -33,3 +33,6 @@ export const updateView = (id: number, name: string, layout: LayoutItem[]) =>
   apiFetch<View>(`/api/views/${id}`, { method: "PUT", body: JSON.stringify({ name, layout }) });
 
 export const deleteView = (id: number) => apiFetch<void>(`/api/views/${id}`, { method: "DELETE" });
+
+export const setDefaultView = (id: number) =>
+  apiFetch<void>(`/api/views/${id}/default`, { method: "POST" });

@@ -6,13 +6,16 @@ import GridLayout, {
   type LayoutItem as GridPos,
 } from "react-grid-layout";
 import { Button } from "@astryxdesign/core/Button";
+import { Dialog } from "@astryxdesign/core/Dialog";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Icon } from "@astryxdesign/core/Icon";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import { getViews, updateView } from "./api";
 import { useConfirm } from "./confirm";
+import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
 import { useTopic } from "./useSSE";
 import { widgetRegistry } from "./widgets/registry";
@@ -126,6 +129,9 @@ export default function App() {
   const dragSlugRef = useRef<string | null>(null);
   const { width, containerRef, mounted } = useContainerWidth();
   const { confirm, confirmDialog } = useConfirm();
+  const [managingViews, setManagingViews] = useState(false);
+  // Widget instance whose settings dialog is open.
+  const [configFor, setConfigFor] = useState<string | null>(null);
 
   const loadViews = useCallback(() => {
     getViews().then(setViews).catch(console.error);
@@ -215,6 +221,17 @@ export default function App() {
     );
   };
 
+  const saveConfig = (instanceId: string, config: Record<string, unknown>) => {
+    if (!active) return;
+    const merged = mergePositions(active.layout, liveLayoutRef.current);
+    updateView(
+      active.id,
+      active.name,
+      merged.map((item) => (item.i === instanceId ? { ...item, config } : item)),
+    ).catch(console.error);
+    setConfigFor(null);
+  };
+
   // Drop from the tray: the grid tells us where the preview landed.
   const onDrop = (layout: Layout, item: GridPos | undefined) => {
     pushedLastTick.clear();
@@ -260,6 +277,15 @@ export default function App() {
               onClick={() => setActiveId(v.id)}
             />
           ))}
+          {editing && (
+            <IconButton
+              size="sm"
+              variant="ghost"
+              label="Manage views"
+              icon={<Icon icon="wrench" size="sm" />}
+              onClick={() => setManagingViews(true)}
+            />
+          )}
         </HStack>
         <Button
           size="sm"
@@ -337,7 +363,16 @@ export default function App() {
                       <Text type="supporting" size="xsm" className="widget-chrome-title">
                         {title}
                       </Text>
-                      <span className="no-drag">
+                      <HStack gap={0.5} className="no-drag">
+                        {def?.settings && (
+                          <IconButton
+                            size="sm"
+                            variant="ghost"
+                            label={`${title} settings`}
+                            icon={<Icon icon="wrench" size="sm" />}
+                            onClick={() => setConfigFor(item.i)}
+                          />
+                        )}
                         <IconButton
                           size="sm"
                           variant="ghost"
@@ -345,7 +380,7 @@ export default function App() {
                           icon={<Icon icon="close" size="sm" />}
                           onClick={() => removeWidget(item.i, title)}
                         />
-                      </span>
+                      </HStack>
                     </div>
                   )}
                   <div className="widget-content">
@@ -361,6 +396,27 @@ export default function App() {
           </GridLayout>
         )}
       </main>
+      {managingViews && (
+        <ViewManager
+          views={views}
+          onSwitch={(id) => setActiveId(id)}
+          onClose={() => setManagingViews(false)}
+        />
+      )}
+      {configFor &&
+        (() => {
+          const item = items.find((it) => it.i === configFor);
+          const def = item ? widgetRegistry[item.widget] : undefined;
+          if (!item || !def?.settings) return null;
+          return (
+            <Dialog isOpen width={420} onOpenChange={(open) => !open && setConfigFor(null)}>
+              <VStack gap={3} className="cal-dialog-body">
+                <Heading level={2}>{def.title} settings</Heading>
+                <def.settings config={item.config} save={(cfg) => saveConfig(item.i, cfg)} />
+              </VStack>
+            </Dialog>
+          );
+        })()}
       {confirmDialog}
     </div>
   );
