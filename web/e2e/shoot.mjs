@@ -112,12 +112,12 @@ async function seed(dbPath) {
   await post(`/api/widgets/grocery/${milk.id}/toggle`);
 
   // The store seeds "Water plants" (3d) and "Wash sheets" (7d), both
-  // never-done (due today). Add one long-cadence chore, then backdate
-  // Water plants so the board shows a mix of due-today and upcoming.
+  // never-done (due today). Add one long-cadence chore, then mark Water
+  // plants done today so the board shows a mix of due-today and upcoming.
   await post("/api/widgets/chores", { title: "Replace furnace filter", everyDays: 90 });
   execFileSync("sqlite3", [
     dbPath,
-    "UPDATE chores SET last_done = date('now','localtime','-1 day') WHERE title = 'Water plants'",
+    "UPDATE chores SET last_done = date('now','localtime') WHERE title = 'Water plants'",
   ]);
 
   const vitd = await post("/api/widgets/meds", {

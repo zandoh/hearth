@@ -1,7 +1,7 @@
 # Hearth — single-binary home hub.
 # `make build` produces bin/hearth with the frontend embedded.
 
-.PHONY: e2e build web run dev-api dev-web test lint fmt clean
+.PHONY: e2e heroes build web run dev-api dev-web test lint fmt clean
 
 build: web
 	go build -o bin/hearth ./cmd/hearth
@@ -34,6 +34,10 @@ test:
 
 e2e: build
 	cd web && bun e2e/run.mjs
+
+# Re-shoot the README hero screenshots (docs/board-*.png) on the current build.
+heroes: build
+	cd web && bun e2e/shoot.mjs
 
 lint:
 	go vet ./...
