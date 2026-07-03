@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
 	"github.com/zandoh/hearth/internal/widget"
@@ -47,8 +48,8 @@ type forecast struct {
 }
 
 type Widget struct {
+	widget.Base
 	store *store.Store
-	hub   *sse.Hub
 	http  *http.Client
 
 	mu     sync.RWMutex
@@ -57,13 +58,11 @@ type Widget struct {
 
 func New(st *store.Store, hub *sse.Hub) *Widget {
 	return &Widget{
+		Base:  widget.Base{Hub: hub, Slug: "weather"},
 		store: st,
-		hub:   hub,
 		http:  &http.Client{Timeout: 20 * time.Second},
 	}
 }
-
-func (w *Widget) ID() string { return "weather" }
 
 func (w *Widget) Jobs() []widget.Job {
 	return []widget.Job{{
@@ -166,7 +165,7 @@ func (w *Widget) refresh(ctx context.Context) error {
 	w.mu.Lock()
 	w.cached = next
 	w.mu.Unlock()
-	w.hub.Publish("weather", "changed")
+	w.Publish("changed")
 	return nil
 }
 
@@ -176,14 +175,14 @@ func (w *Widget) handleForecast(rw http.ResponseWriter, r *http.Request) {
 	w.mu.RUnlock()
 	if cached == nil {
 		if _, err := w.loadLocation(); errors.Is(err, store.ErrNotFound) {
-			writeJSON(rw, http.StatusOK, map[string]any{"configured": false})
+			httpx.JSON(rw, http.StatusOK, map[string]any{"configured": false})
 			return
 		}
 		// Configured but first fetch hasn't landed (or failed) — say so.
-		writeJSON(rw, http.StatusOK, map[string]any{"configured": true, "pending": true})
+		httpx.JSON(rw, http.StatusOK, map[string]any{"configured": true, "pending": true})
 		return
 	}
-	writeJSON(rw, http.StatusOK, map[string]any{"configured": true, "forecast": cached})
+	httpx.JSON(rw, http.StatusOK, map[string]any{"configured": true, "forecast": cached})
 }
 
 // handleGeocode returns candidate places for a free-text query so the user
@@ -191,7 +190,7 @@ func (w *Widget) handleForecast(rw http.ResponseWriter, r *http.Request) {
 func (w *Widget) handleGeocode(rw http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
-		badRequest(rw, "q is required")
+		httpx.BadRequest(rw, "q is required")
 		return
 	}
 	var geo struct {
@@ -207,7 +206,7 @@ func (w *Widget) handleGeocode(rw http.ResponseWriter, r *http.Request) {
 		"name":  {query},
 		"count": {"6"},
 	}, &geo); err != nil {
-		writeErr(rw, err)
+		httpx.Fail(rw, err)
 		return
 	}
 	out := []location{}
@@ -221,7 +220,7 @@ func (w *Widget) handleGeocode(rw http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, location{Name: name, Latitude: res.Latitude, Longitude: res.Longitude})
 	}
-	writeJSON(rw, http.StatusOK, out)
+	httpx.JSON(rw, http.StatusOK, out)
 }
 
 // handleSetLocation saves a chosen candidate and refreshes immediately.
@@ -229,36 +228,21 @@ func (w *Widget) handleSetLocation(rw http.ResponseWriter, r *http.Request) {
 	var loc location
 	if err := json.NewDecoder(r.Body).Decode(&loc); err != nil ||
 		strings.TrimSpace(loc.Name) == "" {
-		badRequest(rw, "name, latitude, and longitude are required")
+		httpx.BadRequest(rw, "name, latitude, and longitude are required")
 		return
 	}
 	b, err := json.Marshal(loc)
 	if err != nil {
-		writeErr(rw, err)
+		httpx.Fail(rw, err)
 		return
 	}
 	if err := w.store.SetSetting(locationSetting, string(b)); err != nil {
-		writeErr(rw, err)
+		httpx.Fail(rw, err)
 		return
 	}
 	if err := w.refresh(r.Context()); err != nil {
-		writeErr(rw, err)
+		httpx.Fail(rw, err)
 		return
 	}
-	writeJSON(rw, http.StatusOK, loc)
-}
-
-func writeJSON(rw http.ResponseWriter, status int, v any) {
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(status)
-	json.NewEncoder(rw).Encode(v)
-}
-
-func writeErr(rw http.ResponseWriter, err error) {
-	slog.Error("weather request failed", "err", err)
-	writeJSON(rw, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-}
-
-func badRequest(rw http.ResponseWriter, msg string) {
-	writeJSON(rw, http.StatusBadRequest, map[string]string{"error": msg})
+	httpx.JSON(rw, http.StatusOK, loc)
 }

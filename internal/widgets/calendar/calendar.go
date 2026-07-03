@@ -15,11 +15,11 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
 	"github.com/zandoh/hearth/internal/widget"
@@ -35,8 +35,8 @@ const (
 )
 
 type Widget struct {
+	widget.Base
 	store  *store.Store
-	hub    *sse.Hub
 	google *googleClient
 
 	stateMu     sync.Mutex
@@ -49,8 +49,8 @@ func New(st *store.Store, hub *sse.Hub) *Widget {
 		baseURL = "http://localhost:8080"
 	}
 	w := &Widget{
+		Base:        widget.Base{Hub: hub, Slug: "calendar"},
 		store:       st,
-		hub:         hub,
 		oauthStates: make(map[string]time.Time),
 	}
 	w.google = &googleClient{
@@ -77,8 +77,6 @@ func New(st *store.Store, hub *sse.Hub) *Widget {
 	}
 	return w
 }
-
-func (w *Widget) ID() string { return "calendar" }
 
 func (w *Widget) Jobs() []widget.Job {
 	return []widget.Job{{
@@ -110,31 +108,15 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 
 // --- helpers ---
 
-func writeJSON(rw http.ResponseWriter, status int, v any) {
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(status)
-	json.NewEncoder(rw).Encode(v)
-}
-
+// writeErr adds the calendar's one domain mapping on top of the shared
+// policy: a missing Google connection is the caller's situation (409), not
+// a server fault.
 func writeErr(rw http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, store.ErrNotFound):
-		writeJSON(rw, http.StatusNotFound, map[string]string{"error": "not found"})
-	case errors.Is(err, errNotConnected):
-		writeJSON(rw, http.StatusConflict, map[string]string{"error": "google account not connected"})
-	default:
-		slog.Error("calendar request failed", "err", err)
-		writeJSON(rw, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	if errors.Is(err, errNotConnected) {
+		httpx.Error(rw, http.StatusConflict, "google account not connected")
+		return
 	}
-}
-
-func badRequest(rw http.ResponseWriter, msg string) {
-	writeJSON(rw, http.StatusBadRequest, map[string]string{"error": msg})
-}
-
-func pathID(r *http.Request) (int64, bool) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	return id, err == nil
+	httpx.Fail(rw, err)
 }
 
 func base64URLDecode(s string) ([]byte, error) {
@@ -149,7 +131,7 @@ func (w *Widget) handleListCalendars(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	writeJSON(rw, http.StatusOK, cals)
+	httpx.JSON(rw, http.StatusOK, cals)
 }
 
 func (w *Widget) handleCreateCalendar(rw http.ResponseWriter, r *http.Request) {
@@ -159,11 +141,11 @@ func (w *Widget) handleCreateCalendar(rw http.ResponseWriter, r *http.Request) {
 		GoogleID string `json:"googleId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		badRequest(rw, "invalid JSON body")
+		httpx.BadRequest(rw, "invalid JSON body")
 		return
 	}
 	if strings.TrimSpace(req.Name) == "" {
-		badRequest(rw, "name is required")
+		httpx.BadRequest(rw, "name is required")
 		return
 	}
 	if req.Color == "" {
@@ -189,14 +171,14 @@ func (w *Widget) handleCreateCalendar(rw http.ResponseWriter, r *http.Request) {
 			}
 		}()
 	}
-	w.hub.Publish("calendar", "changed")
-	writeJSON(rw, http.StatusCreated, cal)
+	w.Publish("changed")
+	httpx.JSON(rw, http.StatusCreated, cal)
 }
 
 func (w *Widget) handleUpdateCalendar(rw http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(r)
+	id, ok := httpx.ID(r)
 	if !ok {
-		badRequest(rw, "invalid id")
+		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	var req struct {
@@ -205,7 +187,7 @@ func (w *Widget) handleUpdateCalendar(rw http.ResponseWriter, r *http.Request) {
 		Enabled bool   `json:"enabled"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Name) == "" {
-		badRequest(rw, "name is required")
+		httpx.BadRequest(rw, "name is required")
 		return
 	}
 	cal, err := w.store.UpdateCalendar(id, req.Name, req.Color, req.Enabled)
@@ -213,14 +195,14 @@ func (w *Widget) handleUpdateCalendar(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.hub.Publish("calendar", "changed")
-	writeJSON(rw, http.StatusOK, cal)
+	w.Publish("changed")
+	httpx.JSON(rw, http.StatusOK, cal)
 }
 
 func (w *Widget) handleDeleteCalendar(rw http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(r)
+	id, ok := httpx.ID(r)
 	if !ok {
-		badRequest(rw, "invalid id")
+		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	// Deleting a Google calendar here only removes it from Hearth; the
@@ -229,7 +211,7 @@ func (w *Widget) handleDeleteCalendar(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.hub.Publish("calendar", "changed")
+	w.Publish("changed")
 	rw.WriteHeader(http.StatusNoContent)
 }
 
@@ -239,7 +221,7 @@ func (w *Widget) handleListEvents(rw http.ResponseWriter, r *http.Request) {
 	start := r.URL.Query().Get("start")
 	end := r.URL.Query().Get("end")
 	if start == "" || end == "" {
-		badRequest(rw, "start and end query params are required (RFC3339)")
+		httpx.BadRequest(rw, "start and end query params are required (RFC3339)")
 		return
 	}
 	events, err := w.store.EventsBetween(start, end)
@@ -247,7 +229,7 @@ func (w *Widget) handleListEvents(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	writeJSON(rw, http.StatusOK, events)
+	httpx.JSON(rw, http.StatusOK, events)
 }
 
 type eventRequest struct {
@@ -310,11 +292,11 @@ func (req *eventRequest) toGcal() gcalEvent {
 func (w *Widget) handleCreateEvent(rw http.ResponseWriter, r *http.Request) {
 	var req eventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		badRequest(rw, "invalid JSON body")
+		httpx.BadRequest(rw, "invalid JSON body")
 		return
 	}
 	if err := req.validate(); err != nil {
-		badRequest(rw, err.Error())
+		httpx.BadRequest(rw, err.Error())
 		return
 	}
 	cal, err := w.store.GetCalendar(req.CalendarID)
@@ -348,23 +330,23 @@ func (w *Widget) handleCreateEvent(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.hub.Publish("calendar", "changed")
-	writeJSON(rw, http.StatusCreated, event)
+	w.Publish("changed")
+	httpx.JSON(rw, http.StatusCreated, event)
 }
 
 func (w *Widget) handleUpdateEvent(rw http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(r)
+	id, ok := httpx.ID(r)
 	if !ok {
-		badRequest(rw, "invalid id")
+		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	var req eventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		badRequest(rw, "invalid JSON body")
+		httpx.BadRequest(rw, "invalid JSON body")
 		return
 	}
 	if err := req.validate(); err != nil {
-		badRequest(rw, err.Error())
+		httpx.BadRequest(rw, err.Error())
 		return
 	}
 	existing, err := w.store.GetEvent(id)
@@ -396,14 +378,14 @@ func (w *Widget) handleUpdateEvent(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.hub.Publish("calendar", "changed")
-	writeJSON(rw, http.StatusOK, event)
+	w.Publish("changed")
+	httpx.JSON(rw, http.StatusOK, event)
 }
 
 func (w *Widget) handleDeleteEvent(rw http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(r)
+	id, ok := httpx.ID(r)
 	if !ok {
-		badRequest(rw, "invalid id")
+		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	existing, err := w.store.GetEvent(id)
@@ -426,7 +408,7 @@ func (w *Widget) handleDeleteEvent(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.hub.Publish("calendar", "changed")
+	w.Publish("changed")
 	rw.WriteHeader(http.StatusNoContent)
 }
 
@@ -451,7 +433,7 @@ func (w *Widget) syncAll(ctx context.Context) error {
 		synced++
 	}
 	if synced > 0 {
-		w.hub.Publish("calendar", "changed")
+		w.Publish("changed")
 	}
 	if len(errs) > 0 && !errors.Is(errs[0], errNotConnected) {
 		return errors.Join(errs...)
@@ -503,7 +485,7 @@ func (w *Widget) handleSyncNow(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	writeJSON(rw, http.StatusOK, map[string]string{"status": "synced"})
+	httpx.JSON(rw, http.StatusOK, map[string]string{"status": "synced"})
 }
 
 // --- Google account connection ---
@@ -518,7 +500,7 @@ func (w *Widget) handleGoogleStatus(rw http.ResponseWriter, r *http.Request) {
 		status["connected"] = true
 		status["email"] = tok.Email
 	}
-	writeJSON(rw, http.StatusOK, status)
+	httpx.JSON(rw, http.StatusOK, status)
 }
 
 func (w *Widget) newOAuthState() string {
@@ -547,9 +529,8 @@ func (w *Widget) consumeOAuthState(state string) bool {
 
 func (w *Widget) handleGoogleConnect(rw http.ResponseWriter, r *http.Request) {
 	if !w.google.configured() {
-		writeJSON(rw, http.StatusConflict, map[string]string{
-			"error": "set HEARTH_GOOGLE_CLIENT_ID and HEARTH_GOOGLE_CLIENT_SECRET (see README)",
-		})
+		httpx.Error(rw, http.StatusConflict,
+			"set HEARTH_GOOGLE_CLIENT_ID and HEARTH_GOOGLE_CLIENT_SECRET (see README)")
 		return
 	}
 	http.Redirect(rw, r, w.google.authURL(w.newOAuthState()), http.StatusFound)
@@ -570,7 +551,7 @@ func (w *Widget) handleGoogleCallback(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, "token exchange failed: "+err.Error(), http.StatusBadGateway)
 		return
 	}
-	w.hub.Publish("calendar", "changed")
+	w.Publish("changed")
 	// Back to the app; the settings dialog re-checks /google/status.
 	http.Redirect(rw, r, "/", http.StatusFound)
 }
@@ -609,7 +590,7 @@ func (w *Widget) handleGoogleAvailable(rw http.ResponseWriter, r *http.Request) 
 			Added:    added[gc.ID],
 		})
 	}
-	writeJSON(rw, http.StatusOK, out)
+	httpx.JSON(rw, http.StatusOK, out)
 }
 
 func (w *Widget) handleGoogleDisconnect(rw http.ResponseWriter, r *http.Request) {
@@ -617,6 +598,6 @@ func (w *Widget) handleGoogleDisconnect(rw http.ResponseWriter, r *http.Request)
 		writeErr(rw, err)
 		return
 	}
-	w.hub.Publish("calendar", "changed")
-	writeJSON(rw, http.StatusOK, map[string]string{"status": "disconnected"})
+	w.Publish("changed")
+	httpx.JSON(rw, http.StatusOK, map[string]string{"status": "disconnected"})
 }

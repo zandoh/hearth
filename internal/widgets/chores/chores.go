@@ -4,27 +4,24 @@ package chores
 
 import (
 	"encoding/json"
-	"errors"
-	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
 type Widget struct {
+	widget.Base
 	store *store.Store
-	hub   *sse.Hub
 }
 
-func New(st *store.Store, hub *sse.Hub) *Widget { return &Widget{store: st, hub: hub} }
-
-func (w *Widget) ID() string         { return "chores" }
-func (w *Widget) Jobs() []widget.Job { return nil }
+func New(st *store.Store, hub *sse.Hub) *Widget {
+	return &Widget{Base: widget.Base{Hub: hub, Slug: "chores"}, store: st}
+}
 
 func (w *Widget) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/widgets/chores", w.handleList)
@@ -44,7 +41,7 @@ type choreView struct {
 func (w *Widget) handleList(rw http.ResponseWriter, r *http.Request) {
 	chores, err := w.store.ListChores()
 	if err != nil {
-		writeErr(rw, err)
+		httpx.Fail(rw, err)
 		return
 	}
 	today := time.Now()
@@ -71,7 +68,7 @@ func (w *Widget) handleList(rw http.ResponseWriter, r *http.Request) {
 		}
 		views = append(views, v)
 	}
-	writeJSON(rw, http.StatusOK, views)
+	httpx.JSON(rw, http.StatusOK, views)
 }
 
 func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
@@ -81,65 +78,46 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
 		strings.TrimSpace(req.Title) == "" {
-		badRequest(rw, "title is required")
+		httpx.BadRequest(rw, "title is required")
 		return
 	}
 	if req.EveryDays < 1 {
-		badRequest(rw, "everyDays must be at least 1")
+		httpx.BadRequest(rw, "everyDays must be at least 1")
 		return
 	}
 	chore, err := w.store.CreateChore(strings.TrimSpace(req.Title), req.EveryDays)
 	if err != nil {
-		writeErr(rw, err)
+		httpx.Fail(rw, err)
 		return
 	}
-	w.hub.Publish("chores", "changed")
-	writeJSON(rw, http.StatusCreated, chore)
+	w.Publish("changed")
+	httpx.JSON(rw, http.StatusCreated, chore)
 }
 
 func (w *Widget) handleComplete(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		badRequest(rw, "invalid id")
+	id, ok := httpx.ID(r)
+	if !ok {
+		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.store.CompleteChore(id, time.Now().Format("2006-01-02")); err != nil {
-		writeErr(rw, err)
+		httpx.Fail(rw, err)
 		return
 	}
-	w.hub.Publish("chores", "changed")
-	writeJSON(rw, http.StatusOK, map[string]string{"status": "done"})
+	w.Publish("changed")
+	httpx.JSON(rw, http.StatusOK, map[string]string{"status": "done"})
 }
 
 func (w *Widget) handleDelete(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		badRequest(rw, "invalid id")
+	id, ok := httpx.ID(r)
+	if !ok {
+		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.store.DeleteChore(id); err != nil {
-		writeErr(rw, err)
+		httpx.Fail(rw, err)
 		return
 	}
-	w.hub.Publish("chores", "changed")
+	w.Publish("changed")
 	rw.WriteHeader(http.StatusNoContent)
-}
-
-func writeJSON(rw http.ResponseWriter, status int, v any) {
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(status)
-	json.NewEncoder(rw).Encode(v)
-}
-
-func writeErr(rw http.ResponseWriter, err error) {
-	if errors.Is(err, store.ErrNotFound) {
-		writeJSON(rw, http.StatusNotFound, map[string]string{"error": "not found"})
-		return
-	}
-	slog.Error("chores request failed", "err", err)
-	writeJSON(rw, http.StatusInternalServerError, map[string]string{"error": "internal error"})
-}
-
-func badRequest(rw http.ResponseWriter, msg string) {
-	writeJSON(rw, http.StatusBadRequest, map[string]string{"error": msg})
 }

@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/zandoh/hearth/internal/sse"
 )
 
 // Job is a recurring background task owned by a widget, e.g. "sync Google
@@ -27,6 +29,21 @@ type Widget interface {
 	// Jobs returns recurring background tasks; may be empty.
 	Jobs() []Job
 }
+
+// Base carries the wiring every widget shares and owns the SSE topic
+// convention: a widget publishes on its own ID, so the topic string has
+// exactly one source. Embed it and override Jobs when the widget has
+// background work.
+type Base struct {
+	Hub  *sse.Hub
+	Slug string
+}
+
+func (b Base) ID() string  { return b.Slug }
+func (b Base) Jobs() []Job { return nil }
+
+// Publish sends data to the widget's SSE topic (its ID).
+func (b Base) Publish(data any) { b.Hub.Publish(b.Slug, data) }
 
 type Registry struct {
 	widgets []Widget

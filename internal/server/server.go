@@ -4,13 +4,11 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"io/fs"
-	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
+	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
 	"github.com/zandoh/hearth/internal/widget"
@@ -48,44 +46,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		slog.Error("write response", "err", err)
-	}
-}
-
-func writeError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, store.ErrNotFound):
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
-	default:
-		slog.Error("request failed", "err", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
-	}
-}
-
-func pathID(r *http.Request) (int64, bool) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	return id, err == nil
-}
-
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleListWidgets(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.reg.IDs())
+	httpx.JSON(w, http.StatusOK, s.reg.IDs())
 }
 
 func (s *Server) handleListViews(w http.ResponseWriter, r *http.Request) {
 	views, err := s.store.ListViews()
 	if err != nil {
-		writeError(w, err)
+		httpx.Fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, views)
+	httpx.JSON(w, http.StatusOK, views)
 }
 
 type viewRequest struct {
@@ -96,11 +71,11 @@ type viewRequest struct {
 func decodeViewRequest(w http.ResponseWriter, r *http.Request) (viewRequest, bool) {
 	var req viewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		httpx.BadRequest(w, "invalid JSON body")
 		return req, false
 	}
 	if strings.TrimSpace(req.Name) == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
+		httpx.BadRequest(w, "name is required")
 		return req, false
 	}
 	if req.Layout == nil {
@@ -116,17 +91,17 @@ func (s *Server) handleCreateView(w http.ResponseWriter, r *http.Request) {
 	}
 	view, err := s.store.CreateView(req.Name, req.Layout)
 	if err != nil {
-		writeError(w, err)
+		httpx.Fail(w, err)
 		return
 	}
 	s.hub.Publish("views", "changed")
-	writeJSON(w, http.StatusCreated, view)
+	httpx.JSON(w, http.StatusCreated, view)
 }
 
 func (s *Server) handleUpdateView(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(r)
+	id, ok := httpx.ID(r)
 	if !ok {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		httpx.BadRequest(w, "invalid id")
 		return
 	}
 	req, ok := decodeViewRequest(w, r)
@@ -135,21 +110,21 @@ func (s *Server) handleUpdateView(w http.ResponseWriter, r *http.Request) {
 	}
 	view, err := s.store.UpdateView(id, req.Name, req.Layout)
 	if err != nil {
-		writeError(w, err)
+		httpx.Fail(w, err)
 		return
 	}
 	s.hub.Publish("views", "changed")
-	writeJSON(w, http.StatusOK, view)
+	httpx.JSON(w, http.StatusOK, view)
 }
 
 func (s *Server) handleDeleteView(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(r)
+	id, ok := httpx.ID(r)
 	if !ok {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid id"})
+		httpx.BadRequest(w, "invalid id")
 		return
 	}
 	if err := s.store.DeleteView(id); err != nil {
-		writeError(w, err)
+		httpx.Fail(w, err)
 		return
 	}
 	s.hub.Publish("views", "changed")
@@ -159,10 +134,10 @@ func (s *Server) handleDeleteView(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
 	profiles, err := s.store.ListProfiles()
 	if err != nil {
-		writeError(w, err)
+		httpx.Fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, profiles)
+	httpx.JSON(w, http.StatusOK, profiles)
 }
 
 func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
@@ -171,7 +146,7 @@ func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
 		Color string `json:"color"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Name) == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
+		httpx.BadRequest(w, "name is required")
 		return
 	}
 	if req.Color == "" {
@@ -179,10 +154,10 @@ func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	profile, err := s.store.CreateProfile(req.Name, req.Color)
 	if err != nil {
-		writeError(w, err)
+		httpx.Fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, profile)
+	httpx.JSON(w, http.StatusCreated, profile)
 }
 
 // spaHandler serves the embedded frontend build, falling back to index.html

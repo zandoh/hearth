@@ -5,21 +5,21 @@ package clock
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
+	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
 type Clock struct {
-	hub *sse.Hub
+	widget.Base
 }
 
-func New(hub *sse.Hub) *Clock { return &Clock{hub: hub} }
-
-func (c *Clock) ID() string { return "clock" }
+func New(hub *sse.Hub) *Clock {
+	return &Clock{Base: widget.Base{Hub: hub, Slug: "clock"}}
+}
 
 func (c *Clock) payload() map[string]any {
 	now := time.Now()
@@ -29,8 +29,7 @@ func (c *Clock) payload() map[string]any {
 
 func (c *Clock) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/widgets/clock/now", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(c.payload())
+		httpx.JSON(w, http.StatusOK, c.payload())
 	})
 }
 
@@ -39,7 +38,7 @@ func (c *Clock) Jobs() []widget.Job {
 		Name:     "tick",
 		Interval: 30 * time.Second,
 		Run: func(ctx context.Context) error {
-			c.hub.Publish("clock", c.payload())
+			c.Publish(c.payload())
 			return nil
 		},
 	}}
