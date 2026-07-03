@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
 import { NumberInput } from "@astryxdesign/core/NumberInput";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
-import { useTopic } from "../useSSE";
+import { TOPICS } from "../topics";
+import { useTopicData } from "../useWidgetData";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
 import {
   type CalEvent,
-  type Calendar,
   eventOnDay,
   eventTimeLabel,
   getCalendars,
@@ -27,21 +27,17 @@ const daysAheadFrom = (config: Record<string, unknown>): number => {
 // "What's coming up" — the same event feed as the month widget, as a list.
 export function AgendaWidget({ item }: WidgetProps) {
   const DAYS_AHEAD = daysAheadFrom(item.config);
-  const [events, setEvents] = useState<CalEvent[]>([]);
-  const [calendars, setCalendars] = useState<Calendar[]>([]);
 
-  const reload = useCallback(() => {
+  const fetchUpcoming = useCallback(() => {
     const start = new Date();
     const end = new Date();
     end.setDate(end.getDate() + DAYS_AHEAD);
-    getEvents(`${ymd(start)}T00:00:00Z`, `${ymd(end)}T23:59:59Z`)
-      .then(setEvents)
-      .catch(console.error);
-    getCalendars().then(setCalendars).catch(console.error);
+    return getEvents(`${ymd(start)}T00:00:00Z`, `${ymd(end)}T23:59:59Z`);
   }, [DAYS_AHEAD]);
-
-  useEffect(reload, [reload]);
-  useTopic("calendar", reload);
+  const { data: eventsData } = useTopicData(TOPICS.calendar, fetchUpcoming);
+  const { data: calendarsData } = useTopicData(TOPICS.calendar, getCalendars);
+  const events = eventsData ?? [];
+  const calendars = calendarsData ?? [];
 
   const colorOf = (calendarId: number) =>
     calendars.find((c) => c.id === calendarId)?.color ?? "var(--color-icon-gray)";

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Plus } from "lucide-react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
@@ -12,11 +12,10 @@ import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useConfirm } from "../confirm";
-import { useTopic } from "../useSSE";
+import { TOPICS } from "../topics";
+import { useMutate } from "../useMutate";
+import { useTopicData } from "../useWidgetData";
 import {
-  type AvailableGoogleCalendar,
-  type Calendar,
-  type GoogleStatus,
   addGoogleCalendar,
   createLocalCalendar,
   deleteCalendar,
@@ -29,6 +28,14 @@ import {
   updateCalendar,
 } from "./calendarApi";
 
+// Google status plus the account's calendar list, fetched together because
+// the list only makes sense once we know the account is connected.
+const getGoogle = async () => {
+  const status = await getGoogleStatus();
+  const available = status.connected ? await getAvailableGoogleCalendars() : null;
+  return { status, available };
+};
+
 // Household calendar management: local calendars, plus connecting a Google
 // account and picking which of its calendars Hearth should show.
 export function CalendarSettings({
@@ -38,52 +45,36 @@ export function CalendarSettings({
   onChanged: () => void;
   onClose: () => void;
 }) {
-  const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [google, setGoogle] = useState<GoogleStatus | null>(null);
-  const [available, setAvailable] = useState<AvailableGoogleCalendar[] | null>(null);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#4f6df5");
-  const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
   const { confirm, confirmDialog } = useConfirm();
 
-  const reload = useCallback(() => {
-    getCalendars().then(setCalendars).catch(console.error);
-    getGoogleStatus()
-      .then((status) => {
-        setGoogle(status);
-        if (status.connected) {
-          getAvailableGoogleCalendars().then(setAvailable).catch(console.error);
-        }
-      })
-      .catch(console.error);
-  }, []);
+  const { data: calendarsData, reload: reloadCalendars } = useTopicData(
+    TOPICS.calendar,
+    getCalendars,
+  );
+  const { data: googleData, reload: reloadGoogle } = useTopicData(TOPICS.calendar, getGoogle);
+  const calendars = calendarsData ?? [];
+  const google = googleData?.status ?? null;
+  const available = googleData?.available ?? null;
 
-  useEffect(reload, [reload]);
-  useTopic("calendar", reload);
-
-  const run = async (label: string, fn: () => Promise<unknown>) => {
-    setBusy(label);
-    setError("");
-    try {
-      await fn();
-      // Refresh this dialog and the widget behind it directly — SSE only
-      // covers other screens, not our own action.
-      reload();
-      onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "request failed");
-    } finally {
-      setBusy("");
-    }
-  };
+  // Refresh this dialog and the widget behind it directly — SSE only covers
+  // other screens, not our own action.
+  const refresh = useCallback(() => {
+    reloadCalendars();
+    reloadGoogle();
+    onChanged();
+  }, [reloadCalendars, reloadGoogle, onChanged]);
+  const { mutate, error, busy } = useMutate(refresh);
 
   const addLocal = () =>
-    run("add-local", async () => {
-      if (!newName.trim()) throw new Error("calendar name is required");
-      await createLocalCalendar(newName.trim(), newColor);
-      setNewName("");
-    });
+    mutate(
+      async () => {
+        if (!newName.trim()) throw new Error("calendar name is required");
+        await createLocalCalendar(newName.trim(), newColor);
+      },
+      () => setNewName(""),
+    );
 
   return (
     <Dialog isOpen width={480} onOpenChange={(open) => !open && onClose()}>
@@ -96,9 +87,7 @@ export function CalendarSettings({
               <input
                 type="color"
                 value={c.color}
-                onChange={(e) =>
-                  updateCalendar({ ...c, color: e.target.value }).catch(console.error)
-                }
+                onChange={(e) => mutate(() => updateCalendar({ ...c, color: e.target.value }))}
                 title="Calendar color"
               />
               <HStack gap={2} align="center" className="min-w-0 flex-1">
@@ -109,9 +98,7 @@ export function CalendarSettings({
                 label="Shown"
                 isLabelHidden
                 value={c.enabled}
-                onChange={(checked) =>
-                  updateCalendar({ ...c, enabled: checked }).catch(console.error)
-                }
+                onChange={(checked) => mutate(() => updateCalendar({ ...c, enabled: checked }))}
               />
               <Button
                 size="sm"
@@ -127,7 +114,7 @@ export function CalendarSettings({
                           : "The calendar and all of its events will be deleted.",
                       actionLabel: "Remove",
                     },
-                    () => run(`del-${c.id}`, () => deleteCalendar(c.id)),
+                    () => mutate(() => deleteCalendar(c.id)),
                   )
                 }
               />
@@ -156,7 +143,7 @@ export function CalendarSettings({
             label="Add calendar"
             tooltip="Add calendar"
             icon={<Icon icon={Plus} size="sm" />}
-            isDisabled={busy !== ""}
+            isDisabled={busy}
             onClick={addLocal}
           />
         </HStack>
@@ -190,8 +177,8 @@ export function CalendarSettings({
                 size="sm"
                 variant="ghost"
                 label="Sync now"
-                isDisabled={busy !== ""}
-                onClick={() => run("sync", syncNow)}
+                isDisabled={busy}
+                onClick={() => mutate(syncNow)}
               />
               <Button
                 size="sm"
@@ -205,7 +192,7 @@ export function CalendarSettings({
                         "Synced calendars stop updating until you connect again. Nothing is deleted.",
                       actionLabel: "Disconnect",
                     },
-                    () => run("disconnect", disconnectGoogle),
+                    () => mutate(disconnectGoogle),
                   )
                 }
               />
@@ -225,12 +212,8 @@ export function CalendarSettings({
                       size="sm"
                       variant="secondary"
                       label="Add to Hearth"
-                      isDisabled={busy !== ""}
-                      onClick={() =>
-                        run(`add-${g.googleId}`, () =>
-                          addGoogleCalendar(g.googleId, g.name, g.color),
-                        )
-                      }
+                      isDisabled={busy}
+                      onClick={() => mutate(() => addGoogleCalendar(g.googleId, g.name, g.color))}
                     />
                   )}
                 </HStack>

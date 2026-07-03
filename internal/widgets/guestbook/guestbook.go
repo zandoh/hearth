@@ -2,7 +2,6 @@
 package guestbook
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"unicode/utf8"
@@ -10,6 +9,7 @@ import (
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
@@ -23,7 +23,7 @@ type Widget struct {
 }
 
 func New(st *store.Store, hub *sse.Hub) *Widget {
-	return &Widget{Base: widget.Base{Hub: hub, Slug: "guestbook"}, store: st}
+	return &Widget{Base: widget.Base{Hub: hub, Slug: topics.Guestbook}, store: st}
 }
 
 func (w *Widget) Routes(mux *http.ServeMux) {
@@ -37,17 +37,15 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 // of the wall (top-left of the note), clamped server-side so a buggy or
 // hostile client can't park notes off-canvas for everyone.
 func (w *Widget) handleMove(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	var req struct {
 		X float64 `json:"x"`
 		Y float64 `json:"y"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.BadRequest(rw, "invalid JSON body")
+	if !httpx.Decode(rw, r, &req) {
 		return
 	}
 	clamp := func(v float64) float64 { return min(max(v, 0), 1) }
@@ -55,8 +53,7 @@ func (w *Widget) handleMove(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	rw.WriteHeader(http.StatusNoContent)
+	w.Changed(rw, http.StatusNoContent, nil)
 }
 
 func (w *Widget) handleList(rw http.ResponseWriter, r *http.Request) {
@@ -74,8 +71,10 @@ func (w *Widget) handleAdd(rw http.ResponseWriter, r *http.Request) {
 		Message string `json:"message"`
 		Color   string `json:"color"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
-		strings.TrimSpace(req.Message) == "" {
+	if !httpx.Decode(rw, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.Message) == "" {
 		httpx.BadRequest(rw, "message is required")
 		return
 	}
@@ -94,20 +93,17 @@ func (w *Widget) handleAdd(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusCreated, note)
+	w.Changed(rw, http.StatusCreated, note)
 }
 
 func (w *Widget) handleDelete(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.store.DeleteGuestbookNote(id); err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	rw.WriteHeader(http.StatusNoContent)
+	w.Changed(rw, http.StatusNoContent, nil)
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { inQuietWindow, nightWakeMs } from "./kiosk";
 import { type NightConfig, getNightConfig } from "./night";
+import { TOPICS } from "./topics";
 import { useTopic } from "./useSSE";
 
 // The night shade: a full-screen scrim that eases in during the household's
@@ -18,7 +19,7 @@ export function NightShade() {
     getNightConfig().then(setCfg).catch(console.error);
   }, []);
   useEffect(reload, [reload]);
-  useTopic("night", reload);
+  useTopic(TOPICS.night, reload);
 
   // Re-evaluate the window twice a minute so the shade arrives on schedule.
   useEffect(() => {

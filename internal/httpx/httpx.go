@@ -46,8 +46,24 @@ func Fail(w http.ResponseWriter, err error) {
 	Error(w, http.StatusInternalServerError, "internal error")
 }
 
-// ID parses the {id} path value.
-func ID(r *http.Request) (int64, bool) {
+// ID parses the {id} path value, answering the 400 itself on a bad id so
+// handlers reduce to `id, ok := httpx.ID(w, r); if !ok { return }`.
+func ID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	return id, err == nil
+	if err != nil {
+		BadRequest(w, "invalid id")
+		return 0, false
+	}
+	return id, true
+}
+
+// Decode reads the JSON request body into v, answering the 400 itself when
+// the body doesn't parse. Field validation stays with the handler; only the
+// decode+400 step is shared.
+func Decode(w http.ResponseWriter, r *http.Request, v any) bool {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		BadRequest(w, "invalid request body")
+		return false
+	}
+	return true
 }

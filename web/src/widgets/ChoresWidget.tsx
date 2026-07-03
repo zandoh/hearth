@@ -11,26 +11,13 @@ import { Switch } from "@astryxdesign/core/Switch";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { apiFetch } from "../api";
 import { Avatar } from "../Avatar";
 import { useConfirm } from "../confirm";
+import { useMutate } from "../useMutate";
 import { useProfiles } from "../profiles";
 import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
-
-interface Chore {
-  id: number;
-  title: string;
-  everyDays: number; // 0 = one-off: done once, then gone
-  lastDone?: string;
-  assigneeId?: number;
-  dueOn: string;
-  dueIn: number; // negative = overdue
-  neverDone: boolean;
-  oneOff: boolean;
-}
-
-const api = "/api/widgets/chores";
+import { type Chore, addChore, completeChore, deleteChore } from "./choresApi";
 
 // Starter ideas for recurring upkeep — household routines plus the "life
 // things" that are easy to forget until they're a problem.
@@ -65,13 +52,13 @@ export function ChoresWidget(_props: WidgetProps) {
   const [assignee, setAssignee] = useState("0");
   const { profiles } = useProfiles();
   const { confirm, confirmDialog } = useConfirm();
+  const { mutate, error } = useMutate(reload);
   const profileOf = (id?: number) => profiles.find((p) => p.id === id);
 
   const existing = useMemo(() => new Set(chores.map((c) => c.title.toLowerCase())), [chores]);
   const suggestions = SUGGESTIONS.filter((s) => !existing.has(s.title.toLowerCase()));
 
-  const complete = (id: number) =>
-    apiFetch(`${api}/${id}/complete`, { method: "POST" }).then(reload).catch(console.error);
+  const complete = (id: number) => mutate(() => completeChore(id));
 
   const remove = (id: number, name: string) =>
     confirm(
@@ -80,23 +67,18 @@ export function ChoresWidget(_props: WidgetProps) {
         description: "The chore and its completion history will be deleted.",
         actionLabel: "Delete",
       },
-      () => apiFetch(`${api}/${id}`, { method: "DELETE" }).then(reload).catch(console.error),
+      () => mutate(() => deleteChore(id)),
     );
 
-  const create = async (name: string, interval: number) => {
-    await apiFetch(api, {
-      method: "POST",
-      body: JSON.stringify({ title: name, everyDays: interval, assigneeId: Number(assignee) }),
-    })
-      .then(reload)
-      .catch(console.error);
-  };
-
-  const add = async () => {
+  const add = () => {
     if (!title.trim()) return;
-    await create(title.trim(), repeats ? everyDays : 0);
-    setTitle("");
-    setAdding(false);
+    mutate(
+      () => addChore(title.trim(), repeats ? everyDays : 0, Number(assignee)),
+      () => {
+        setTitle("");
+        setAdding(false);
+      },
+    );
   };
 
   return (
@@ -191,6 +173,8 @@ export function ChoresWidget(_props: WidgetProps) {
           )}
         </VStack>
       )}
+
+      {error && <Text className="form-error">{error}</Text>}
 
       <VStack as="ul" gap={2} className="plain-list">
         {chores.map((c) => (

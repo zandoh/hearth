@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -21,17 +20,20 @@ import (
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
 // Sync window: far enough back for "what was that appointment?", far enough
 // forward for school-year planning.
 const (
-	syncPast     = 30 * 24 * time.Hour
-	syncFuture   = 400 * 24 * time.Hour
-	syncEvery    = 5 * time.Minute
-	tokenSetting = "google_calendar_token"
+	syncPast   = 30 * 24 * time.Hour
+	syncFuture = 400 * 24 * time.Hour
+	syncEvery  = 5 * time.Minute
 )
+
+// The OAuth token persists across restarts in the settings table.
+var tokenSetting = store.Setting[googleToken]{Key: "google_calendar_token"}
 
 // Config carries the Google OAuth credentials and the base URL Hearth is
 // reachable at (for the OAuth redirect). main reads these from the
@@ -72,7 +74,7 @@ func New(st *store.Store, hub *sse.Hub, cfg Config) *Widget {
 		baseURL = "http://localhost:8080"
 	}
 	w := &Widget{
-		Base:        widget.Base{Hub: hub, Slug: "calendar"},
+		Base:        widget.Base{Hub: hub, Slug: topics.Calendar},
 		store:       st,
 		oauthStates: make(map[string]time.Time),
 	}
@@ -82,20 +84,14 @@ func New(st *store.Store, hub *sse.Hub, cfg Config) *Widget {
 		redirectURL:  strings.TrimSuffix(baseURL, "/") + "/api/widgets/calendar/google/callback",
 		http:         &http.Client{Timeout: 30 * time.Second},
 		loadToken: func() (googleToken, error) {
-			raw, err := st.GetSetting(tokenSetting)
-			if err != nil {
-				return googleToken{}, err
+			tok, ok, err := tokenSetting.Get(st)
+			if err == nil && !ok {
+				err = store.ErrNotFound
 			}
-			var tok googleToken
-			err = json.Unmarshal([]byte(raw), &tok)
 			return tok, err
 		},
 		saveToken: func(tok googleToken) error {
-			b, err := json.Marshal(tok)
-			if err != nil {
-				return err
-			}
-			return st.SetSetting(tokenSetting, string(b))
+			return tokenSetting.Set(st, tok)
 		},
 	}
 	return w
@@ -163,8 +159,7 @@ func (w *Widget) handleCreateCalendar(rw http.ResponseWriter, r *http.Request) {
 		Color    string `json:"color"`
 		GoogleID string `json:"googleId"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.BadRequest(rw, "invalid JSON body")
+	if !httpx.Decode(rw, r, &req) {
 		return
 	}
 	if strings.TrimSpace(req.Name) == "" {
@@ -194,14 +189,12 @@ func (w *Widget) handleCreateCalendar(rw http.ResponseWriter, r *http.Request) {
 			}
 		}()
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusCreated, cal)
+	w.Changed(rw, http.StatusCreated, cal)
 }
 
 func (w *Widget) handleUpdateCalendar(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	var req struct {
@@ -209,7 +202,10 @@ func (w *Widget) handleUpdateCalendar(rw http.ResponseWriter, r *http.Request) {
 		Color   string `json:"color"`
 		Enabled bool   `json:"enabled"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Name) == "" {
+	if !httpx.Decode(rw, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
 		httpx.BadRequest(rw, "name is required")
 		return
 	}
@@ -218,14 +214,12 @@ func (w *Widget) handleUpdateCalendar(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusOK, cal)
+	w.Changed(rw, http.StatusOK, cal)
 }
 
 func (w *Widget) handleDeleteCalendar(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	// Deleting a Google calendar here only removes it from Hearth; the
@@ -234,8 +228,7 @@ func (w *Widget) handleDeleteCalendar(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.Publish("changed")
-	rw.WriteHeader(http.StatusNoContent)
+	w.Changed(rw, http.StatusNoContent, nil)
 }
 
 // --- events ---
@@ -386,8 +379,7 @@ func (w *Widget) deleteEvent(ctx context.Context, id int64) error {
 
 func (w *Widget) handleCreateEvent(rw http.ResponseWriter, r *http.Request) {
 	var req eventRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.BadRequest(rw, "invalid JSON body")
+	if !httpx.Decode(rw, r, &req) {
 		return
 	}
 	if err := req.validate(); err != nil {
@@ -399,19 +391,16 @@ func (w *Widget) handleCreateEvent(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusCreated, event)
+	w.Changed(rw, http.StatusCreated, event)
 }
 
 func (w *Widget) handleUpdateEvent(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	var req eventRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.BadRequest(rw, "invalid JSON body")
+	if !httpx.Decode(rw, r, &req) {
 		return
 	}
 	if err := req.validate(); err != nil {
@@ -423,22 +412,19 @@ func (w *Widget) handleUpdateEvent(rw http.ResponseWriter, r *http.Request) {
 		writeErr(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusOK, event)
+	w.Changed(rw, http.StatusOK, event)
 }
 
 func (w *Widget) handleDeleteEvent(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.deleteEvent(r.Context(), id); err != nil {
 		writeErr(rw, err)
 		return
 	}
-	w.Publish("changed")
-	rw.WriteHeader(http.StatusNoContent)
+	w.Changed(rw, http.StatusNoContent, nil)
 }
 
 // --- sync ---
@@ -623,10 +609,9 @@ func (w *Widget) handleGoogleAvailable(rw http.ResponseWriter, r *http.Request) 
 }
 
 func (w *Widget) handleGoogleDisconnect(rw http.ResponseWriter, r *http.Request) {
-	if err := w.store.DeleteSetting(tokenSetting); err != nil {
+	if err := tokenSetting.Delete(w.store); err != nil {
 		writeErr(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusOK, map[string]string{"status": "disconnected"})
+	w.Changed(rw, http.StatusOK, map[string]string{"status": "disconnected"})
 }

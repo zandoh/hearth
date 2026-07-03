@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 )
 
@@ -44,6 +45,19 @@ func (b Base) Jobs() []Job { return nil }
 
 // Publish sends data to the widget's SSE topic (its ID).
 func (b Base) Publish(data any) { b.Hub.Publish(b.Slug, data) }
+
+// Changed is the canonical end of every mutating widget handler: it
+// publishes "changed" on the widget's own topic, then writes the JSON
+// response. Ending handlers with Changed makes publish-on-write
+// unforgettable. A nil v writes only the status (for 204 No Content).
+func (b Base) Changed(rw http.ResponseWriter, status int, v any) {
+	b.Publish("changed")
+	if v == nil {
+		rw.WriteHeader(status)
+		return
+	}
+	httpx.JSON(rw, status, v)
+}
 
 type Registry struct {
 	widgets []Widget

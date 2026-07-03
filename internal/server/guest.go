@@ -4,19 +4,21 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 )
 
 // Guest mode: the kiosk can be locked to one designated view for visitors.
 // Entering is a tap; leaving requires the household PIN. The PIN and the
 // guest view id live in settings; activation itself is per-device (client).
 
+// Both values are stored raw (hex digest / decimal id), predating the typed
+// store.Setting; they must keep that shape for existing databases.
 const (
 	guestPinSetting  = "guest_pin_hash"
 	guestViewSetting = "guest_view_id"
@@ -55,8 +57,7 @@ func (s *Server) handleSetGuestPin(w http.ResponseWriter, r *http.Request) {
 		Pin        string `json:"pin"`
 		CurrentPin string `json:"currentPin"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.BadRequest(w, "invalid JSON body")
+	if !httpx.Decode(w, r, &req) {
 		return
 	}
 	if existing, err := s.store.GetSetting(guestPinSetting); err == nil {
@@ -80,16 +81,14 @@ func (s *Server) handleSetGuestPin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s.hub.Publish("guest", "changed")
-	httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	s.changed(w, topics.Guest, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleVerifyGuestPin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Pin string `json:"pin"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.BadRequest(w, "invalid JSON body")
+	if !httpx.Decode(w, r, &req) {
 		return
 	}
 	existing, err := s.store.GetSetting(guestPinSetting)
@@ -109,9 +108,8 @@ func (s *Server) handleVerifyGuestPin(w http.ResponseWriter, r *http.Request) {
 
 // handleSetGuestView marks a view as the guest view (id 0 clears it).
 func (s *Server) handleSetGuestView(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(w, r)
 	if !ok {
-		httpx.BadRequest(w, "invalid id")
 		return
 	}
 	if id == 0 {
@@ -133,7 +131,6 @@ func (s *Server) handleSetGuestView(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s.hub.Publish("guest", "changed")
-	s.hub.Publish("views", "changed")
-	w.WriteHeader(http.StatusNoContent)
+	s.hub.Publish(topics.Guest, "changed")
+	s.changed(w, topics.Views, http.StatusNoContent, nil)
 }

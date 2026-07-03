@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
@@ -8,9 +8,10 @@ import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { useTopic } from "../useSSE";
+import { TOPICS } from "../topics";
+import { useTopicData } from "../useWidgetData";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
-import { type CalEvent, getEvents, ymd } from "./calendarApi";
+import { getEvents, ymd } from "./calendarApi";
 import {
   DEFAULT_TAGS,
   type CountdownItem,
@@ -33,17 +34,15 @@ const addDays = (d: Date, n: number) => {
   return x;
 };
 
+const fetchYearAhead = () => {
+  const today = new Date();
+  return getEvents(`${ymd(today)}T00:00:00Z`, `${ymd(addDays(today, 365))}T23:59:59Z`);
+};
+
 export function CountdownWidget({ item }: WidgetProps) {
   const now = new Date();
-  const [events, setEvents] = useState<CalEvent[]>([]);
-  const reload = useCallback(() => {
-    const today = new Date();
-    getEvents(`${ymd(today)}T00:00:00Z`, `${ymd(addDays(today, 365))}T23:59:59Z`)
-      .then(setEvents)
-      .catch(console.error);
-  }, []);
-  useEffect(reload, [reload]);
-  useTopic("calendar", reload);
+  const { data } = useTopicData(TOPICS.calendar, fetchYearAhead);
+  const events = data ?? [];
 
   const tags = parseTagList(item.config.tags);
   const tagged = fromCalendar(events, tags.length > 0 ? tags : DEFAULT_TAGS, now);

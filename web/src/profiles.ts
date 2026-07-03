@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api";
-import { useTopic } from "./useSSE";
+import { TOPICS } from "./topics";
+import { useTopicData } from "./useWidgetData";
 
 // Household profiles: the people chores are assigned to and meds belong to.
 // Platform-level (like views); widgets resolve ids against this list.
@@ -26,11 +26,6 @@ export const deleteProfile = (id: number) =>
 
 /** The profile list, kept fresh over the "profiles" SSE topic. */
 export function useProfiles(): { profiles: Profile[]; reload: () => void } {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const reload = useCallback(() => {
-    getProfiles().then(setProfiles).catch(console.error);
-  }, []);
-  useEffect(reload, [reload]);
-  useTopic("profiles", reload);
-  return { profiles, reload };
+  const { data, reload } = useTopicData(TOPICS.profiles, getProfiles);
+  return { profiles: data ?? [], reload };
 }

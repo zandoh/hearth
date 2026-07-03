@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, {
   useContainerWidth,
-  type Compactor,
   type Layout,
   type LayoutItem as GridPos,
 } from "react-grid-layout";
@@ -26,89 +25,19 @@ import {
 } from "./guestMode";
 import { NightShade } from "./NightShade";
 import { Screensaver } from "./Screensaver";
+import { createCompactor } from "./compactor";
 import { useConfirm } from "./confirm";
 import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
 import { idleReturnMs, msUntilNightlyReload, screensaverMs } from "./kiosk";
 import { OnScreenKeyboard, oskEnabled, setOskEnabled } from "./OnScreenKeyboard";
 import { nextThemeMode, setThemeMode, useThemeMode } from "./themeMode";
+import { TOPICS } from "./topics";
 import { useConnectionState, useTopic } from "./useSSE";
 import { widgetRegistry } from "./widgets/registry";
 import type { View } from "./types";
 
 const ROW_HEIGHT = 72;
-
-// Free placement: gaps stay where you put them (no gravity), but collisions
-// PUSH — Datadog-style. The key to "shift just enough": pushes are computed
-// against a SNAPSHOT of the layout taken when the gesture started, not
-// against wherever the last drag-tick shoved things. Every displaced widget
-// keeps trying to return to its home spot and only sits as far down as the
-// intruder actually forces it, so displacement never accumulates along the
-// drag path and widgets spring back when the intruder moves away.
-const gestureHomes = new Map<string, { x: number; y: number }>();
-let gestureItemId: string | null = null;
-// Hysteresis: widgets pushed on the previous tick stay pushed until the
-// intruder clears them by a full cell. Without this, cursor jitter at a
-// cell boundary makes neighbours oscillate home/pushed — the "jiggle".
-const pushedLastTick = new Set<string>();
-
-const collide = (a: GridPos, b: GridPos) =>
-  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-
-const nearby = (a: GridPos, b: GridPos) =>
-  collide({ ...a, x: a.x - 1, y: a.y - 1, w: a.w + 2, h: a.h + 2 }, b);
-
-const freePlacement: Compactor = {
-  type: null,
-  allowOverlap: false,
-  compact: (layout) => {
-    const placed: GridPos[] = [];
-    const isIntruder = (it: GridPos) =>
-      it.i === gestureItemId || (gestureHomes.size > 0 && !gestureHomes.has(it.i));
-    // The item being dragged/resized/dropped is authoritative: place it
-    // first at its current position.
-    const intruders: GridPos[] = [];
-    for (const item of layout) {
-      if (isIntruder(item)) {
-        const it = { ...item };
-        intruders.push(it);
-        placed.push(it);
-      }
-    }
-    // Everyone else starts from their gesture-start home (falling back to
-    // their current spot) and slides down only as far as needed.
-    const rest = layout
-      .filter((it) => !isIntruder(it))
-      .map((it) => {
-        const home = gestureHomes.get(it.i);
-        return { ...it, x: home?.x ?? it.x, y: home?.y ?? it.y };
-      })
-      .sort((a, b) => a.y - b.y || a.x - b.x);
-    const nowPushed = new Set<string>();
-    for (const it of rest) {
-      const mustPush =
-        placed.some((p) => collide(p, it)) ||
-        // sticky: was pushed and the intruder is still within one cell
-        (pushedLastTick.has(it.i) && intruders.some((p) => nearby(p, it)));
-      if (mustPush) {
-        while (placed.some((p) => collide(p, it))) it.y += 1;
-        // re-settle upward toward home so a sticky push sits snug, not deep
-        while (it.y > (gestureHomes.get(it.i)?.y ?? it.y)) {
-          const up = { ...it, y: it.y - 1 };
-          if (placed.some((p) => collide(p, up))) break;
-          it.y = up.y;
-        }
-        if (it.y !== (gestureHomes.get(it.i)?.y ?? it.y)) nowPushed.add(it.i);
-      }
-      placed.push(it);
-    }
-    if (gestureHomes.size > 0) {
-      pushedLastTick.clear();
-      for (const id of nowPushed) pushedLastTick.add(id);
-    }
-    return layout.map((orig) => placed.find((p) => p.i === orig.i) ?? { ...orig });
-  },
-};
 
 // Stamped at build time (Makefile passes VITE_BUILD_ID); shown in the tab
 // console and on the wordmark so a stale cached bundle is immediately obvious.
@@ -147,6 +76,8 @@ function GridGuides({ rows }: { rows: number }) {
 export default function App() {
   const [views, setViews] = useState<View[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
+  // This grid's free-placement compactor; gesture state lives inside it.
+  const [freePlacement] = useState(createCompactor);
   const [editing, setEditing] = useState(false);
   const editingRef = useRef(false);
   editingRef.current = editing;
@@ -177,13 +108,13 @@ export default function App() {
   }, []);
 
   useEffect(loadViews, [loadViews]);
-  useTopic("views", loadViews);
+  useTopic(TOPICS.views, loadViews);
 
   const loadGuestConfig = useCallback(() => {
     getGuestConfig().then(setGuestConfig).catch(console.error);
   }, []);
   useEffect(loadGuestConfig, [loadGuestConfig]);
-  useTopic("guest", loadGuestConfig);
+  useTopic(TOPICS.guest, loadGuestConfig);
 
   // Screensaver: long-idle burn-in protection, woken by any touch.
   useEffect(() => {
@@ -284,24 +215,20 @@ export default function App() {
     liveLayoutRef.current = layout;
   }, []);
 
-  const gestureStart = useCallback((layout: Layout, oldItem: GridPos | null) => {
-    gestureHomes.clear();
-    for (const it of layout) gestureHomes.set(it.i, { x: it.x, y: it.y });
-    gestureItemId = oldItem?.i ?? null;
-    setInteracting(true);
-  }, []);
+  const gestureStart = useCallback(
+    (layout: Layout, oldItem: GridPos | null) => {
+      freePlacement.beginGesture(layout, oldItem?.i ?? null);
+      setInteracting(true);
+    },
+    [freePlacement],
+  );
   const gestureStop = useCallback(
     (layout: Layout) => {
-      // Final placement is strict: drop the hysteresis so a widget that was
-      // only sticky-pushed springs home, then persist the settled layout.
-      pushedLastTick.clear();
-      const settled = freePlacement.compact(layout, GRID_COLS);
-      gestureHomes.clear();
-      gestureItemId = null;
+      const settled = freePlacement.endGesture(layout, GRID_COLS);
       setInteracting(false);
       persist(settled);
     },
-    [persist],
+    [freePlacement, persist],
   );
 
   const addWidget = (slug: string) => {
@@ -353,9 +280,7 @@ export default function App() {
 
   // Drop from the tray: the grid tells us where the preview landed.
   const onDrop = (layout: Layout, item: GridPos | undefined) => {
-    pushedLastTick.clear();
-    gestureHomes.clear();
-    gestureItemId = null;
+    freePlacement.cancelGesture();
     setInteracting(false);
     const slug = dragSlugRef.current;
     dragSlugRef.current = null;
@@ -539,7 +464,7 @@ export default function App() {
             width={width}
             layout={gridLayout}
             gridConfig={{ cols: GRID_COLS, rowHeight: ROW_HEIGHT }}
-            compactor={freePlacement}
+            compactor={freePlacement.compactor}
             dragConfig={{ enabled: editing, handle: ".widget-chrome", cancel: ".no-drag" }}
             // No top handles: the chrome bar owns the top edge as drag grip.
             resizeConfig={{
@@ -550,8 +475,8 @@ export default function App() {
               enabled: editing,
               defaultItem: { w: 3, h: 3 },
               onDragOver: () => {
-                if (gestureHomes.size === 0 && active) {
-                  for (const it of active.layout) gestureHomes.set(it.i, { x: it.x, y: it.y });
+                if (!freePlacement.inGesture() && active) {
+                  freePlacement.beginGesture(active.layout, null);
                 }
                 setInteracting(true);
                 const def = dragSlugRef.current ? widgetRegistry[dragSlugRef.current] : null;

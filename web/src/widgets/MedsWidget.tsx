@@ -9,28 +9,13 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { apiFetch } from "../api";
 import { Avatar } from "../Avatar";
+import { useMutate } from "../useMutate";
 import { useProfiles } from "../profiles";
 import { useConfirm } from "../confirm";
 import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
-
-interface Dose {
-  slot: string;
-  taken: boolean;
-}
-
-interface Med {
-  id: number;
-  name: string;
-  person: string; // legacy free text; profileId supersedes it
-  profileId?: number;
-  times: string[];
-  doses: Dose[];
-}
-
-const api = "/api/widgets/meds";
+import { type Med, addMed, deleteMed, toggleDose } from "./medsApi";
 
 // Semantic schedules; each maps to the slot list stored on the medication.
 // Daily-style slots reset at midnight, weekly at the start of the week.
@@ -61,16 +46,10 @@ export function MedsWidget(_props: WidgetProps) {
   const { profiles } = useProfiles();
   const profileOf = (id?: number) => profiles.find((p) => p.id === id);
   const [schedule, setSchedule] = useState("am");
-  const [error, setError] = useState("");
   const { confirm, confirmDialog } = useConfirm();
+  const { mutate, error } = useMutate(reload);
 
-  const toggle = (medId: number, slot: string) =>
-    apiFetch(`${api}/${medId}/toggle`, {
-      method: "POST",
-      body: JSON.stringify({ slot }),
-    })
-      .then(reload)
-      .catch(console.error);
+  const toggle = (medId: number, slot: string) => mutate(() => toggleDose(medId, slot));
 
   const remove = (id: number, medName: string) =>
     confirm(
@@ -79,25 +58,19 @@ export function MedsWidget(_props: WidgetProps) {
         description: "The medication and its dose history will be deleted.",
         actionLabel: "Remove",
       },
-      () => apiFetch(`${api}/${id}`, { method: "DELETE" }).then(reload).catch(console.error),
+      () => mutate(() => deleteMed(id)),
     );
 
-  const add = async () => {
-    setError("");
+  const add = () => {
     const slots = SCHEDULES.find((sc) => sc.value === schedule)?.slots ?? ["daily"];
-    try {
-      await apiFetch(api, {
-        method: "POST",
-        body: JSON.stringify({ name: name.trim(), profileId: Number(profileId), times: slots }),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "failed to add");
-      return;
-    }
-    setName("");
-    setProfileId("0");
-    setAdding(false);
-    reload();
+    mutate(
+      () => addMed(name.trim(), Number(profileId), slots),
+      () => {
+        setName("");
+        setProfileId("0");
+        setAdding(false);
+      },
+    );
   };
 
   return (
@@ -133,7 +106,6 @@ export function MedsWidget(_props: WidgetProps) {
             options={SCHEDULES.map(({ value, label }) => ({ value, label }))}
             onChange={(v) => setSchedule(v ?? "am")}
           />
-          {error && <Text className="form-error">{error}</Text>}
           <HStack justify="end">
             <IconButton
               size="sm"
@@ -146,6 +118,8 @@ export function MedsWidget(_props: WidgetProps) {
           </HStack>
         </VStack>
       )}
+
+      {error && <Text className="form-error">{error}</Text>}
 
       <VStack as="ul" gap={2} className="plain-list">
         {meds.map((m) => (

@@ -40,10 +40,20 @@ body {
 
 /* --- board / edit mode --- */
 
+/* react-grid-layout sizes itself from its rows, so an empty board is a
+   ~10px strip — external drags over the visibly empty space never hit it
+   and drops went nowhere. Flex-stretch it to fill the container
+   (min-height: 100% can't resolve against a flex-grown parent). */
 .grid-container {
   position: relative;
   flex: 1;
   padding: var(--spacing-3);
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-container .react-grid-layout {
+  flex: 1 0 auto;
 }
 
 /* While editing, gestures sweep across widget text — never select it.

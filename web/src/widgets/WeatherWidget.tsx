@@ -6,9 +6,17 @@ import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { VStack } from "@astryxdesign/core/VStack";
-import { apiFetch } from "../api";
+import { useMutate } from "../useMutate";
 import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
+import {
+  type Candidate,
+  type ForecastResponse,
+  geocode,
+  getForecast,
+  saveLocation,
+  saveUnits,
+} from "./weatherApi";
 
 // WMO weather interpretation codes → label + emoji.
 const WMO: Record<number, [string, string]> = {
@@ -48,80 +56,27 @@ function aqiBadge(aqi: number) {
   return <Badge variant="error" label={`AQI ${aqi} unhealthy`} />;
 }
 
-interface Forecast {
-  location: { name: string };
-  units: "imperial" | "metric";
-  usAqi: number | null;
-  current: {
-    temperature_2m: number;
-    apparent_temperature: number;
-    relative_humidity_2m: number;
-    weather_code: number;
-    wind_speed_10m: number;
-  };
-  hourly: {
-    time: string[];
-    temperature_2m: number[];
-    precipitation_probability: number[];
-    weather_code: number[];
-  };
-  daily: {
-    time: string[];
-    weather_code: number[];
-    temperature_2m_max: number[];
-    temperature_2m_min: number[];
-    precipitation_probability_max: number[];
-  };
-}
-
-interface ForecastResponse {
-  configured: boolean;
-  pending?: boolean;
-  forecast?: Forecast;
-}
-
-interface Candidate {
-  name: string;
-  latitude: number;
-  longitude: number;
-}
-
-const api = "/api/widgets/weather";
-
 export function WeatherWidget(_props: WidgetProps) {
   const { data, reload } = useWidgetData<ForecastResponse>("weather", "/forecast");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
-  const [error, setError] = useState("");
+  const { mutate, error } = useMutate(reload);
 
-  const search = async () => {
+  const search = () => {
     if (!query.trim()) return;
-    setError("");
     setCandidates(null);
-    let found: Candidate[] = [];
-    try {
-      found = await apiFetch<Candidate[]>(`${api}/geocode?q=${encodeURIComponent(query.trim())}`);
-    } catch {
-      // fall through to the empty-result message
-    }
-    if (found.length === 0) {
-      setError(`no places found for "${query}"`);
-      return;
-    }
-    setCandidates(found);
+    mutate(async () => {
+      const found = await geocode(query.trim());
+      if (found.length === 0) throw new Error(`no places found for "${query}"`);
+      setCandidates(found);
+    });
   };
 
-  const choose = async (c: Candidate) => {
-    setError("");
-    try {
-      await apiFetch(`${api}/location`, { method: "PUT", body: JSON.stringify(c) });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "failed to set location");
-      return;
-    }
-    setCandidates(null);
-    reload();
-  };
+  const choose = (c: Candidate) =>
+    mutate(
+      () => saveLocation(c),
+      () => setCandidates(null),
+    );
 
   if (!data) {
     return (
@@ -239,12 +194,11 @@ export function WeatherSettings({ config, save }: WidgetSettingsProps) {
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [units, setUnits] = useState<string>("imperial");
-  const [error, setError] = useState("");
+  const { mutate, error } = useMutate();
 
   useEffect(() => {
-    fetch(`${api}/forecast`)
-      .then((r) => r.json())
-      .then((d: ForecastResponse) => {
+    getForecast()
+      .then((d) => {
         if (d.forecast) {
           setCurrent({ name: d.forecast.location.name, units: d.forecast.units });
           setUnits(d.forecast.units ?? "imperial");
@@ -253,49 +207,32 @@ export function WeatherSettings({ config, save }: WidgetSettingsProps) {
       .catch(console.error);
   }, []);
 
-  const search = async () => {
+  const search = () => {
     if (!query.trim()) return;
-    setError("");
-    const res = await fetch(`${api}/geocode?q=${encodeURIComponent(query.trim())}`);
-    const found = res.ok ? ((await res.json()) as Candidate[]) : [];
-    if (found.length === 0) {
-      setError(`no places found for "${query}"`);
-      return;
-    }
-    setCandidates(found);
-  };
-
-  const choose = async (c: Candidate) => {
-    setError("");
-    const res = await fetch(`${api}/location`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(c),
+    mutate(async () => {
+      const found = await geocode(query.trim());
+      if (found.length === 0) throw new Error(`no places found for "${query}"`);
+      setCandidates(found);
     });
-    if (!res.ok) {
-      setError("failed to set location");
-      return;
-    }
-    setCurrent((cur) => ({ name: c.name, units: cur?.units ?? units }));
-    setCandidates(null);
-    setQuery("");
   };
 
-  const apply = async () => {
-    setError("");
-    if (units !== current?.units) {
-      const res = await fetch(`${api}/units`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ units }),
-      });
-      if (!res.ok) {
-        setError("failed to set units");
-        return;
-      }
-    }
-    save(config); // nothing stored per-instance yet; closes the dialog
-  };
+  const choose = (c: Candidate) =>
+    mutate(
+      () => saveLocation(c),
+      () => {
+        setCurrent((cur) => ({ name: c.name, units: cur?.units ?? units }));
+        setCandidates(null);
+        setQuery("");
+      },
+    );
+
+  const apply = () =>
+    mutate(
+      async () => {
+        if (units !== current?.units) await saveUnits(units);
+      },
+      () => save(config), // nothing stored per-instance yet; closes the dialog
+    );
 
   return (
     <VStack gap={3}>

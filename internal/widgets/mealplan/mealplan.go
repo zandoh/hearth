@@ -3,7 +3,6 @@
 package mealplan
 
 import (
-	"encoding/json"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
@@ -26,7 +26,7 @@ type Widget struct {
 }
 
 func New(st *store.Store, hub *sse.Hub) *Widget {
-	return &Widget{Base: widget.Base{Hub: hub, Slug: "mealplan"}, store: st}
+	return &Widget{Base: widget.Base{Hub: hub, Slug: topics.MealPlan}, store: st}
 }
 
 func (w *Widget) Routes(mux *http.ServeMux) {
@@ -62,8 +62,10 @@ func (w *Widget) handleWeek(rw http.ResponseWriter, r *http.Request) {
 
 func (w *Widget) handleSetEntry(rw http.ResponseWriter, r *http.Request) {
 	var req store.MealEntry
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
-		!dayRe.MatchString(req.Day) || !slots[req.Slot] {
+	if !httpx.Decode(rw, r, &req) {
+		return
+	}
+	if !dayRe.MatchString(req.Day) || !slots[req.Slot] {
 		httpx.BadRequest(rw, "day (YYYY-MM-DD) and slot (breakfast|lunch|dinner) are required")
 		return
 	}
@@ -71,6 +73,5 @@ func (w *Widget) handleSetEntry(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusOK, map[string]string{"status": "saved"})
+	w.Changed(rw, http.StatusOK, map[string]string{"status": "saved"})
 }

@@ -1,13 +1,13 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 )
 
 // Household profiles: the people behind chore assignees and med owners.
@@ -15,12 +15,14 @@ import (
 
 var hexColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
-func decodeProfile(r *http.Request) (name, color string, ok bool) {
+// decodeProfile reads and validates a profile body, answering the 400
+// itself so handlers reduce to `if !ok { return }`.
+func decodeProfile(w http.ResponseWriter, r *http.Request) (name, color string, ok bool) {
 	var req struct {
 		Name  string `json:"name"`
 		Color string `json:"color"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if !httpx.Decode(w, r, &req) {
 		return "", "", false
 	}
 	name = strings.TrimSpace(req.Name)
@@ -28,7 +30,11 @@ func decodeProfile(r *http.Request) (name, color string, ok bool) {
 	if color == "" {
 		color = "#D97742"
 	}
-	return name, color, name != "" && hexColorRe.MatchString(color)
+	if name == "" || !hexColorRe.MatchString(color) {
+		httpx.BadRequest(w, "name is required; color must be #RRGGBB")
+		return "", "", false
+	}
+	return name, color, true
 }
 
 func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
@@ -41,9 +47,8 @@ func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
-	name, color, ok := decodeProfile(r)
+	name, color, ok := decodeProfile(w, r)
 	if !ok {
-		httpx.BadRequest(w, "name is required; color must be #RRGGBB")
 		return
 	}
 	p, err := s.store.CreateProfile(name, color)
@@ -51,42 +56,36 @@ func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, err)
 		return
 	}
-	s.hub.Publish("profiles", "changed")
-	httpx.JSON(w, http.StatusCreated, p)
+	s.changed(w, topics.Profiles, http.StatusCreated, p)
 }
 
 func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(w, r)
 	if !ok {
-		httpx.BadRequest(w, "invalid id")
 		return
 	}
-	name, color, ok := decodeProfile(r)
+	name, color, ok := decodeProfile(w, r)
 	if !ok {
-		httpx.BadRequest(w, "name is required; color must be #RRGGBB")
 		return
 	}
 	if err := s.store.UpdateProfile(store.Profile{ID: id, Name: name, Color: color}); err != nil {
 		httpx.Fail(w, err)
 		return
 	}
-	s.hub.Publish("profiles", "changed")
-	w.WriteHeader(http.StatusNoContent)
+	s.changed(w, topics.Profiles, http.StatusNoContent, nil)
 }
 
 func (s *Server) handleDeleteProfile(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(w, r)
 	if !ok {
-		httpx.BadRequest(w, "invalid id")
 		return
 	}
 	if err := s.store.DeleteProfile(id); err != nil {
 		httpx.Fail(w, err)
 		return
 	}
-	s.hub.Publish("profiles", "changed")
 	// Their chores/meds just went unassigned — those widgets must refresh.
-	s.hub.Publish("chores", "changed")
-	s.hub.Publish("meds", "changed")
-	w.WriteHeader(http.StatusNoContent)
+	s.hub.Publish(topics.Chores, "changed")
+	s.hub.Publish(topics.Meds, "changed")
+	s.changed(w, topics.Profiles, http.StatusNoContent, nil)
 }

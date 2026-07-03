@@ -3,13 +3,13 @@
 package grocery
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
@@ -19,7 +19,7 @@ type Widget struct {
 }
 
 func New(st *store.Store, hub *sse.Hub) *Widget {
-	return &Widget{Base: widget.Base{Hub: hub, Slug: "grocery"}, store: st}
+	return &Widget{Base: widget.Base{Hub: hub, Slug: topics.Grocery}, store: st}
 }
 
 func (w *Widget) Routes(mux *http.ServeMux) {
@@ -43,8 +43,10 @@ func (w *Widget) handleAdd(rw http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name string `json:"name"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
-		strings.TrimSpace(req.Name) == "" {
+	if !httpx.Decode(rw, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
 		httpx.BadRequest(rw, "name is required")
 		return
 	}
@@ -53,22 +55,19 @@ func (w *Widget) handleAdd(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusCreated, item)
+	w.Changed(rw, http.StatusCreated, item)
 }
 
 func (w *Widget) handleToggle(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.store.ToggleGroceryItem(id); err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusOK, map[string]string{"status": "toggled"})
+	w.Changed(rw, http.StatusOK, map[string]string{"status": "toggled"})
 }
 
 func (w *Widget) handleClearChecked(rw http.ResponseWriter, r *http.Request) {
@@ -76,20 +75,17 @@ func (w *Widget) handleClearChecked(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusOK, map[string]string{"status": "cleared"})
+	w.Changed(rw, http.StatusOK, map[string]string{"status": "cleared"})
 }
 
 func (w *Widget) handleDelete(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.store.DeleteGroceryItem(id); err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	rw.WriteHeader(http.StatusNoContent)
+	w.Changed(rw, http.StatusNoContent, nil)
 }

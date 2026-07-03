@@ -10,6 +10,7 @@ import (
 
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
@@ -18,7 +19,7 @@ type Clock struct {
 }
 
 func New(hub *sse.Hub) *Clock {
-	return &Clock{Base: widget.Base{Hub: hub, Slug: "clock"}}
+	return &Clock{Base: widget.Base{Hub: hub, Slug: topics.Clock}}
 }
 
 func (c *Clock) payload() map[string]any {

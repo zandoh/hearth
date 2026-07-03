@@ -27,28 +27,6 @@ type Event struct {
 	Notes      string `json:"notes"`
 }
 
-func (s *Store) GetSetting(key string) (string, error) {
-	var value string
-	err := s.db.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrNotFound
-	}
-	return value, err
-}
-
-func (s *Store) SetSetting(key, value string) error {
-	_, err := s.db.Exec(
-		"INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-		key, value,
-	)
-	return err
-}
-
-func (s *Store) DeleteSetting(key string) error {
-	_, err := s.db.Exec("DELETE FROM settings WHERE key = ?", key)
-	return err
-}
-
 func scanCalendar(row interface{ Scan(...any) error }) (Calendar, error) {
 	var c Calendar
 	var googleID sql.NullString

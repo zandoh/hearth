@@ -265,6 +265,41 @@ export default async function features({ browser, base }) {
   });
   await nightCtx.close();
 
+  // --- dragging a widget onto an EMPTY board must work ---
+  // Regression: react-grid-layout collapses to ~10px with no items, so
+  // tray drags over the visibly empty board never hit a drop target.
+  await fetch(`${base}/api/views/1`, {
+    method: "PUT",
+    body: JSON.stringify({ name: "Home", layout: [] }),
+  });
+  const dropCtx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const dropPage = await dropCtx.newPage();
+  await dropPage.goto(base);
+  await dropPage.waitForSelector(".grid-container");
+  await dropPage.locator('[aria-label="Edit layout"]').click();
+  await dropPage.waitForTimeout(300);
+  const dt = await dropPage.evaluateHandle(() => new DataTransfer());
+  await dropPage.locator('[draggable]:has-text("Clock")').first().dispatchEvent("dragstart", { dataTransfer: dt });
+  for (const type of ["dragenter", "dragover", "drop"]) {
+    await dropPage.evaluate(
+      ({ type, dt }) => {
+        const gc = document.querySelector(".grid-container").getBoundingClientRect();
+        const x = gc.x + gc.width / 2;
+        const y = gc.y + gc.height / 2;
+        document
+          .elementFromPoint(x, y)
+          .dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, dataTransfer: dt }));
+      },
+      { type, dt },
+    );
+  }
+  await dropPage.waitForTimeout(700);
+  step(
+    "tray drag drops onto an empty board",
+    (await dropPage.locator(".widget-card").count()) === 1,
+  );
+  await dropCtx.close();
+
   // --- guest mode round-trip must not disturb the board ---
   // Regression: the no-guest-view screensaver used to unmount the grid, which
   // zeroed react-grid-layout's container width for good — after the PIN exit

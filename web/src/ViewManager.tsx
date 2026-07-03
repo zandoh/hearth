@@ -20,6 +20,7 @@ import { type GuestConfig, getGuestConfig, setGuestPin, setGuestView } from "./g
 import { type NightConfig, getNightConfig, setNightConfig } from "./night";
 import { type Profile, createProfile, deleteProfile, updateProfile, useProfiles } from "./profiles";
 import type { View } from "./types";
+import { useMutate } from "./useMutate";
 
 const SHADE_OPTIONS = [
   { value: "0.45", label: "Soft" },
@@ -41,22 +42,20 @@ export function ViewManager({
 }) {
   const [names, setNames] = useState<Record<number, string>>({});
   const [newName, setNewName] = useState("");
-  const [error, setError] = useState("");
   const [guest, setGuest] = useState<GuestConfig | null>(null);
   const [pin, setPin] = useState("");
   const [currentPin, setCurrentPin] = useState("");
   const [night, setNight] = useState<NightConfig | null>(null);
   const { confirm, confirmDialog } = useConfirm();
+  // No reload here: the views list lives in App, which refreshes it over the
+  // "views" SSE topic (see the component comment above). Sections that own
+  // their data (profiles, guest, night) refresh inside their own actions.
+  const { mutate: act, error } = useMutate();
 
   useEffect(() => {
     getGuestConfig().then(setGuest).catch(console.error);
     getNightConfig().then(setNight).catch(console.error);
   }, []);
-
-  const act = (fn: () => Promise<unknown>) => {
-    setError("");
-    fn().catch((err: unknown) => setError(err instanceof Error ? err.message : "request failed"));
-  };
 
   const rename = (view: View) => {
     const name = (names[view.id] ?? view.name).trim();

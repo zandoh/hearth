@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog } from "@astryxdesign/core/Dialog";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -8,18 +8,13 @@ import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { apiFetch } from "../api";
-import { useTopic } from "../useSSE";
+import { TOPICS } from "../topics";
+import { useMutate } from "../useMutate";
+import { useTopicData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
 import { ymd } from "./calendarApi";
+import { type MealEntry, getWeek, saveEntry } from "./mealplanApi";
 
-interface Entry {
-  day: string;
-  slot: string;
-  text: string;
-}
-
-const api = "/api/widgets/mealplan";
 const SLOTS = ["breakfast", "lunch", "dinner"] as const;
 const SLOT_LABEL: Record<string, string> = { breakfast: "B", lunch: "L", dinner: "D" };
 
@@ -36,18 +31,13 @@ const addDays = (d: Date, n: number) => {
 
 export function MealPlanWidget(_props: WidgetProps) {
   const [weekStart, setWeekStart] = useState(() => sundayOf(new Date()));
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [editing, setEditing] = useState<{ day: string; slot: string; text: string } | null>(null);
+  const [editing, setEditing] = useState<MealEntry | null>(null);
 
   const startYmd = ymd(weekStart);
-  const reload = useCallback(() => {
-    apiFetch<{ entries: Entry[] }>(`${api}/week?start=${startYmd}`)
-      .then((d) => setEntries(d.entries))
-      .catch(console.error);
-  }, [startYmd]);
-
-  useEffect(reload, [reload]);
-  useTopic("mealplan", reload);
+  const fetchWeek = useCallback(() => getWeek(startYmd), [startYmd]);
+  const { data, reload } = useTopicData(TOPICS.mealplan, fetchWeek);
+  const entries = data?.entries ?? [];
+  const { mutate, error } = useMutate(reload);
 
   const entryFor = (day: string, slot: string) =>
     entries.find((e) => e.day === day && e.slot === slot)?.text ?? "";
@@ -56,15 +46,14 @@ export function MealPlanWidget(_props: WidgetProps) {
   const today = ymd(new Date());
   const weekLabel = `${weekStart.toLocaleDateString([], { month: "short", day: "numeric" })} – ${addDays(weekStart, 6).toLocaleDateString([], { month: "short", day: "numeric" })}`;
 
-  const save = async () => {
+  const save = () => {
     if (!editing) return;
-    await apiFetch(`${api}/entry`, {
-      method: "PUT",
-      body: JSON.stringify(editing),
-    })
-      .then(reload)
-      .catch(console.error);
-    setEditing(null);
+    // The dialog closes only on success; a failure keeps it open with the
+    // server's message.
+    mutate(
+      () => saveEntry(editing),
+      () => setEditing(null),
+    );
   };
 
   return (
@@ -146,6 +135,7 @@ export function MealPlanWidget(_props: WidgetProps) {
               onEnter={save}
               hasClear
             />
+            {error && <Text className="form-error">{error}</Text>}
             <HStack justify="end" gap={2}>
               <Button size="sm" variant="ghost" label="Cancel" onClick={() => setEditing(null)} />
               <Button size="sm" variant="primary" label="Save" onClick={save} />

@@ -3,7 +3,6 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"io/fs"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
@@ -60,6 +60,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
+// changed is the platform counterpart of widget.Base.Changed: it publishes
+// "changed" on the given topic, then writes the response. Every mutating
+// platform handler ends here so publish-on-write can't be forgotten. A nil
+// v writes only the status (for 204 No Content).
+func (s *Server) changed(w http.ResponseWriter, topic string, status int, v any) {
+	s.hub.Publish(topic, "changed")
+	if v == nil {
+		w.WriteHeader(status)
+		return
+	}
+	httpx.JSON(w, status, v)
+}
+
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -84,8 +97,7 @@ type viewRequest struct {
 
 func decodeViewRequest(w http.ResponseWriter, r *http.Request) (viewRequest, bool) {
 	var req viewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.BadRequest(w, "invalid JSON body")
+	if !httpx.Decode(w, r, &req) {
 		return req, false
 	}
 	if strings.TrimSpace(req.Name) == "" {
@@ -108,14 +120,12 @@ func (s *Server) handleCreateView(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, err)
 		return
 	}
-	s.hub.Publish("views", "changed")
-	httpx.JSON(w, http.StatusCreated, view)
+	s.changed(w, topics.Views, http.StatusCreated, view)
 }
 
 func (s *Server) handleUpdateView(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(w, r)
 	if !ok {
-		httpx.BadRequest(w, "invalid id")
 		return
 	}
 	req, ok := decodeViewRequest(w, r)
@@ -127,14 +137,12 @@ func (s *Server) handleUpdateView(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, err)
 		return
 	}
-	s.hub.Publish("views", "changed")
-	httpx.JSON(w, http.StatusOK, view)
+	s.changed(w, topics.Views, http.StatusOK, view)
 }
 
 func (s *Server) handleDeleteView(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(w, r)
 	if !ok {
-		httpx.BadRequest(w, "invalid id")
 		return
 	}
 	if err := s.store.DeleteView(id); err != nil {
@@ -145,22 +153,19 @@ func (s *Server) handleDeleteView(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, err)
 		return
 	}
-	s.hub.Publish("views", "changed")
-	w.WriteHeader(http.StatusNoContent)
+	s.changed(w, topics.Views, http.StatusNoContent, nil)
 }
 
 func (s *Server) handleSetDefaultView(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(w, r)
 	if !ok {
-		httpx.BadRequest(w, "invalid id")
 		return
 	}
 	if err := s.store.SetDefaultView(id); err != nil {
 		httpx.Fail(w, err)
 		return
 	}
-	s.hub.Publish("views", "changed")
-	w.WriteHeader(http.StatusNoContent)
+	s.changed(w, topics.Views, http.StatusNoContent, nil)
 }
 
 // spaHandler serves the embedded frontend build, falling back to index.html

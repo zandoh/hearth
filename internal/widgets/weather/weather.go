@@ -7,11 +7,8 @@ package weather
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -19,26 +16,26 @@ import (
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
 const (
-	forecastAPI   = "https://api.open-meteo.com/v1/forecast"
-	airQualityAPI = "https://air-quality-api.open-meteo.com/v1/air-quality"
-	geocodingAPI  = "https://geocoding-api.open-meteo.com/v1/search"
-
-	locationSetting = "weather_location"
-	unitsSetting    = "weather_units"
-	refreshEvery    = 15 * time.Minute
+	// unitsSetting is stored raw ("imperial"/"metric"), predating the typed
+	// Setting; it must keep that shape for existing databases.
+	unitsSetting = "weather_units"
+	refreshEvery = 15 * time.Minute
 )
 
-// unitsParams maps a units preference to Open-Meteo request parameters.
-// Anything unrecognized falls back to imperial.
-func unitsParams(units string) (temp, wind string) {
-	if units == "metric" {
-		return "celsius", "kmh"
-	}
-	return "fahrenheit", "mph"
+var locationSetting = store.Setting[location]{Key: "weather_location"}
+
+// meteoAPI is the seam between the widget and Open-Meteo: the forecast,
+// air-quality, and geocoding fetches. openMeteoClient is the production
+// adapter; tests substitute a fake.
+type meteoAPI interface {
+	forecast(ctx context.Context, loc location, units string) (forecastData, error)
+	airQuality(ctx context.Context, loc location) (*float64, error)
+	geocode(ctx context.Context, query string) ([]geoResult, error)
 }
 
 type location struct {
@@ -61,7 +58,7 @@ type forecast struct {
 type Widget struct {
 	widget.Base
 	store *store.Store
-	http  *http.Client
+	meteo meteoAPI
 
 	mu     sync.RWMutex
 	cached *forecast
@@ -69,9 +66,9 @@ type Widget struct {
 
 func New(st *store.Store, hub *sse.Hub) *Widget {
 	return &Widget{
-		Base:  widget.Base{Hub: hub, Slug: "weather"},
+		Base:  widget.Base{Hub: hub, Slug: topics.Weather},
 		store: st,
-		http:  &http.Client{Timeout: 20 * time.Second},
+		meteo: &openMeteoClient{http: &http.Client{Timeout: 20 * time.Second}},
 	}
 }
 
@@ -90,70 +87,23 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/widgets/weather/units", w.handleSetUnits)
 }
 
-func (w *Widget) loadLocation() (location, error) {
-	raw, err := w.store.GetSetting(locationSetting)
-	if err != nil {
-		return location{}, err
-	}
-	var loc location
-	err = json.Unmarshal([]byte(raw), &loc)
-	return loc, err
-}
-
-func (w *Widget) getJSON(ctx context.Context, endpoint string, q url.Values, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+q.Encode(), nil)
-	if err != nil {
-		return err
-	}
-	res, err := w.http.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s: %s", endpoint, res.Status)
-	}
-	return json.NewDecoder(res.Body).Decode(out)
-}
-
 func (w *Widget) refresh(ctx context.Context) error {
-	loc, err := w.loadLocation()
-	if errors.Is(err, store.ErrNotFound) {
+	loc, ok, err := locationSetting.Get(w.store)
+	if err != nil {
+		return err
+	}
+	if !ok {
 		return nil // not configured yet; nothing to do
 	}
-	if err != nil {
-		return err
-	}
-
-	lat := fmt.Sprintf("%.4f", loc.Latitude)
-	lon := fmt.Sprintf("%.4f", loc.Longitude)
 	units, err := w.store.GetSetting(unitsSetting)
 	if err != nil {
 		units = "imperial"
 	}
-	tempUnit, windUnit := unitsParams(units)
 
-	var fc struct {
-		Current json.RawMessage `json:"current"`
-		Hourly  json.RawMessage `json:"hourly"`
-		Daily   json.RawMessage `json:"daily"`
-	}
-	err = w.getJSON(ctx, forecastAPI, url.Values{
-		"latitude":         {lat},
-		"longitude":        {lon},
-		"current":          {"temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m"},
-		"hourly":           {"temperature_2m,precipitation_probability,weather_code"},
-		"daily":            {"weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"},
-		"forecast_days":    {"6"},
-		"forecast_hours":   {"12"},
-		"timezone":         {"auto"},
-		"temperature_unit": {tempUnit},
-		"wind_speed_unit":  {windUnit},
-	}, &fc)
+	fc, err := w.meteo.forecast(ctx, loc, units)
 	if err != nil {
 		return err
 	}
-
 	next := &forecast{
 		Location:  loc,
 		Units:     units,
@@ -165,19 +115,10 @@ func (w *Widget) refresh(ctx context.Context) error {
 
 	// AQI comes from a separate Open-Meteo service; treat it as optional so
 	// an air-quality outage doesn't take down the whole widget.
-	var aq struct {
-		Current struct {
-			USAQI *float64 `json:"us_aqi"`
-		} `json:"current"`
-	}
-	if err := w.getJSON(ctx, airQualityAPI, url.Values{
-		"latitude":  {lat},
-		"longitude": {lon},
-		"current":   {"us_aqi"},
-	}, &aq); err != nil {
+	if aqi, err := w.meteo.airQuality(ctx, loc); err != nil {
 		slog.Warn("weather: air quality fetch failed", "err", err)
 	} else {
-		next.USAQI = aq.Current.USAQI
+		next.USAQI = aqi
 	}
 
 	w.mu.Lock()
@@ -192,7 +133,7 @@ func (w *Widget) handleForecast(rw http.ResponseWriter, r *http.Request) {
 	cached := w.cached
 	w.mu.RUnlock()
 	if cached == nil {
-		if _, err := w.loadLocation(); errors.Is(err, store.ErrNotFound) {
+		if _, ok, err := locationSetting.Get(w.store); err == nil && !ok {
 			httpx.JSON(rw, http.StatusOK, map[string]any{"configured": false})
 			return
 		}
@@ -211,24 +152,13 @@ func (w *Widget) handleGeocode(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, "q is required")
 		return
 	}
-	var geo struct {
-		Results []struct {
-			Name        string  `json:"name"`
-			Admin1      string  `json:"admin1"`
-			CountryCode string  `json:"country_code"`
-			Latitude    float64 `json:"latitude"`
-			Longitude   float64 `json:"longitude"`
-		} `json:"results"`
-	}
-	if err := w.getJSON(r.Context(), geocodingAPI, url.Values{
-		"name":  {query},
-		"count": {"6"},
-	}, &geo); err != nil {
+	results, err := w.meteo.geocode(r.Context(), query)
+	if err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
 	out := []location{}
-	for _, res := range geo.Results {
+	for _, res := range results {
 		name := res.Name
 		if res.Admin1 != "" {
 			name += ", " + res.Admin1
@@ -244,17 +174,14 @@ func (w *Widget) handleGeocode(rw http.ResponseWriter, r *http.Request) {
 // handleSetLocation saves a chosen candidate and refreshes immediately.
 func (w *Widget) handleSetLocation(rw http.ResponseWriter, r *http.Request) {
 	var loc location
-	if err := json.NewDecoder(r.Body).Decode(&loc); err != nil ||
-		strings.TrimSpace(loc.Name) == "" {
+	if !httpx.Decode(rw, r, &loc) {
+		return
+	}
+	if strings.TrimSpace(loc.Name) == "" {
 		httpx.BadRequest(rw, "name, latitude, and longitude are required")
 		return
 	}
-	b, err := json.Marshal(loc)
-	if err != nil {
-		httpx.Fail(rw, err)
-		return
-	}
-	if err := w.store.SetSetting(locationSetting, string(b)); err != nil {
+	if err := locationSetting.Set(w.store, loc); err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
@@ -271,8 +198,10 @@ func (w *Widget) handleSetUnits(rw http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Units string `json:"units"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
-		(req.Units != "imperial" && req.Units != "metric") {
+	if !httpx.Decode(rw, r, &req) {
+		return
+	}
+	if req.Units != "imperial" && req.Units != "metric" {
 		httpx.BadRequest(rw, `units must be "imperial" or "metric"`)
 		return
 	}

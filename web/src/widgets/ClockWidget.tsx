@@ -5,6 +5,7 @@ import { Switch } from "@astryxdesign/core/Switch";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import { apiFetch } from "../api";
+import { TOPICS } from "../topics";
 import { useTopic } from "../useSSE";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
 
@@ -45,7 +46,7 @@ export function ClockWidget({ item }: WidgetProps) {
   }, [sync]);
 
   useTopic(
-    "clock",
+    TOPICS.clock,
     useCallback((data: unknown) => sync(data as ClockPayload), [sync]),
   );
 

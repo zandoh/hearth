@@ -5,7 +5,6 @@
 package meds
 
 import (
-	"encoding/json"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
@@ -43,7 +43,7 @@ type Widget struct {
 }
 
 func New(st *store.Store, hub *sse.Hub) *Widget {
-	return &Widget{Base: widget.Base{Hub: hub, Slug: "meds"}, store: st}
+	return &Widget{Base: widget.Base{Hub: hub, Slug: topics.Meds}, store: st}
 }
 
 func (w *Widget) Routes(mux *http.ServeMux) {
@@ -116,8 +116,10 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 		ProfileID int64    `json:"profileId"`
 		Times     []string `json:"times"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
-		strings.TrimSpace(req.Name) == "" {
+	if !httpx.Decode(rw, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
 		httpx.BadRequest(rw, "name is required")
 		return
 	}
@@ -137,34 +139,33 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusCreated, med)
+	w.Changed(rw, http.StatusCreated, med)
 }
 
 func (w *Widget) handleDelete(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.store.DeleteMedication(id); err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	rw.WriteHeader(http.StatusNoContent)
+	w.Changed(rw, http.StatusNoContent, nil)
 }
 
 func (w *Widget) handleToggleDose(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	var req struct {
 		Slot string `json:"slot"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !slotRe.MatchString(req.Slot) {
+	if !httpx.Decode(rw, r, &req) {
+		return
+	}
+	if !slotRe.MatchString(req.Slot) {
 		httpx.BadRequest(rw, "slot (AM, PM, daily, weekly, or HH:MM) is required")
 		return
 	}
@@ -175,6 +176,5 @@ func (w *Widget) handleToggleDose(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusOK, map[string]bool{"taken": takenNow})
+	w.Changed(rw, http.StatusOK, map[string]bool{"taken": takenNow})
 }

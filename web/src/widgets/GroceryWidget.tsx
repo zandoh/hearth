@@ -9,37 +9,29 @@ import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { apiFetch } from "../api";
+import { useMutate } from "../useMutate";
 import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
-
-interface Item {
-  id: number;
-  name: string;
-  checked: boolean;
-}
-
-const api = "/api/widgets/grocery";
+import { type GroceryItem, addItem, clearChecked, toggleItem } from "./groceryApi";
 
 export function GroceryWidget(_props: WidgetProps) {
-  const { data, reload } = useWidgetData<Item[]>("grocery");
+  const { data, reload } = useWidgetData<GroceryItem[]>("grocery");
   const items = data ?? [];
   const [name, setName] = useState("");
+  const { mutate, error } = useMutate(reload);
 
-  const add = async () => {
+  const add = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    setName("");
-    await apiFetch(api, { method: "POST", body: JSON.stringify({ name: trimmed }) })
-      .then(reload)
-      .catch(console.error);
+    mutate(
+      () => addItem(trimmed),
+      () => setName(""),
+    );
   };
 
-  const toggle = (id: number) =>
-    apiFetch(`${api}/${id}/toggle`, { method: "POST" }).then(reload).catch(console.error);
+  const toggle = (id: number) => mutate(() => toggleItem(id));
 
-  const clearDone = () =>
-    apiFetch(`${api}/clear-checked`, { method: "POST" }).then(reload).catch(console.error);
+  const clearDone = () => mutate(() => clearChecked());
 
   const doneCount = items.filter((i) => i.checked).length;
 
@@ -70,6 +62,8 @@ export function GroceryWidget(_props: WidgetProps) {
           onClick={add}
         />
       </HStack>
+
+      {error && <Text className="form-error">{error}</Text>}
 
       <VStack as="ul" gap={1.5} className="plain-list">
         {items.map((it) => (

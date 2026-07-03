@@ -3,7 +3,6 @@
 package chores
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
 	"github.com/zandoh/hearth/internal/store"
+	"github.com/zandoh/hearth/internal/topics"
 	"github.com/zandoh/hearth/internal/widget"
 )
 
@@ -20,7 +20,7 @@ type Widget struct {
 }
 
 func New(st *store.Store, hub *sse.Hub) *Widget {
-	return &Widget{Base: widget.Base{Hub: hub, Slug: "chores"}, store: st}
+	return &Widget{Base: widget.Base{Hub: hub, Slug: topics.Chores}, store: st}
 }
 
 func (w *Widget) Routes(mux *http.ServeMux) {
@@ -83,8 +83,10 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 		EveryDays  int    `json:"everyDays"`
 		AssigneeID int64  `json:"assigneeId"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
-		strings.TrimSpace(req.Title) == "" {
+	if !httpx.Decode(rw, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.Title) == "" {
 		httpx.BadRequest(rw, "title is required")
 		return
 	}
@@ -97,34 +99,29 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusCreated, chore)
+	w.Changed(rw, http.StatusCreated, chore)
 }
 
 func (w *Widget) handleComplete(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.store.CompleteChore(id, time.Now().Format("2006-01-02")); err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	httpx.JSON(rw, http.StatusOK, map[string]string{"status": "done"})
+	w.Changed(rw, http.StatusOK, map[string]string{"status": "done"})
 }
 
 func (w *Widget) handleDelete(rw http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.ID(r)
+	id, ok := httpx.ID(rw, r)
 	if !ok {
-		httpx.BadRequest(rw, "invalid id")
 		return
 	}
 	if err := w.store.DeleteChore(id); err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
-	w.Publish("changed")
-	rw.WriteHeader(http.StatusNoContent)
+	w.Changed(rw, http.StatusNoContent, nil)
 }

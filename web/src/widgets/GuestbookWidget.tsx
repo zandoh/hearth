@@ -9,25 +9,13 @@ import { Text } from "@astryxdesign/core/Text";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { apiFetch } from "../api";
 import { useConfirm } from "../confirm";
+import { useMutate } from "../useMutate";
 import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
+import { MAX_NOTE_LENGTH, type Note, addNote, deleteNote, moveNote } from "./guestbookApi";
 
-interface Note {
-  id: number;
-  author: string;
-  message: string;
-  color: string;
-  x: number;
-  y: number;
-  createdAt: string;
-}
-
-const api = "/api/widgets/guestbook";
 const COLORS = ["yellow", "pink", "blue", "green"] as const;
-// Mirrors the server's limit (280 runes, checked in guestbook.handleAdd).
-const MAX_NOTE_LENGTH = 280;
 
 // Deterministic little tilt per note so the wall looks hand-placed.
 const tilt = (id: number) => ((id * 137) % 7) - 3;
@@ -46,8 +34,8 @@ export function GuestbookWidget(_props: WidgetProps) {
   const [author, setAuthor] = useState("");
   const [message, setMessage] = useState("");
   const [color, setColor] = useState<(typeof COLORS)[number]>("yellow");
-  const [error, setError] = useState("");
   const { confirm, confirmDialog } = useConfirm();
+  const { mutate, error } = useMutate(reload);
 
   // Free-form corkboard drag: local overrides win over server positions
   // while a move is in flight, and are dropped once fresh data arrives.
@@ -93,31 +81,20 @@ export function GuestbookWidget(_props: WidgetProps) {
     setDraggingId(null);
     const pos = moved[n.id];
     if (!pos) return;
-    apiFetch(`${api}/${n.id}/position`, {
-      method: "PUT",
-      body: JSON.stringify(pos),
-    })
-      .then(reload)
-      .catch(console.error);
+    // The optimistic local position stays put; a successful reload confirms
+    // it and a failure snaps the note back to the server's truth.
+    mutate(() => moveNote(n.id, pos));
   };
 
-  const add = async () => {
-    setError("");
-    try {
-      await apiFetch(api, {
-        method: "POST",
-        body: JSON.stringify({ author: author.trim(), message: message.trim(), color }),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "could not add the note");
-      return;
-    }
-    setAuthor("");
-    setMessage("");
-    setAdding(false);
-    // SSE echoes this to other screens; our own screen must not depend on it.
-    reload();
-  };
+  const add = () =>
+    mutate(
+      () => addNote(author.trim(), message.trim(), color),
+      () => {
+        setAuthor("");
+        setMessage("");
+        setAdding(false);
+      },
+    );
 
   const remove = (note: Note) =>
     confirm(
@@ -126,7 +103,7 @@ export function GuestbookWidget(_props: WidgetProps) {
         description: `"${note.message.slice(0, 60)}" will be taken off the board.`,
         actionLabel: "Remove",
       },
-      () => apiFetch(`${api}/${note.id}`, { method: "DELETE" }).then(reload).catch(console.error),
+      () => mutate(() => deleteNote(note.id)),
     );
 
   return (
@@ -169,9 +146,10 @@ export function GuestbookWidget(_props: WidgetProps) {
               onClick={add}
             />
           </HStack>
-          {error && <Text className="form-error">{error}</Text>}
         </VStack>
       )}
+
+      {error && <Text className="form-error">{error}</Text>}
 
       <div className="note-wall no-drag" ref={wallRef}>
         {notes.map((n) => {
