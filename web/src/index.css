@@ -7,6 +7,7 @@
 @import "tailwindcss/preflight.css" layer(base);
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
+@import "./theme.css"; /* generated: bun run theme:build */
 @import "@astryxdesign/core/tailwind-theme.css";
 @import "tailwindcss/utilities.css" layer(utilities);
 
@@ -16,14 +17,16 @@
 
 body {
   margin: 0;
-  background: var(--color-background-body);
-  color: var(--color-text-primary);
 }
 
+/* Page chrome lives INSIDE the Theme scope: the built theme CSS defines
+   tokens on the theme root, so anything reading tokens must sit within. */
 .app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--color-background-body);
+  color: var(--color-text-primary);
 }
 
 .app-header {

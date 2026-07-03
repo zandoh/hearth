@@ -10,7 +10,7 @@ import { Banner } from "@astryxdesign/core/Banner";
 import { Dialog } from "@astryxdesign/core/Dialog";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Icon } from "@astryxdesign/core/Icon";
-import { Keyboard as KeyboardGlyph, Pencil } from "lucide-react";
+import { Keyboard as KeyboardGlyph, Moon, Pencil, Sun, SunMoon } from "lucide-react";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
@@ -21,6 +21,7 @@ import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
 import { idleReturnMs, msUntilNightlyReload } from "./kiosk";
 import { OnScreenKeyboard, oskEnabled, setOskEnabled } from "./OnScreenKeyboard";
+import { nextThemeMode, setThemeMode, useThemeMode } from "./themeMode";
 import { useConnectionState, useTopic } from "./useSSE";
 import { widgetRegistry } from "./widgets/registry";
 import type { View } from "./types";
@@ -149,6 +150,7 @@ export default function App() {
   const { confirm, confirmDialog } = useConfirm();
   const [managingViews, setManagingViews] = useState(false);
   const [oskOn, setOskOn] = useState(oskEnabled);
+  const themeMode = useThemeMode();
   const connection = useConnectionState();
   // Debounce the offline banner so sub-second blips never flash it.
   const [showOffline, setShowOffline] = useState(false);
@@ -359,6 +361,19 @@ export default function App() {
             />
           )}
         </HStack>
+        <IconButton
+          size="sm"
+          variant="ghost"
+          label={`Theme: ${themeMode} — switch`}
+          tooltip={`Theme: ${themeMode}`}
+          icon={
+            <Icon
+              icon={themeMode === "dark" ? Moon : themeMode === "light" ? Sun : SunMoon}
+              size="sm"
+            />
+          }
+          onClick={() => setThemeMode(nextThemeMode(themeMode))}
+        />
         <IconButton
           size="sm"
           variant={oskOn ? "secondary" : "ghost"}

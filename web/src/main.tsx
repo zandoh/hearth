@@ -10,11 +10,19 @@ import "react-grid-layout/css/styles.css";
 import "./index.css"; // Astryx + Tailwind layers live here
 import App from "./App";
 import { hearthTheme } from "./theme";
+import { useThemeMode } from "./themeMode";
+
+function Root() {
+  const mode = useThemeMode();
+  return (
+    <Theme theme={hearthTheme} mode={mode}>
+      <App />
+    </Theme>
+  );
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Theme theme={hearthTheme}>
-      <App />
-    </Theme>
+    <Root />
   </StrictMode>,
 );
