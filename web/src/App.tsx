@@ -24,6 +24,7 @@ import {
   verifyGuestPin,
 } from "./guestMode";
 import { NightShade } from "./NightShade";
+import { Onboarding } from "./Onboarding";
 import { Screensaver } from "./Screensaver";
 import { createCompactor } from "./compactor";
 import { useConfirm } from "./confirm";
@@ -599,6 +600,7 @@ export default function App() {
       )}
       <OnScreenKeyboard />
       <NightShade />
+      {!guest && <Onboarding />}
     </div>
   );
 }

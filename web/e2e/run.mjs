@@ -10,6 +10,7 @@ import { chromium } from "playwright";
 
 import boardSpec from "./specs/board.mjs";
 import featuresSpec from "./specs/features.mjs";
+import onboardingSpec from "./specs/onboarding.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const BIN = process.env.HEARTH_BIN ?? join(here, "..", "..", "bin", "hearth");
@@ -30,6 +31,7 @@ async function waitForHealthy() {
 }
 
 const specs = [
+  ["onboarding", onboardingSpec],
   ["board", boardSpec],
   ["features", featuresSpec],
 ];

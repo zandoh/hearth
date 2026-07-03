@@ -46,6 +46,9 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 
 	s.mux.HandleFunc("GET /api/backup", s.handleDownloadBackup)
 
+	s.mux.HandleFunc("GET /api/onboarding", s.handleGetOnboarding)
+	s.mux.HandleFunc("POST /api/onboarding", s.handleApplyTemplate)
+
 	s.mux.HandleFunc("GET /api/profiles", s.handleListProfiles)
 	s.mux.HandleFunc("POST /api/profiles", s.handleCreateProfile)
 	s.mux.HandleFunc("PUT /api/profiles/{id}", s.handleUpdateProfile)
