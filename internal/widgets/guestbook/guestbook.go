@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/zandoh/hearth/internal/httpx"
 	"github.com/zandoh/hearth/internal/sse"
@@ -78,7 +79,9 @@ func (w *Widget) handleAdd(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, "message is required")
 		return
 	}
-	if len(req.Message) > 280 {
+	// Runes, not bytes: the client counts characters, and an emoji-heavy
+	// note shouldn't be rejected while its counter still reads under 280.
+	if utf8.RuneCountInString(req.Message) > 280 {
 		httpx.BadRequest(rw, "keep notes under 280 characters")
 		return
 	}

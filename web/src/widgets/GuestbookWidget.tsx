@@ -25,6 +25,8 @@ interface Note {
 
 const api = "/api/widgets/guestbook";
 const COLORS = ["yellow", "pink", "blue", "green"] as const;
+// Mirrors the server's limit (280 runes, checked in guestbook.handleAdd).
+const MAX_NOTE_LENGTH = 280;
 
 // Deterministic little tilt per note so the wall looks hand-placed.
 const tilt = (id: number) => ((id * 137) % 7) - 3;
@@ -135,7 +137,12 @@ export function GuestbookWidget(_props: WidgetProps) {
 
       {adding && (
         <VStack gap={2}>
-          <TextArea label="Your note" value={message} onChange={(v) => setMessage(v)} />
+          <TextArea
+            label="Your note"
+            value={message}
+            onChange={(v) => setMessage(v)}
+            maxLength={MAX_NOTE_LENGTH}
+          />
           <TextInput label="From" isOptional value={author} onChange={(v) => setAuthor(v)} />
           <HStack gap={1.5} align="center">
             {COLORS.map((c) => (
@@ -147,7 +154,13 @@ export function GuestbookWidget(_props: WidgetProps) {
               />
             ))}
             <span className="flex-1" />
-            <Button size="sm" variant="primary" label="Stick it" onClick={add} />
+            <Button
+              size="sm"
+              variant="primary"
+              label="Stick it"
+              isDisabled={!message.trim() || [...message].length > MAX_NOTE_LENGTH}
+              onClick={add}
+            />
           </HStack>
           {error && <Text className="form-error">{error}</Text>}
         </VStack>
