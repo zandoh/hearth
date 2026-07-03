@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog } from "@astryxdesign/core/Dialog";
 import { Icon } from "@astryxdesign/core/Icon";
@@ -10,6 +10,7 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Switch } from "@astryxdesign/core/Switch";
 import { Text } from "@astryxdesign/core/Text";
+import { TextArea } from "@astryxdesign/core/TextArea";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useTopic } from "../useSSE";
@@ -19,6 +20,7 @@ import {
   type Calendar,
   createEvent,
   deleteEvent,
+  updateEvent,
   eventOnDay,
   eventTimeLabel,
   getCalendars,
@@ -326,12 +328,37 @@ function DayDialog({
   onClose: () => void;
 }) {
   const writable = calendars.filter((c) => c.enabled);
-  const [adding, setAdding] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [calendarId, setCalendarId] = useState<number | null>(null);
   const [allDay, setAllDay] = useState(false);
   const [time, setTime] = useState("12:00" as ISOTimeString);
+  const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+
+  const resetForm = () => {
+    setFormOpen(false);
+    setEditingId(null);
+    setTitle("");
+    setNotes("");
+    setError("");
+  };
+
+  const startEdit = (e: CalEvent) => {
+    setFormOpen(true);
+    setEditingId(e.id);
+    setTitle(e.title);
+    setCalendarId(e.calendarId);
+    setAllDay(e.allDay);
+    setNotes(e.notes ?? "");
+    if (!e.allDay) {
+      const d = new Date(e.startsAt);
+      setTime(
+        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` as ISOTimeString,
+      );
+    }
+  };
 
   const dayLabel = new Date(`${day}T12:00:00`).toLocaleDateString([], {
     weekday: "long",
@@ -345,16 +372,16 @@ function DayDialog({
       setError("pick a calendar and enter a title");
       return;
     }
+    const input = {
+      calendarId: calId,
+      title: title.trim(),
+      allDay,
+      startsAt: allDay ? day : rfc3339Local(new Date(`${day}T${time}:00`)),
+      notes: notes.trim(),
+    };
     try {
-      await createEvent({
-        calendarId: calId,
-        title: title.trim(),
-        allDay,
-        startsAt: allDay ? day : rfc3339Local(new Date(`${day}T${time}:00`)),
-      });
-      setAdding(false);
-      setTitle("");
-      setError("");
+      await (editingId ? updateEvent(editingId, input) : createEvent(input));
+      resetForm();
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed to save");
@@ -366,7 +393,7 @@ function DayDialog({
       <VStack gap={3} className="cal-dialog-body">
         <Heading level={2}>{dayLabel}</Heading>
 
-        {events.length === 0 && !adding && <Text type="supporting">Nothing scheduled.</Text>}
+        {events.length === 0 && !formOpen && <Text type="supporting">Nothing scheduled.</Text>}
 
         <VStack as="ul" gap={2} className="plain-list">
           {events.map((e) => (
@@ -382,6 +409,13 @@ function DayDialog({
               <IconButton
                 size="sm"
                 variant="ghost"
+                label={`Edit ${e.title}`}
+                icon={<Icon icon={Pencil} size="sm" />}
+                onClick={() => startEdit(e)}
+              />
+              <IconButton
+                size="sm"
+                variant="ghost"
                 label={`Delete ${e.title}`}
                 icon={<Icon icon="close" size="sm" />}
                 onClick={() => deleteEvent(e.id).then(onChanged).catch(console.error)}
@@ -390,7 +424,7 @@ function DayDialog({
           ))}
         </VStack>
 
-        {adding ? (
+        {formOpen ? (
           <VStack gap={2}>
             <TextInput label="Title" value={title} onChange={(v) => setTitle(v)} onEnter={submit} />
             <Selector
@@ -401,15 +435,21 @@ function DayDialog({
             />
             <Switch label="All day" value={allDay} onChange={(checked) => setAllDay(checked)} />
             {!allDay && <TimeInput label="Time" value={time} onChange={(v) => v && setTime(v)} />}
+            <TextArea
+              label="Notes"
+              isOptional
+              rows={2}
+              description="Hashtags here feed tag-driven widgets, e.g. #countdown."
+              value={notes}
+              onChange={(v) => setNotes(v)}
+            />
             {error && <Text className="form-error">{error}</Text>}
             <HStack justify="end" gap={2}>
-              <Button size="sm" variant="ghost" label="Cancel" onClick={() => setAdding(false)} />
-              <IconButton
+              <Button size="sm" variant="ghost" label="Cancel" onClick={resetForm} />
+              <Button
                 size="sm"
                 variant="primary"
-                label="Add event"
-                tooltip="Add event"
-                icon={<Icon icon={Plus} size="sm" />}
+                label={editingId ? "Save changes" : "Add event"}
                 onClick={submit}
               />
             </HStack>
@@ -422,7 +462,7 @@ function DayDialog({
               label="Add event"
               tooltip="Add event"
               icon={<Icon icon={Plus} size="sm" />}
-              onClick={() => setAdding(true)}
+              onClick={() => setFormOpen(true)}
             />
             <Button size="sm" variant="ghost" label="Close" onClick={onClose} />
           </HStack>

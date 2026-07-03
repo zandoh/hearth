@@ -70,6 +70,9 @@ export const getEvents = (start: string, end: string) =>
 export const createEvent = (input: EventInput) =>
   call<CalEvent>("/events", { method: "POST", body: JSON.stringify(input) });
 
+export const updateEvent = (id: number, input: EventInput) =>
+  call<CalEvent>(`/events/${id}`, { method: "PUT", body: JSON.stringify(input) });
+
 export const deleteEvent = (id: number) => call<void>(`/events/${id}`, { method: "DELETE" });
 
 export const getGoogleStatus = () => call<GoogleStatus>("/google/status");
