@@ -48,6 +48,10 @@ docker compose up -d     # board on http://localhost:8080
 State lives in `./data/` (SQLite + optional `.env`); back it up by copying
 the folder. Images are multi-arch (amd64 + arm64) at `ghcr.io/zandoh/hearth`.
 
+Hearth also snapshots its own database nightly into `backups/` beside the
+DB (last 7 kept), and Views → Backups has a "Download backup" button for
+an on-demand copy.
+
 **Prebuilt binary:** grab your platform's tarball from
 [Releases](https://github.com/zandoh/hearth/releases), unpack, `./hearth`.
 

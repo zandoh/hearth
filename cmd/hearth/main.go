@@ -98,6 +98,26 @@ func run(addr, dbPath string) error {
 	defer stop()
 	reg.StartJobs(ctx)
 
+	// Automatic backups: one snapshot per day into <db dir>/backups, keep
+	// the newest 7. Checked hourly so it self-heals regardless of when the
+	// server (re)starts.
+	go func() {
+		tick := time.NewTicker(time.Hour)
+		defer tick.Stop()
+		for {
+			if created, err := st.MaintainBackups(dbPath, time.Now()); err != nil {
+				slog.Error("backup failed", "err", err)
+			} else if created != "" {
+				slog.Info("backup written", "path", created)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+			}
+		}
+	}()
+
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: server.New(st, hub, reg, web.Dist()),
