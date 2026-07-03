@@ -64,5 +64,26 @@ persisted as raw settings.
 
 **View**:
 A named board layout (grid of widget placements). One view is the default; the
-guest view is a view designated for guest mode.
+guest view is a view designated for guest mode. Views may be hidden from the
+switcher and may claim a daily schedule window.
 _Avoid_: page, dashboard, screen
+
+**View selection**:
+The one rule for which view the kiosk shows: guest mode, then a manual pick,
+then a scheduled window, then the default, then the first view. Lives as the
+pure `resolveActiveView` in `web/src/kiosk.ts`; App only supplies state. The
+load-bearing invariant — guest always wins — is asserted there, not commented.
+_Avoid_: routing, active-view logic
+
+**Pointer transport**:
+The gesture plumbing shared by pointer drags (`web/src/usePointerDrag.ts`):
+window-level listeners for the whole gesture (element capture dies when a
+dragged node re-slots) and a ref-carried payload (touch bursts outrun React
+renders). Domain geometry — wall clamping, midpoint re-slotting, collision
+push — stays with each caller; the Compactor keeps its own closure.
+_Avoid_: drag handler, drag-and-drop library
+
+**Idle timer**:
+The kiosk's idle primitive (`web/src/useIdleTimer.ts`): fire after N ms
+without a touch, re-arm on fire. One definition of "a touch" for the
+screensaver and idle-return; the nightly reload is clock-based and separate.
