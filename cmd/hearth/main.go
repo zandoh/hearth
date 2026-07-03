@@ -48,7 +48,11 @@ func run(addr, dbPath string) error {
 
 	reg := widget.NewRegistry()
 	reg.Register(clock.New(hub))
-	reg.Register(calendar.New(st, hub))
+	reg.Register(calendar.New(st, hub, calendar.Config{
+		BaseURL:      os.Getenv("HEARTH_BASE_URL"),
+		ClientID:     os.Getenv("HEARTH_GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("HEARTH_GOOGLE_CLIENT_SECRET"),
+	}))
 	reg.Register(chores.New(st, hub))
 	reg.Register(grocery.New(st, hub))
 	reg.Register(meds.New(st, hub))

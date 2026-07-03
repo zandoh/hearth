@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -34,17 +33,41 @@ const (
 	tokenSetting = "google_calendar_token"
 )
 
+// Config carries the Google OAuth credentials and the base URL Hearth is
+// reachable at (for the OAuth redirect). main reads these from the
+// environment; the widget itself never touches os.Getenv.
+type Config struct {
+	BaseURL      string // defaults to http://localhost:8080
+	ClientID     string
+	ClientSecret string
+}
+
+// gcalAPI is the seam between the widget and Google Calendar: everything
+// sync, write-through, and the connect flow need. googleClient is the
+// production adapter; tests substitute a fake.
+type gcalAPI interface {
+	configured() bool
+	authURL(state string) string
+	exchange(ctx context.Context, code string) error
+	token() (googleToken, error)
+	listCalendars(ctx context.Context) ([]gcalCalendar, error)
+	listEvents(ctx context.Context, calendarID string, timeMin, timeMax time.Time) ([]gcalEvent, error)
+	insertEvent(ctx context.Context, calendarID string, ev gcalEvent) (gcalEvent, error)
+	updateEvent(ctx context.Context, calendarID, eventID string, ev gcalEvent) error
+	deleteEvent(ctx context.Context, calendarID, eventID string) error
+}
+
 type Widget struct {
 	widget.Base
 	store  *store.Store
-	google *googleClient
+	google gcalAPI
 
 	stateMu     sync.Mutex
 	oauthStates map[string]time.Time
 }
 
-func New(st *store.Store, hub *sse.Hub) *Widget {
-	baseURL := os.Getenv("HEARTH_BASE_URL")
+func New(st *store.Store, hub *sse.Hub, cfg Config) *Widget {
+	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = "http://localhost:8080"
 	}
@@ -54,8 +77,8 @@ func New(st *store.Store, hub *sse.Hub) *Widget {
 		oauthStates: make(map[string]time.Time),
 	}
 	w.google = &googleClient{
-		clientID:     os.Getenv("HEARTH_GOOGLE_CLIENT_ID"),
-		clientSecret: os.Getenv("HEARTH_GOOGLE_CLIENT_SECRET"),
+		clientID:     cfg.ClientID,
+		clientSecret: cfg.ClientSecret,
 		redirectURL:  strings.TrimSuffix(baseURL, "/") + "/api/widgets/calendar/google/callback",
 		http:         &http.Client{Timeout: 30 * time.Second},
 		loadToken: func() (googleToken, error) {
@@ -289,6 +312,78 @@ func (req *eventRequest) toGcal() gcalEvent {
 	return ev
 }
 
+// createEvent, updateEvent, and deleteEvent own the write-through rule:
+// Google is the source of truth for its calendars, so writes reach Google
+// first and only then land locally (creates carry back the external id).
+// Local calendars skip the mirror entirely.
+
+func (w *Widget) createEvent(ctx context.Context, req eventRequest) (store.Event, error) {
+	cal, err := w.store.GetCalendar(req.CalendarID)
+	if err != nil {
+		return store.Event{}, err
+	}
+	externalID := ""
+	if cal.Kind == "google" {
+		created, err := w.google.insertEvent(ctx, cal.GoogleID, req.toGcal())
+		if err != nil {
+			return store.Event{}, err
+		}
+		externalID = created.ID
+	}
+	return w.store.CreateEvent(store.Event{
+		CalendarID: cal.ID,
+		ExternalID: externalID,
+		Title:      req.Title,
+		StartsAt:   req.StartsAt,
+		EndsAt:     req.EndsAt,
+		AllDay:     req.AllDay,
+		Location:   req.Location,
+		Notes:      req.Notes,
+	})
+}
+
+func (w *Widget) updateEvent(ctx context.Context, id int64, req eventRequest) (store.Event, error) {
+	existing, err := w.store.GetEvent(id)
+	if err != nil {
+		return store.Event{}, err
+	}
+	cal, err := w.store.GetCalendar(existing.CalendarID)
+	if err != nil {
+		return store.Event{}, err
+	}
+	if cal.Kind == "google" && existing.ExternalID != "" {
+		if err := w.google.updateEvent(ctx, cal.GoogleID, existing.ExternalID, req.toGcal()); err != nil {
+			return store.Event{}, err
+		}
+	}
+	return w.store.UpdateEvent(store.Event{
+		ID:       id,
+		Title:    req.Title,
+		StartsAt: req.StartsAt,
+		EndsAt:   req.EndsAt,
+		AllDay:   req.AllDay,
+		Location: req.Location,
+		Notes:    req.Notes,
+	})
+}
+
+func (w *Widget) deleteEvent(ctx context.Context, id int64) error {
+	existing, err := w.store.GetEvent(id)
+	if err != nil {
+		return err
+	}
+	cal, err := w.store.GetCalendar(existing.CalendarID)
+	if err != nil {
+		return err
+	}
+	if cal.Kind == "google" && existing.ExternalID != "" {
+		if err := w.google.deleteEvent(ctx, cal.GoogleID, existing.ExternalID); err != nil {
+			return err
+		}
+	}
+	return w.store.DeleteEvent(id)
+}
+
 func (w *Widget) handleCreateEvent(rw http.ResponseWriter, r *http.Request) {
 	var req eventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -299,33 +394,7 @@ func (w *Widget) handleCreateEvent(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, err.Error())
 		return
 	}
-	cal, err := w.store.GetCalendar(req.CalendarID)
-	if err != nil {
-		writeErr(rw, err)
-		return
-	}
-
-	externalID := ""
-	if cal.Kind == "google" {
-		// Write-through: Google is the source of truth for its calendars.
-		created, err := w.google.insertEvent(r.Context(), cal.GoogleID, req.toGcal())
-		if err != nil {
-			writeErr(rw, err)
-			return
-		}
-		externalID = created.ID
-	}
-
-	event, err := w.store.CreateEvent(store.Event{
-		CalendarID: cal.ID,
-		ExternalID: externalID,
-		Title:      req.Title,
-		StartsAt:   req.StartsAt,
-		EndsAt:     req.EndsAt,
-		AllDay:     req.AllDay,
-		Location:   req.Location,
-		Notes:      req.Notes,
-	})
+	event, err := w.createEvent(r.Context(), req)
 	if err != nil {
 		writeErr(rw, err)
 		return
@@ -349,31 +418,7 @@ func (w *Widget) handleUpdateEvent(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, err.Error())
 		return
 	}
-	existing, err := w.store.GetEvent(id)
-	if err != nil {
-		writeErr(rw, err)
-		return
-	}
-	cal, err := w.store.GetCalendar(existing.CalendarID)
-	if err != nil {
-		writeErr(rw, err)
-		return
-	}
-	if cal.Kind == "google" && existing.ExternalID != "" {
-		if err := w.google.updateEvent(r.Context(), cal.GoogleID, existing.ExternalID, req.toGcal()); err != nil {
-			writeErr(rw, err)
-			return
-		}
-	}
-	event, err := w.store.UpdateEvent(store.Event{
-		ID:       id,
-		Title:    req.Title,
-		StartsAt: req.StartsAt,
-		EndsAt:   req.EndsAt,
-		AllDay:   req.AllDay,
-		Location: req.Location,
-		Notes:    req.Notes,
-	})
+	event, err := w.updateEvent(r.Context(), id, req)
 	if err != nil {
 		writeErr(rw, err)
 		return
@@ -388,23 +433,7 @@ func (w *Widget) handleDeleteEvent(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, "invalid id")
 		return
 	}
-	existing, err := w.store.GetEvent(id)
-	if err != nil {
-		writeErr(rw, err)
-		return
-	}
-	cal, err := w.store.GetCalendar(existing.CalendarID)
-	if err != nil {
-		writeErr(rw, err)
-		return
-	}
-	if cal.Kind == "google" && existing.ExternalID != "" {
-		if err := w.google.deleteEvent(r.Context(), cal.GoogleID, existing.ExternalID); err != nil {
-			writeErr(rw, err)
-			return
-		}
-	}
-	if err := w.store.DeleteEvent(id); err != nil {
+	if err := w.deleteEvent(r.Context(), id); err != nil {
 		writeErr(rw, err)
 		return
 	}
@@ -496,7 +525,7 @@ func (w *Widget) handleGoogleStatus(rw http.ResponseWriter, r *http.Request) {
 		"connected":  false,
 		"email":      "",
 	}
-	if tok, err := w.google.loadToken(); err == nil {
+	if tok, err := w.google.token(); err == nil {
 		status["connected"] = true
 		status["email"] = tok.Email
 	}

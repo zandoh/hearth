@@ -58,6 +58,10 @@ func (g *googleClient) configured() bool {
 	return g.clientID != "" && g.clientSecret != ""
 }
 
+// token exposes the persisted token (for connection status) without going
+// through the refresh path.
+func (g *googleClient) token() (googleToken, error) { return g.loadToken() }
+
 func (g *googleClient) authURL(state string) string {
 	q := url.Values{
 		"client_id":     {g.clientID},
