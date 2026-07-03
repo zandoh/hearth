@@ -4,6 +4,7 @@ import { AgendaSettings, AgendaWidget } from "./AgendaWidget";
 import { CalendarWidget } from "./CalendarWidget";
 import { ChoresWidget } from "./ChoresWidget";
 import { ClockSettings, ClockWidget } from "./ClockWidget";
+import { CountdownSettings, CountdownWidget } from "./CountdownWidget";
 import { GroceryWidget } from "./GroceryWidget";
 import { GuestbookWidget } from "./GuestbookWidget";
 import { MealPlanWidget } from "./MealPlanWidget";
@@ -55,6 +56,12 @@ export const widgetRegistry: Record<string, WidgetDef> = {
     component: AgendaWidget,
     defaultSize: { w: 3, h: 5 },
     settings: AgendaSettings,
+  },
+  countdown: {
+    title: "Countdown",
+    component: CountdownWidget,
+    defaultSize: { w: 3, h: 4 },
+    settings: CountdownSettings,
   },
   chores: {
     title: "Chores",
