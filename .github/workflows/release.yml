@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # git-cliff needs full history to diff against the previous tag
 
       - uses: actions/setup-go@v5
         with:
@@ -40,9 +42,20 @@ jobs:
           done
           (cd release && shasum -a 256 *.tar.gz > SHA256SUMS)
 
+      - name: Changelog from conventional commits (previous tag → this one)
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: release-notes.md
+
+      # generate_release_notes stays on: GitHub appends the compare link and
+      # new-contributor mentions after the git-cliff body.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release-notes.md
           files: |
             release/*.tar.gz
             release/SHA256SUMS
