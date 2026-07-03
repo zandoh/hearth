@@ -1,6 +1,9 @@
 package store
 
-import "database/sql"
+import (
+	"database/sql"
+	"errors"
+)
 
 type Chore struct {
 	ID        int64  `json:"id"`
@@ -60,19 +63,30 @@ func (s *Store) DeleteChore(id int64) error {
 	return nil
 }
 
-// CompleteChore marks the chore done on the given day and logs it.
+// CompleteChore marks the chore done on the given day and logs it. One-off
+// chores (every_days = 0) are jobs, not routines: completing one deletes it.
 func (s *Store) CompleteChore(id int64, day string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec("UPDATE chores SET last_done = ? WHERE id = ?", day, id)
-	if err != nil {
+	var everyDays int
+	if err := tx.QueryRow("SELECT every_days FROM chores WHERE id = ?", id).
+		Scan(&everyDays); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
 		return err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
+	if everyDays == 0 {
+		if _, err := tx.Exec("DELETE FROM chores WHERE id = ?", id); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	if _, err := tx.Exec("UPDATE chores SET last_done = ? WHERE id = ?", day, id); err != nil {
+		return err
 	}
 	if _, err := tx.Exec(
 		"INSERT INTO chore_completions (chore_id, done_on) VALUES (?, ?)", id, day,

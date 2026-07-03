@@ -36,15 +36,16 @@ type choreView struct {
 	DueOn     string `json:"dueOn"` // YYYY-MM-DD
 	DueIn     int    `json:"dueIn"` // days; negative = overdue
 	NeverDone bool   `json:"neverDone"`
+	OneOff    bool   `json:"oneOff"` // every_days = 0: done once, then gone
 }
 
 // dueView computes a chore's due state as of now: never-done chores are due
 // today; otherwise due lastDone + everyDays, with dueIn counted in whole
 // days and clamped to 0 when the due date is today.
 func dueView(c store.Chore, now time.Time) choreView {
-	v := choreView{Chore: c}
+	v := choreView{Chore: c, OneOff: c.EveryDays == 0}
 	today := now.Format("2006-01-02")
-	if c.LastDone == "" {
+	if v.OneOff || c.LastDone == "" {
 		v.DueOn = today
 		v.NeverDone = true
 		return v
@@ -86,8 +87,8 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, "title is required")
 		return
 	}
-	if req.EveryDays < 1 {
-		httpx.BadRequest(rw, "everyDays must be at least 1")
+	if req.EveryDays < 0 {
+		httpx.BadRequest(rw, "everyDays must be 0 (one-off) or more")
 		return
 	}
 	chore, err := w.store.CreateChore(strings.TrimSpace(req.Title), req.EveryDays)

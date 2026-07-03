@@ -133,9 +133,9 @@ func TestChoreValidationAndNotFound(t *testing.T) {
 	mux := newTestMux(t)
 
 	for name, body := range map[string]string{
-		"missing title":  `{"everyDays":3}`,
-		"zero everyDays": `{"title":"x","everyDays":0}`,
-		"invalid JSON":   `{`,
+		"missing title":      `{"everyDays":3}`,
+		"negative everyDays": `{"title":"x","everyDays":-1}`,
+		"invalid JSON":       `{`,
 	} {
 		if rec := doJSON(t, mux, "POST", "/api/widgets/chores", body); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: got %d, want 400", name, rec.Code)
