@@ -20,20 +20,17 @@ type Store struct {
 }
 
 func Open(path string) (*Store, error) {
-	db, err := sql.Open("sqlite", path)
+	// Pragmas ride in the DSN so EVERY pooled connection gets them. A bare
+	// db.Exec("PRAGMA ...") only configures whichever connection it lands
+	// on: foreign-key enforcement (SET NULL / CASCADE) silently vanished on
+	// the rest of the pool.
+	dsn := "file:" + path +
+		"?_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(1)" +
+		"&_pragma=busy_timeout(5000)"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
-	}
-	// modernc's driver is not safe for concurrent writes on one connection
-	// pool without WAL + a busy timeout.
-	for _, pragma := range []string{
-		"PRAGMA journal_mode = WAL",
-		"PRAGMA foreign_keys = ON",
-		"PRAGMA busy_timeout = 5000",
-	} {
-		if _, err := db.Exec(pragma); err != nil {
-			return nil, fmt.Errorf("%s: %w", pragma, err)
-		}
 	}
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
