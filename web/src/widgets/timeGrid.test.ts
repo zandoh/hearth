@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { assignLanes, hourRange, nowLine, placeEvent } from "./timeGrid";
+import { assignLanes, hourRange, nowLine, placeEvent, timeAtFraction } from "./timeGrid";
 
 const ev = (id: number, startsAt: string, endsAt: string, allDay = false) => ({
   id,
@@ -88,5 +88,18 @@ describe("nowLine", () => {
   test("null off-day and out of range", () => {
     expect(nowLine(new Date(2026, 6, 15, 14, 0), "2026-07-16", range)).toBeNull();
     expect(nowLine(new Date(2026, 6, 16, 5, 0), "2026-07-16", range)).toBeNull();
+  });
+});
+
+describe("timeAtFraction", () => {
+  const range = { startHour: 7, endHour: 21 }; // 14h
+  test("floors to the half-hour slot", () => {
+    // 2:37 PM is 7.62h into the range -> fraction .5443
+    expect(timeAtFraction(range, (14.62 - 7) / 14)).toBe("14:30");
+    expect(timeAtFraction(range, 0)).toBe("07:00");
+  });
+  test("clamps out-of-range fractions", () => {
+    expect(timeAtFraction(range, -0.5)).toBe("07:00");
+    expect(timeAtFraction(range, 1.5)).toBe("21:00");
   });
 });

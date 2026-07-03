@@ -123,3 +123,11 @@ export function nowLine(now: Date, day: string, range: HourRange): number | null
   if (minutes < from || minutes > to) return null;
   return ((minutes - from) / (to - from)) * 100;
 }
+
+/** The HH:MM at a vertical fraction of the grid body, floored to :00/:30. */
+export function timeAtFraction(range: HourRange, fraction: number): string {
+  const minutes =
+    (range.startHour + Math.min(Math.max(fraction, 0), 1) * (range.endHour - range.startHour)) * 60;
+  const snapped = Math.min(Math.floor(minutes / 30) * 30, 23 * 60 + 30);
+  return `${String(Math.floor(snapped / 60)).padStart(2, "0")}:${String(snapped % 60).padStart(2, "0")}`;
+}

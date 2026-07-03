@@ -31,7 +31,7 @@ import {
   ymd,
 } from "./calendarApi";
 import { CalendarSettings } from "./CalendarSettings";
-import { assignLanes, hourRange, nowLine, placeEvent } from "./timeGrid";
+import { assignLanes, hourRange, nowLine, placeEvent, timeAtFraction } from "./timeGrid";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -97,7 +97,7 @@ function monthGrid(year: number, month: number): DayCell[] {
 export function CalendarWidget({ item, saveConfig }: WidgetProps) {
   const [view, setView] = useState<CalView>(() => parseView(item.config.view));
   const [anchor, setAnchor] = useState(() => new Date());
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{ day: string; time?: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const cells = useMemo(
@@ -206,7 +206,7 @@ export function CalendarWidget({ item, saveConfig }: WidgetProps) {
           events={events}
           today={today}
           colorOf={colorOf}
-          onPickDay={setSelectedDay}
+          onPickDay={(day, time) => setSelected({ day, time })}
         />
       )}
 
@@ -222,7 +222,7 @@ export function CalendarWidget({ item, saveConfig }: WidgetProps) {
                   (cell.inMonth ? "" : " out-month") +
                   (cell.date === today ? " today" : "")
                 }
-                onClick={() => setSelectedDay(cell.date)}
+                onClick={() => setSelected({ day: cell.date })}
               >
                 <span className="cal-day-num">{cell.dayOfMonth}</span>
                 <span className="cal-day-events">
@@ -246,14 +246,15 @@ export function CalendarWidget({ item, saveConfig }: WidgetProps) {
         </div>
       )}
 
-      {selectedDay && (
+      {selected && (
         <DayDialog
-          day={selectedDay}
-          events={events.filter((e) => eventOnDay(e, selectedDay))}
+          day={selected.day}
+          seedTime={selected.time}
+          events={events.filter((e) => eventOnDay(e, selected.day))}
           calendars={calendars}
           colorOf={colorOf}
           onChanged={reload}
-          onClose={() => setSelectedDay(null)}
+          onClose={() => setSelected(null)}
         />
       )}
       {settingsOpen && (
@@ -265,6 +266,7 @@ export function CalendarWidget({ item, saveConfig }: WidgetProps) {
 
 function DayDialog({
   day,
+  seedTime,
   events,
   calendars,
   colorOf,
@@ -272,6 +274,8 @@ function DayDialog({
   onClose,
 }: {
   day: string;
+  // Time slot the user clicked in the grid: opens the add form pre-filled.
+  seedTime?: string;
   events: CalEvent[];
   calendars: Calendar[];
   colorOf: (id: number) => string;
@@ -279,12 +283,12 @@ function DayDialog({
   onClose: () => void;
 }) {
   const writable = calendars.filter((c) => c.enabled);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(!!seedTime);
   const [editing, setEditing] = useState<CalEvent | null>(null);
   const [title, setTitle] = useState("");
   const [calendarId, setCalendarId] = useState<number | null>(null);
   const [allDay, setAllDay] = useState(false);
-  const [time, setTime] = useState("12:00" as ISOTimeString);
+  const [time, setTime] = useState((seedTime ?? "12:00") as ISOTimeString);
   const [notes, setNotes] = useState("");
   const { mutate, error } = useMutate(onChanged);
 
@@ -459,7 +463,7 @@ function TimeGrid({
   events: CalEvent[];
   today: string;
   colorOf: (id: number) => string;
-  onPickDay: (day: string) => void;
+  onPickDay: (day: string, time?: string) => void;
 }) {
   // The now-line creeps; re-render once a minute.
   const [now, setNow] = useState(() => new Date());
@@ -530,7 +534,16 @@ function TimeGrid({
               key={d}
               className={`cal-tg-col no-drag${d === today ? " today" : ""}`}
               style={{ "--tg-rows": hours.length } as React.CSSProperties}
-              onClick={() => onPickDay(d)}
+              onClick={(e) => {
+                // Clicking an event opens the day plainly; clicking an empty
+                // slot seeds the add form with that slot's time.
+                if ((e.target as HTMLElement).closest(".cal-tg-event")) {
+                  onPickDay(d);
+                  return;
+                }
+                const rect = e.currentTarget.getBoundingClientRect();
+                onPickDay(d, timeAtFraction(range, (e.clientY - rect.top) / rect.height));
+              }}
             >
               {events.map((e) => {
                 const pos = placeEvent(e, d, range);
