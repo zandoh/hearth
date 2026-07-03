@@ -31,6 +31,8 @@ import {
   ymd,
 } from "./calendarApi";
 import { CalendarSettings } from "./CalendarSettings";
+import { knownTags, eventTags, toggleTag } from "./eventTags";
+import { getViews } from "../api";
 import { assignLanes, hourRange, nowLine, placeEvent, timeAtFraction } from "./timeGrid";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -292,6 +294,15 @@ function DayDialog({
   const [notes, setNotes] = useState("");
   const { mutate, error } = useMutate(onChanged);
 
+  // Tag pills: every tag the system watches (defaults + any widget's
+  // configured list), so nobody has to remember the spelling.
+  const [systemTags, setSystemTags] = useState<string[]>([]);
+  useEffect(() => {
+    getViews()
+      .then((vs) => setSystemTags(knownTags(vs)))
+      .catch(console.error);
+  }, []);
+
   const resetForm = () => {
     setFormOpen(false);
     setEditing(null);
@@ -417,10 +428,25 @@ function DayDialog({
               label="Notes"
               isOptional
               rows={2}
-              description="Hashtags here feed tag-driven widgets, e.g. #countdown."
+              description="Hashtags here feed tag-driven widgets — tap a pill or type your own."
               value={notes}
               onChange={(v) => setNotes(v)}
             />
+            <HStack gap={1.5} wrap="wrap">
+              {systemTags.map((tag) => {
+                const on = eventTags({ title, notes }).has(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`tag-pill no-drag${on ? " on" : ""}`}
+                    onClick={() => setNotes(toggleTag(notes, tag))}
+                  >
+                    #{tag}
+                  </button>
+                );
+              })}
+            </HStack>
             <HStack justify="end" gap={2}>
               <Button size="sm" variant="ghost" label="Cancel" onClick={resetForm} />
               <Button

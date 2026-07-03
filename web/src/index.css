@@ -280,6 +280,24 @@ body {
   user-select: none;
 }
 
+/* Tag pills in the event form: tap to toggle a #tag in the notes. */
+.tag-pill {
+  font: inherit;
+  font-size: var(--font-size-xsm, 0.78rem);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: 999px;
+  border: var(--border-width) solid var(--color-border-emphasized);
+  background: var(--color-background-muted);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.tag-pill.on {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+  color: var(--color-text-primary);
+}
+
 .form-error {
   color: var(--color-error);
 }

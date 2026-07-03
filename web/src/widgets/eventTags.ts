@@ -51,3 +51,34 @@ export const parseTagList = (raw: unknown): string[] =>
     : Array.isArray(raw)
       ? raw.filter((t): t is string => typeof t === "string")
       : [];
+
+// Tags the system watches when a widget hasn't configured its own list.
+export const DEFAULT_TAGS = ["countdown", "travel", "trip"];
+
+/**
+ * Every tag the system is currently watching: the defaults plus any tag
+ * list configured on any widget in any view (config.tags is the shared
+ * shape — future tag-driven widgets get picked up automatically).
+ */
+export function knownTags(views: { layout: { config?: unknown }[] }[]): string[] {
+  const tags = new Set(DEFAULT_TAGS);
+  for (const v of views) {
+    for (const item of v.layout) {
+      const cfg = item.config as { tags?: unknown } | undefined;
+      for (const t of parseTagList(cfg?.tags)) tags.add(t);
+    }
+  }
+  return [...tags];
+}
+
+/** Add the tag to the text if absent, remove it if present. */
+export function toggleTag(text: string, tag: string): string {
+  const re = new RegExp(`\\s*#${tag}(?![a-z0-9_-])`, "gi");
+  if (extractTags(text).has(tag.toLowerCase())) {
+    return text
+      .replace(re, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+  return text.trim() ? `${text.trim()} #${tag}` : `#${tag}`;
+}

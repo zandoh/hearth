@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { eventTags, hasAnyTag, parseTagList, stripTags } from "./eventTags";
+import { eventTags, hasAnyTag, knownTags, parseTagList, stripTags, toggleTag } from "./eventTags";
 
 describe("eventTags", () => {
   test("reads description and title, case-insensitive", () => {
@@ -39,5 +39,33 @@ describe("parseTagList", () => {
   });
   test("garbage becomes empty", () => {
     expect(parseTagList(42)).toEqual([]);
+  });
+});
+
+describe("toggleTag", () => {
+  test("adds to empty and non-empty notes", () => {
+    expect(toggleTag("", "countdown")).toBe("#countdown");
+    expect(toggleTag("bring chairs", "travel")).toBe("bring chairs #travel");
+  });
+  test("removes an existing tag, tidying whitespace", () => {
+    expect(toggleTag("bring chairs #travel", "travel")).toBe("bring chairs");
+    expect(toggleTag("#countdown", "countdown")).toBe("");
+  });
+  test("case-insensitive and no partial-tag bites", () => {
+    expect(toggleTag("plan #Travel", "travel")).toBe("plan");
+    expect(toggleTag("#travelogue notes", "travel")).toBe("#travelogue notes #travel");
+  });
+});
+
+describe("knownTags", () => {
+  test("defaults plus every configured widget tag list", () => {
+    const views = [
+      { layout: [{ config: { tags: ["ski", "countdown"] } }] },
+      { layout: [{ config: {} }, { config: { tags: "camp" } }] },
+    ];
+    const tags = knownTags(views);
+    expect(tags).toContain("countdown");
+    expect(tags).toContain("ski");
+    expect(tags).toContain("camp");
   });
 });

@@ -1,16 +1,15 @@
 // Date math for the countdown widget, timezone-safe: YYYY-MM-DD parsed at
 // local noon so DST shifts can't move an event across midnight.
 
-import { hasAnyTag, stripTags } from "./eventTags";
+import { DEFAULT_TAGS, hasAnyTag, stripTags } from "./eventTags";
+
+export { DEFAULT_TAGS };
 
 export interface CountdownItem {
   label: string;
   date: string; // YYYY-MM-DD
   fromCalendar?: boolean;
 }
-
-// Tags the widget watches for when none are configured.
-export const DEFAULT_TAGS = ["countdown", "travel", "trip"];
 
 interface CalendarEventLike {
   title: string;
