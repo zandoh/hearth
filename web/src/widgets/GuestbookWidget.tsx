@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -131,10 +132,12 @@ export function GuestbookWidget(_props: WidgetProps) {
   return (
     <VStack className="widget-body" gap={2}>
       <HStack justify="end">
-        <Button
+        <IconButton
           size="sm"
           variant="ghost"
-          label={adding ? "×" : "+ Leave a note"}
+          label={adding ? "Cancel" : "Leave a note"}
+          tooltip={adding ? "Cancel" : "Leave a note"}
+          icon={<Icon icon={adding ? "close" : Plus} size="sm" />}
           onClick={() => setAdding(!adding)}
         />
       </HStack>
