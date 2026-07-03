@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
@@ -8,15 +8,52 @@ import { IconButton } from "@astryxdesign/core/IconButton";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { useTopic } from "../useSSE";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
-import { type CountdownItem, daysUntil, parseItems, upcoming } from "./countdown";
+import { type CalEvent, getEvents, ymd } from "./calendarApi";
+import {
+  DEFAULT_TAGS,
+  type CountdownItem,
+  daysUntil,
+  fromCalendar,
+  parseItems,
+  upcoming,
+} from "./countdown";
+import { parseTagList } from "./eventTags";
 
 // The big days the household is waiting for — weddings, trips, birthdays —
-// as "N days" cards, soonest first. Past dates simply stop showing.
+// as "N days" cards, soonest first. Past dates simply stop showing. Manual
+// entries live in the widget config; calendar events join automatically
+// when tagged #countdown / #travel / … in their description or title
+// (see eventTags.ts — the tag convention is shared, not countdown-only).
+
+const addDays = (d: Date, n: number) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
 
 export function CountdownWidget({ item }: WidgetProps) {
   const now = new Date();
-  const items = upcoming(parseItems(item.config.items), now);
+  const [events, setEvents] = useState<CalEvent[]>([]);
+  const reload = useCallback(() => {
+    const today = new Date();
+    getEvents(`${ymd(today)}T00:00:00Z`, `${ymd(addDays(today, 365))}T23:59:59Z`)
+      .then(setEvents)
+      .catch(console.error);
+  }, []);
+  useEffect(reload, [reload]);
+  useTopic("calendar", reload);
+
+  const tags = parseTagList(item.config.tags);
+  const tagged = fromCalendar(events, tags.length > 0 ? tags : DEFAULT_TAGS, now);
+  const manual = parseItems(item.config.items);
+  // Manual entry wins over a same-labeled calendar event.
+  const manualLabels = new Set(manual.map((m) => m.label.toLowerCase()));
+  const items = upcoming(
+    [...manual, ...tagged.filter((t) => !manualLabels.has(t.label.toLowerCase()))],
+    now,
+  );
 
   if (items.length === 0) {
     return (
@@ -61,6 +98,10 @@ export function CountdownSettings({ config, save }: WidgetSettingsProps) {
   const [items, setItems] = useState<CountdownItem[]>(() => parseItems(config.items));
   const [label, setLabel] = useState("");
   const [date, setDate] = useState("");
+  const [tagsText, setTagsText] = useState(() => {
+    const configured = parseTagList(config.tags);
+    return (configured.length > 0 ? configured : DEFAULT_TAGS).join(", ");
+  });
 
   const add = () => {
     if (!label.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
@@ -113,12 +154,18 @@ export function CountdownSettings({ config, save }: WidgetSettingsProps) {
           onClick={add}
         />
       </HStack>
+      <TextInput
+        label="Calendar tags"
+        description="Calendar events tagged with any of these (as #hashtags in the event's description or title) count down automatically."
+        value={tagsText}
+        onChange={setTagsText}
+      />
       <HStack justify="end">
         <Button
           size="sm"
           variant="primary"
           label="Save"
-          onClick={() => save({ ...config, items })}
+          onClick={() => save({ ...config, items, tags: parseTagList(tagsText) })}
         />
       </HStack>
     </VStack>

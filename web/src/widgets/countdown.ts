@@ -1,9 +1,46 @@
 // Date math for the countdown widget, timezone-safe: YYYY-MM-DD parsed at
 // local noon so DST shifts can't move an event across midnight.
 
+import { hasAnyTag, stripTags } from "./eventTags";
+
 export interface CountdownItem {
   label: string;
   date: string; // YYYY-MM-DD
+  fromCalendar?: boolean;
+}
+
+// Tags the widget watches for when none are configured.
+export const DEFAULT_TAGS = ["countdown", "travel", "trip"];
+
+interface CalendarEventLike {
+  title: string;
+  notes?: string;
+  startsAt: string; // RFC3339, or YYYY-MM-DD when allDay
+}
+
+/**
+ * Tagged calendar events as countdown items: match any wanted tag, count
+ * down to the start date, display the tag-stripped title. Recurring events
+ * sync as one row per instance, so equal labels collapse to the soonest
+ * upcoming one.
+ */
+export function fromCalendar(
+  events: CalendarEventLike[],
+  tags: string[],
+  now: Date,
+): CountdownItem[] {
+  const soonest = new Map<string, CountdownItem>();
+  for (const ev of events) {
+    if (!hasAnyTag(ev, tags)) continue;
+    const date = ev.startsAt.slice(0, 10);
+    if (daysUntil(date, now) < 0) continue;
+    const label = stripTags(ev.title) || ev.title;
+    const seen = soonest.get(label.toLowerCase());
+    if (!seen || date < seen.date) {
+      soonest.set(label.toLowerCase(), { label, date, fromCalendar: true });
+    }
+  }
+  return [...soonest.values()];
 }
 
 export const parseItems = (raw: unknown): CountdownItem[] =>
