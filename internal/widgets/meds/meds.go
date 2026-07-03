@@ -1,5 +1,7 @@
-// Package meds: medication schedules with per-day dose tracking, so
-// "did grandma take her evening pill?" has an answer on the kiosk.
+// Package meds: medication schedules with dose tracking, so "did grandma
+// take her evening pill?" has an answer on the kiosk. Slots are semantic —
+// AM, PM, daily, weekly — and check-offs reset with their window: daily
+// slots at midnight, weekly slots at the start of the week (Monday).
 package meds
 
 import (
@@ -16,7 +18,24 @@ import (
 	"github.com/zandoh/hearth/internal/widget"
 )
 
-var slotRe = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
+// Semantic slots plus legacy HH:MM entries (treated as daily).
+var slotRe = regexp.MustCompile(`^(AM|PM|daily|weekly|([01]\d|2[0-3]):[0-5]\d)$`)
+
+// weekStart returns the Monday of now's week, YYYY-MM-DD.
+func weekStart(now time.Time) string {
+	back := (int(now.Weekday()) + 6) % 7 // Mon=0 ... Sun=6
+	return now.AddDate(0, 0, -back).Format("2006-01-02")
+}
+
+// slotWindow is the reset window for a slot as of now: the current day for
+// daily-style slots, the current week for weekly ones.
+func slotWindow(slot string, now time.Time) (start, end string) {
+	today := now.Format("2006-01-02")
+	if slot == "weekly" {
+		return weekStart(now), today
+	}
+	return today, today
+}
 
 type Widget struct {
 	widget.Base
@@ -40,15 +59,36 @@ func (w *Widget) handleToday(rw http.ResponseWriter, r *http.Request) {
 		httpx.Fail(rw, err)
 		return
 	}
-	day := time.Now().Format("2006-01-02")
-	taken, err := w.store.TakenDoses(day)
+	now := time.Now()
+	day := now.Format("2006-01-02")
+	// Two windows: daily-style slots reset at midnight, weekly slots at the
+	// start of the week.
+	takenToday, err := w.store.TakenDosesBetween(day, day)
 	if err != nil {
 		httpx.Fail(rw, err)
 		return
 	}
-	takenSet := make(map[string]bool, len(taken))
-	for _, d := range taken {
-		takenSet[strconv.FormatInt(d.MedicationID, 10)+"|"+d.Slot] = true
+	takenWeek, err := w.store.TakenDosesBetween(weekStart(now), day)
+	if err != nil {
+		httpx.Fail(rw, err)
+		return
+	}
+	key := func(medID int64, slot string) string {
+		return strconv.FormatInt(medID, 10) + "|" + slot
+	}
+	todaySet := make(map[string]bool, len(takenToday))
+	for _, d := range takenToday {
+		todaySet[key(d.MedicationID, d.Slot)] = true
+	}
+	weekSet := make(map[string]bool, len(takenWeek))
+	for _, d := range takenWeek {
+		weekSet[key(d.MedicationID, d.Slot)] = true
+	}
+	takenNow := func(medID int64, slot string) bool {
+		if slot == "weekly" {
+			return weekSet[key(medID, slot)]
+		}
+		return todaySet[key(medID, slot)]
 	}
 	type dose struct {
 		Slot  string `json:"slot"`
@@ -62,10 +102,7 @@ func (w *Widget) handleToday(rw http.ResponseWriter, r *http.Request) {
 	for _, m := range meds {
 		mv := medView{Medication: m, Doses: []dose{}}
 		for _, slot := range m.Times {
-			mv.Doses = append(mv.Doses, dose{
-				Slot:  slot,
-				Taken: takenSet[strconv.FormatInt(m.ID, 10)+"|"+slot],
-			})
+			mv.Doses = append(mv.Doses, dose{Slot: slot, Taken: takenNow(m.ID, slot)})
 		}
 		out = append(out, mv)
 	}
@@ -89,7 +126,7 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 	}
 	for _, t := range req.Times {
 		if !slotRe.MatchString(t) {
-			httpx.BadRequest(rw, "dose times must be HH:MM (24h): "+t)
+			httpx.BadRequest(rw, "slots must be AM, PM, daily, weekly, or HH:MM: "+t)
 			return
 		}
 	}
@@ -127,10 +164,12 @@ func (w *Widget) handleToggleDose(rw http.ResponseWriter, r *http.Request) {
 		Slot string `json:"slot"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !slotRe.MatchString(req.Slot) {
-		httpx.BadRequest(rw, "slot (HH:MM) is required")
+		httpx.BadRequest(rw, "slot (AM, PM, daily, weekly, or HH:MM) is required")
 		return
 	}
-	takenNow, err := w.store.ToggleDose(id, time.Now().Format("2006-01-02"), req.Slot)
+	now := time.Now()
+	start, end := slotWindow(req.Slot, now)
+	takenNow, err := w.store.ToggleDose(id, req.Slot, now.Format("2006-01-02"), start, end)
 	if err != nil {
 		httpx.Fail(rw, err)
 		return

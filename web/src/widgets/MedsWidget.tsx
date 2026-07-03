@@ -3,6 +3,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { Icon } from "@astryxdesign/core/Icon";
 import { IconButton } from "@astryxdesign/core/IconButton";
+import { Selector } from "@astryxdesign/core/Selector";
 import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -28,13 +29,33 @@ interface Med {
 
 const api = "/api/widgets/meds";
 
+// Semantic schedules; each maps to the slot list stored on the medication.
+// Daily-style slots reset at midnight, weekly at the start of the week.
+const SCHEDULES: { value: string; label: string; slots: string[] }[] = [
+  { value: "am", label: "Morning (AM)", slots: ["AM"] },
+  { value: "pm", label: "Evening (PM)", slots: ["PM"] },
+  { value: "ampm", label: "Morning & evening", slots: ["AM", "PM"] },
+  { value: "daily", label: "Once daily", slots: ["daily"] },
+  { value: "weekly", label: "Once weekly", slots: ["weekly"] },
+];
+
+const SLOT_LABELS: Record<string, string> = {
+  AM: "AM",
+  PM: "PM",
+  daily: "Daily",
+  weekly: "This week",
+};
+
+// Legacy meds stored HH:MM times; show them as-is.
+const slotLabel = (slot: string) => SLOT_LABELS[slot] ?? slot;
+
 export function MedsWidget(_props: WidgetProps) {
   const { data } = useWidgetData<{ medications: Med[] }>("meds", "/today");
   const meds = data?.medications ?? [];
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [person, setPerson] = useState("");
-  const [times, setTimes] = useState("08:00");
+  const [schedule, setSchedule] = useState("am");
   const [error, setError] = useState("");
   const { confirm, confirmDialog } = useConfirm();
 
@@ -56,10 +77,7 @@ export function MedsWidget(_props: WidgetProps) {
 
   const add = async () => {
     setError("");
-    const slots = times
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const slots = SCHEDULES.find((sc) => sc.value === schedule)?.slots ?? ["daily"];
     try {
       await apiFetch(api, {
         method: "POST",
@@ -89,12 +107,11 @@ export function MedsWidget(_props: WidgetProps) {
         <VStack gap={2}>
           <TextInput label="Medication" value={name} onChange={(v) => setName(v)} />
           <TextInput label="Person" isOptional value={person} onChange={(v) => setPerson(v)} />
-          <TextInput
-            label="Dose times"
-            placeholder="08:00, 20:00"
-            value={times}
-            onChange={(v) => setTimes(v)}
-            onEnter={add}
+          <Selector
+            label="Schedule"
+            value={schedule}
+            options={SCHEDULES.map(({ value, label }) => ({ value, label }))}
+            onChange={(v) => setSchedule(v ?? "am")}
           />
           {error && <Text className="form-error">{error}</Text>}
           <HStack justify="end">
@@ -119,12 +136,12 @@ export function MedsWidget(_props: WidgetProps) {
                 <ToggleButton
                   key={d.slot}
                   size="sm"
-                  label={`${m.name} ${d.slot} dose`}
+                  label={`${m.name} ${slotLabel(d.slot)} dose`}
                   isPressed={d.taken}
                   icon={d.taken ? <Icon icon="check" size="sm" /> : undefined}
                   onPressedChange={() => toggle(m.id, d.slot)}
                 >
-                  {d.slot}
+                  {slotLabel(d.slot)}
                 </ToggleButton>
               ))}
             </HStack>
