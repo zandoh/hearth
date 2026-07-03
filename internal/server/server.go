@@ -188,6 +188,11 @@ func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
 // spaHandler serves the embedded frontend build, falling back to index.html
 // for client-side routes. If the frontend hasn't been built into the binary
 // it says so instead of returning a bare 404.
+//
+// Cache policy matters here: embedded files have no modtime, so without
+// explicit headers browsers cache index.html heuristically and can serve a
+// stale app for days after a rebuild. Hashed assets are immutable; the HTML
+// shell must always revalidate.
 func spaHandler(dist fs.FS) http.Handler {
 	fileServer := http.FileServerFS(dist)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -196,6 +201,11 @@ func spaHandler(dist fs.FS) http.Handler {
 			path = "index.html"
 		}
 		if _, err := fs.Stat(dist, path); err == nil {
+			if strings.HasPrefix(path, "assets/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			} else {
+				w.Header().Set("Cache-Control", "no-cache")
+			}
 			fileServer.ServeHTTP(w, r)
 			return
 		}
@@ -205,6 +215,7 @@ func spaHandler(dist fs.FS) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
 		w.Write(index)
 	})
 }

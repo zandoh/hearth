@@ -140,7 +140,6 @@ export function WeatherWidget(_props: WidgetProps) {
   if (!data.configured || !data.forecast) {
     return (
       <VStack className="widget-body" gap={2}>
-        <Text type="label">Weather</Text>
         {data.configured && !candidates ? (
           <Text type="supporting">Fetching forecast…</Text>
         ) : (

@@ -8,6 +8,7 @@ import { Switch } from "@astryxdesign/core/Switch";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { useConfirm } from "../confirm";
 import { useTopic } from "../useSSE";
 import {
   type AvailableGoogleCalendar,
@@ -35,6 +36,7 @@ export function CalendarSettings({ onClose }: { onClose: () => void }) {
   const [newColor, setNewColor] = useState("#4f6df5");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const { confirm, confirmDialog } = useConfirm();
 
   const reload = useCallback(() => {
     getCalendars().then(setCalendars).catch(console.error);
@@ -103,11 +105,17 @@ export function CalendarSettings({ onClose }: { onClose: () => void }) {
                 variant="ghost"
                 label="Remove"
                 onClick={() =>
-                  run(`del-${c.id}`, async () => {
-                    if (!confirm(`Remove "${c.name}" from Hearth? Its events here go with it.`))
-                      return;
-                    await deleteCalendar(c.id);
-                  })
+                  confirm(
+                    {
+                      title: `Remove "${c.name}"?`,
+                      description:
+                        c.kind === "google"
+                          ? "It disappears from Hearth along with its events here. The calendar itself is untouched on Google."
+                          : "The calendar and all of its events will be deleted.",
+                      actionLabel: "Remove",
+                    },
+                    () => run(`del-${c.id}`, () => deleteCalendar(c.id)),
+                  )
                 }
               />
             </HStack>
@@ -175,10 +183,15 @@ export function CalendarSettings({ onClose }: { onClose: () => void }) {
                 variant="ghost"
                 label="Disconnect"
                 onClick={() =>
-                  run("disconnect", async () => {
-                    if (!confirm("Disconnect Google? Synced calendars stop updating.")) return;
-                    await disconnectGoogle();
-                  })
+                  confirm(
+                    {
+                      title: "Disconnect Google?",
+                      description:
+                        "Synced calendars stop updating until you connect again. Nothing is deleted.",
+                      actionLabel: "Disconnect",
+                    },
+                    () => run("disconnect", disconnectGoogle),
+                  )
                 }
               />
             </HStack>
@@ -215,6 +228,7 @@ export function CalendarSettings({ onClose }: { onClose: () => void }) {
         <HStack justify="end">
           <Button variant="ghost" label="Close" onClick={onClose} />
         </HStack>
+        {confirmDialog}
       </VStack>
     </Dialog>
   );

@@ -59,7 +59,6 @@ export function AgendaWidget(_props: WidgetProps) {
 
   return (
     <VStack className="widget-body" gap={3}>
-      <Text type="label">Coming up</Text>
       {days.length === 0 && (
         <EmptyState
           isCompact

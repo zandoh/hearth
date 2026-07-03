@@ -44,18 +44,19 @@ body {
   padding: var(--spacing-3);
 }
 
+/* While editing, gestures sweep across widget text — never select it.
+   View mode keeps normal selection. */
 .grid-container.editing {
-  /* kiosk: while editing, gestures move widgets — never scroll/select */
+  -webkit-user-select: none;
   user-select: none;
-}
-
-.grid-container.editing .widget-card {
-  touch-action: none;
 }
 
 .widget-palette {
   padding: var(--spacing-2) var(--spacing-5);
   border-bottom: var(--border-width) dashed var(--color-border-emphasized);
+  /* the tray only exists in edit mode; nothing in it should be selectable */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .palette-chip {
@@ -99,29 +100,43 @@ body {
   background: var(--color-background-card);
 }
 
-.widget-card.editing {
-  outline: var(--border-width) dashed var(--color-border-emphasized);
-  outline-offset: calc(-1 * var(--border-width));
+.widget-card:hover {
+  border-color: var(--color-border-emphasized);
+}
+
+.widget-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The chrome bar is the drag grip: grab it any time, Datadog-style. */
+.widget-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: var(--spacing-0-5) var(--spacing-3);
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-background-muted);
   cursor: grab;
+  touch-action: none;
+  user-select: none;
+  flex-shrink: 0;
 }
 
-.widget-card.editing:hover {
-  border-color: var(--color-accent);
+.widget-chrome:active {
+  cursor: grabbing;
 }
 
-.widget-remove {
-  position: absolute;
-  top: var(--spacing-1-5);
-  right: var(--spacing-1-5);
-  z-index: 10;
-  width: var(--size-element-sm);
-  height: var(--size-element-sm);
-  border-radius: var(--radius-full);
-  border: none;
-  background: var(--color-background-inverted);
-  color: var(--color-background-surface);
-  cursor: pointer;
-  line-height: 1;
+.widget-chrome-title {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.widget-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .widget-unknown {
@@ -156,12 +171,6 @@ body {
   color: var(--color-error);
 }
 
-.check-in {
-  width: var(--spacing-5);
-  height: var(--spacing-5);
-  accent-color: var(--color-accent);
-}
-
 input[type="color"] {
   width: var(--size-element-sm);
   height: var(--size-element-sm);
@@ -189,25 +198,6 @@ input[type="color"] {
 .chore-check:hover {
   color: var(--color-success);
   border-color: var(--color-success);
-}
-
-/* --- meds --- */
-
-.dose-pill {
-  font: inherit;
-  font-size: var(--font-size-sm, 0.8rem);
-  padding: var(--spacing-1) var(--spacing-3);
-  border-radius: var(--radius-full);
-  border: var(--border-width) solid var(--color-border-emphasized);
-  background: none;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.dose-pill.taken {
-  background: var(--color-success);
-  border-color: var(--color-success);
-  color: var(--color-on-success);
 }
 
 /* --- calendar month grid (custom by nature) --- */
@@ -300,23 +290,6 @@ input[type="color"] {
   flex-shrink: 0;
 }
 
-/* native select/time inputs inside the calendar dialog */
-.cal-field {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.cal-field select,
-.cal-field input[type="time"] {
-  font: inherit;
-  padding: var(--spacing-1-5) var(--spacing-2);
-  border-radius: var(--radius-element);
-  border: var(--border-width) solid var(--color-border-emphasized);
-  background: var(--color-background-surface);
-  color: inherit;
-}
-
 /* --- weather --- */
 
 .weather-icon {
@@ -360,27 +333,102 @@ input[type="color"] {
   min-height: 1em;
 }
 
-/* Edit mode: the whole card is a drag surface. A transparent overlay makes
-   widget content inert — no click-through to calendar days, checkboxes,
-   buttons — and guarantees pointer-down reaches the grid item so drags
-   always start. Remove button (z 10) and resize handles (z 20) stay above. */
-.widget-card.editing::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  cursor: grab;
+/* Resize handles exist only in edit mode — RGL renders them even when
+   resizing is disabled, and invisible strips would swallow edge clicks. */
+.grid-container:not(.editing) .react-resizable-handle {
+  display: none;
 }
 
-.widget-card.editing:active::after {
-  cursor: grabbing;
-}
-
+/* Resize handles: revealed on hover while editing (Datadog-style).
+   Side and bottom handles are full-length strips so the whole edge is
+   grabbable; corners keep the default arrow look. */
 .react-grid-item > .react-resizable-handle {
   z-index: 20;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
 }
 
-/* dim content slightly so edit mode reads as "layout, not interaction" */
-.widget-card.editing > *:not(.widget-remove) {
-  opacity: 0.75;
+.react-grid-item:hover > .react-resizable-handle,
+.react-grid-item.resizing > .react-resizable-handle {
+  opacity: 1;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w {
+  top: 0;
+  height: 100%;
+  width: 12px;
+  margin-top: 0;
+  transform: none;
+  background: none;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+  left: 0;
+  width: 100%;
+  height: 12px;
+  margin-left: 0;
+  transform: none;
+  background: none;
+}
+
+/* centered grip pills so the edges advertise themselves on hover */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--spacing-1);
+  height: var(--spacing-9);
+  border-radius: var(--radius-full);
+  background: var(--color-border-emphasized);
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e::after {
+  right: var(--spacing-0-5);
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w::after {
+  left: var(--spacing-0-5);
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: var(--spacing-0-5);
+  height: var(--spacing-1);
+  width: var(--spacing-9);
+  border-radius: var(--radius-full);
+  background: var(--color-border-emphasized);
+}
+
+/* --- premium drag feel --- */
+
+/* Neighbours glide with a damped ease-out instead of the default linear-ish
+   hop; the actively dragged card tracks the cursor 1:1 (no transition) and
+   lifts with a shadow. */
+.react-grid-item.cssTransforms {
+  transition:
+    transform 240ms cubic-bezier(0.25, 0.8, 0.25, 1),
+    width 240ms cubic-bezier(0.25, 0.8, 0.25, 1),
+    height 240ms cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.react-grid-item.react-draggable-dragging,
+.react-grid-item.resizing {
+  transition: none;
+  box-shadow:
+    0 16px 40px var(--color-shadow),
+    0 4px 12px var(--color-shadow);
+}
+
+.react-grid-placeholder {
+  transition:
+    transform 160ms cubic-bezier(0.25, 0.8, 0.25, 1),
+    width 160ms ease,
+    height 160ms ease;
 }

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
 import { NumberInput } from "@astryxdesign/core/NumberInput";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { useConfirm } from "../confirm";
 import { useTopic } from "../useSSE";
 import type { WidgetProps } from "./registry";
 
@@ -27,6 +30,7 @@ export function ChoresWidget(_props: WidgetProps) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [everyDays, setEveryDays] = useState(7);
+  const { confirm, confirmDialog } = useConfirm();
 
   const reload = useCallback(() => {
     fetch(api)
@@ -41,11 +45,15 @@ export function ChoresWidget(_props: WidgetProps) {
   const complete = (id: number) =>
     fetch(`${api}/${id}/complete`, { method: "POST" }).catch(console.error);
 
-  const remove = (id: number, name: string) => {
-    if (confirm(`Delete chore "${name}"?`)) {
-      fetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error);
-    }
-  };
+  const remove = (id: number, name: string) =>
+    confirm(
+      {
+        title: `Delete "${name}"?`,
+        description: "The chore and its completion history will be deleted.",
+        actionLabel: "Delete",
+      },
+      () => fetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error),
+    );
 
   const add = async () => {
     if (!title.trim()) return;
@@ -60,12 +68,11 @@ export function ChoresWidget(_props: WidgetProps) {
 
   return (
     <VStack className="widget-body" gap={2}>
-      <HStack justify="between" align="center">
-        <Text type="label">Chores</Text>
+      <HStack justify="end">
         <Button
           size="sm"
           variant="ghost"
-          label={adding ? "×" : "+"}
+          label={adding ? "×" : "+ Add"}
           onClick={() => setAdding(!adding)}
         />
       </HStack>
@@ -109,11 +116,18 @@ export function ChoresWidget(_props: WidgetProps) {
             {c.dueIn < 0 && <Badge variant="error" label={`${-c.dueIn}d overdue`} />}
             {c.dueIn === 0 && <Badge variant="warning" label="Due today" />}
             {c.dueIn > 0 && <Text type="supporting">in {c.dueIn}d</Text>}
-            <Button size="sm" variant="ghost" label="✕" onClick={() => remove(c.id, c.title)} />
+            <IconButton
+              size="sm"
+              variant="ghost"
+              label={`Delete ${c.title}`}
+              icon={<Icon icon="close" size="sm" />}
+              onClick={() => remove(c.id, c.title)}
+            />
           </HStack>
         ))}
       </VStack>
       {chores.length === 0 && <EmptyState isCompact title="No chores" description="Lucky you." />}
+      {confirmDialog}
     </VStack>
   );
 }

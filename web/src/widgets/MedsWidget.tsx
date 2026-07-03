@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
+import { useConfirm } from "../confirm";
 import { useTopic } from "../useSSE";
 import type { WidgetProps } from "./registry";
 
@@ -30,6 +34,7 @@ export function MedsWidget(_props: WidgetProps) {
   const [person, setPerson] = useState("");
   const [times, setTimes] = useState("08:00");
   const [error, setError] = useState("");
+  const { confirm, confirmDialog } = useConfirm();
 
   const reload = useCallback(() => {
     fetch(`${api}/today`)
@@ -48,11 +53,15 @@ export function MedsWidget(_props: WidgetProps) {
       body: JSON.stringify({ slot }),
     }).catch(console.error);
 
-  const remove = (id: number, medName: string) => {
-    if (confirm(`Remove medication "${medName}" and its history?`)) {
-      fetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error);
-    }
-  };
+  const remove = (id: number, medName: string) =>
+    confirm(
+      {
+        title: `Remove ${medName}?`,
+        description: "The medication and its dose history will be deleted.",
+        actionLabel: "Remove",
+      },
+      () => fetch(`${api}/${id}`, { method: "DELETE" }).catch(console.error),
+    );
 
   const add = async () => {
     setError("");
@@ -77,12 +86,11 @@ export function MedsWidget(_props: WidgetProps) {
 
   return (
     <VStack className="widget-body" gap={2}>
-      <HStack justify="between" align="center">
-        <Text type="label">Medications</Text>
+      <HStack justify="end">
         <Button
           size="sm"
           variant="ghost"
-          label={adding ? "×" : "+"}
+          label={adding ? "×" : "+ Add"}
           onClick={() => setAdding(!adding)}
         />
       </HStack>
@@ -118,23 +126,32 @@ export function MedsWidget(_props: WidgetProps) {
             </VStack>
             <HStack gap={1.5} wrap="wrap">
               {m.doses.map((d) => (
-                <button
+                <ToggleButton
                   key={d.slot}
-                  className={`dose-pill no-drag${d.taken ? " taken" : ""}`}
-                  onClick={() => toggle(m.id, d.slot)}
+                  size="sm"
+                  label={`${m.name} ${d.slot} dose`}
+                  isPressed={d.taken}
+                  icon={d.taken ? <Icon icon="check" size="sm" /> : undefined}
+                  onPressedChange={() => toggle(m.id, d.slot)}
                 >
-                  {d.taken ? "✓ " : ""}
                   {d.slot}
-                </button>
+                </ToggleButton>
               ))}
             </HStack>
-            <Button size="sm" variant="ghost" label="✕" onClick={() => remove(m.id, m.name)} />
+            <IconButton
+              size="sm"
+              variant="ghost"
+              label={`Remove ${m.name}`}
+              icon={<Icon icon="close" size="sm" />}
+              onClick={() => remove(m.id, m.name)}
+            />
           </HStack>
         ))}
       </VStack>
       {meds.length === 0 && !adding && (
         <EmptyState isCompact title="No medications" description="Add one with the + button." />
       )}
+      {confirmDialog}
     </VStack>
   );
 }

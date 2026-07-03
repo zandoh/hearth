@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
+import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
@@ -50,12 +51,11 @@ export function GroceryWidget(_props: WidgetProps) {
 
   return (
     <VStack className="widget-body" gap={2}>
-      <HStack justify="between" align="center">
-        <Text type="label">Groceries</Text>
-        {doneCount > 0 && (
+      {doneCount > 0 && (
+        <HStack justify="end">
           <Button size="sm" variant="ghost" label={`Clear ${doneCount} done`} onClick={clearDone} />
-        )}
-      </HStack>
+        </HStack>
+      )}
 
       <HStack gap={2} align="end">
         <TextInput
@@ -73,10 +73,10 @@ export function GroceryWidget(_props: WidgetProps) {
       <VStack as="ul" gap={1.5} className="plain-list">
         {items.map((it) => (
           <HStack as="li" key={it.id} gap={2} align="center">
-            <input
-              type="checkbox"
-              className="check-in no-drag"
-              checked={it.checked}
+            <CheckboxInput
+              label={it.name}
+              isLabelHidden
+              value={it.checked}
               onChange={() => toggle(it.id)}
             />
             <Text

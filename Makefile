@@ -9,7 +9,9 @@ build: web
 # touch .gitkeep after building: vite empties dist/ but the tracked
 # placeholder must survive so go:embed works on a fresh clone
 web:
-	cd web && bun install && bun run build && touch dist/.gitkeep
+	cd web && bun install && \
+	VITE_BUILD_ID="$$(git rev-parse --short HEAD 2>/dev/null || echo local)-$$(date +%m%d.%H%M)" bun run build && \
+	touch dist/.gitkeep
 
 run: build
 	./bin/hearth

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog } from "@astryxdesign/core/Dialog";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { Selector } from "@astryxdesign/core/Selector";
+import { TimeInput, type ISOTimeString } from "@astryxdesign/core/TimeInput";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Switch } from "@astryxdesign/core/Switch";
@@ -87,7 +91,13 @@ export function CalendarWidget(_props: WidgetProps) {
       <HStack justify="between" align="center">
         <Heading level={3}>{monthName}</Heading>
         <HStack gap={0.5}>
-          <Button size="sm" variant="ghost" label="‹" onClick={() => shiftMonth(-1)} />
+          <IconButton
+            size="sm"
+            variant="ghost"
+            label="Previous month"
+            icon={<Icon icon="chevronLeft" size="sm" />}
+            onClick={() => shiftMonth(-1)}
+          />
           <Button
             size="sm"
             variant="ghost"
@@ -97,8 +107,20 @@ export function CalendarWidget(_props: WidgetProps) {
               setCursor({ year: now.getFullYear(), month: now.getMonth() });
             }}
           />
-          <Button size="sm" variant="ghost" label="›" onClick={() => shiftMonth(1)} />
-          <Button size="sm" variant="ghost" label="⚙" onClick={() => setSettingsOpen(true)} />
+          <IconButton
+            size="sm"
+            variant="ghost"
+            label="Next month"
+            icon={<Icon icon="chevronRight" size="sm" />}
+            onClick={() => shiftMonth(1)}
+          />
+          <IconButton
+            size="sm"
+            variant="ghost"
+            label="Calendar settings"
+            icon={<Icon icon="wrench" size="sm" />}
+            onClick={() => setSettingsOpen(true)}
+          />
         </HStack>
       </HStack>
 
@@ -172,7 +194,7 @@ function DayDialog({
   const [title, setTitle] = useState("");
   const [calendarId, setCalendarId] = useState<number | null>(null);
   const [allDay, setAllDay] = useState(false);
-  const [time, setTime] = useState("12:00");
+  const [time, setTime] = useState("12:00" as ISOTimeString);
   const [error, setError] = useState("");
 
   const dayLabel = new Date(`${day}T12:00:00`).toLocaleDateString([], {
@@ -220,10 +242,11 @@ function DayDialog({
                 {e.title}
                 {e.location ? ` · ${e.location}` : ""}
               </Text>
-              <Button
+              <IconButton
                 size="sm"
                 variant="ghost"
-                label="✕"
+                label={`Delete ${e.title}`}
+                icon={<Icon icon="close" size="sm" />}
                 onClick={() => deleteEvent(e.id).catch(console.error)}
               />
             </HStack>
@@ -233,26 +256,14 @@ function DayDialog({
         {adding ? (
           <VStack gap={2}>
             <TextInput label="Title" value={title} onChange={(v) => setTitle(v)} onEnter={submit} />
-            <label className="cal-field">
-              <Text type="supporting">Calendar</Text>
-              <select
-                value={calendarId ?? writable[0]?.id ?? ""}
-                onChange={(e) => setCalendarId(Number(e.target.value))}
-              >
-                {writable.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Selector
+              label="Calendar"
+              value={String(calendarId ?? writable[0]?.id ?? "")}
+              options={writable.map((c) => ({ value: String(c.id), label: c.name }))}
+              onChange={(v) => setCalendarId(Number(v))}
+            />
             <Switch label="All day" value={allDay} onChange={(checked) => setAllDay(checked)} />
-            {!allDay && (
-              <label className="cal-field">
-                <Text type="supporting">Time</Text>
-                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-              </label>
-            )}
+            {!allDay && <TimeInput label="Time" value={time} onChange={(v) => v && setTime(v)} />}
             {error && <Text className="form-error">{error}</Text>}
             <HStack justify="end" gap={2}>
               <Button size="sm" variant="ghost" label="Cancel" onClick={() => setAdding(false)} />
