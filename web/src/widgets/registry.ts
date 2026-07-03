@@ -6,7 +6,7 @@ import { ChoresWidget } from "./ChoresWidget";
 import { ClockSettings, ClockWidget } from "./ClockWidget";
 import { GroceryWidget } from "./GroceryWidget";
 import { MedsWidget } from "./MedsWidget";
-import { WeatherWidget } from "./WeatherWidget";
+import { WeatherSettings, WeatherWidget } from "./WeatherWidget";
 
 // Client half of the widget contract. Every backend widget slug maps to a
 // component here; the grid renders a placeholder for anything unknown.
@@ -70,5 +70,6 @@ export const widgetRegistry: Record<string, WidgetDef> = {
     title: "Weather",
     component: WeatherWidget,
     defaultSize: { w: 4, h: 5 },
+    settings: WeatherSettings,
   },
 };

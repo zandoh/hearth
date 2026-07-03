@@ -28,8 +28,18 @@ const (
 	geocodingAPI  = "https://geocoding-api.open-meteo.com/v1/search"
 
 	locationSetting = "weather_location"
+	unitsSetting    = "weather_units"
 	refreshEvery    = 15 * time.Minute
 )
+
+// unitsParams maps a units preference to Open-Meteo request parameters.
+// Anything unrecognized falls back to imperial.
+func unitsParams(units string) (temp, wind string) {
+	if units == "metric" {
+		return "celsius", "kmh"
+	}
+	return "fahrenheit", "mph"
+}
 
 type location struct {
 	Name      string  `json:"name"`
@@ -40,6 +50,7 @@ type location struct {
 // forecast is the shape served to the frontend.
 type forecast struct {
 	Location  location        `json:"location"`
+	Units     string          `json:"units"` // "imperial" | "metric"
 	FetchedAt time.Time       `json:"fetchedAt"`
 	Current   json.RawMessage `json:"current"`
 	Hourly    json.RawMessage `json:"hourly"`
@@ -76,6 +87,7 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/widgets/weather/forecast", w.handleForecast)
 	mux.HandleFunc("GET /api/widgets/weather/geocode", w.handleGeocode)
 	mux.HandleFunc("PUT /api/widgets/weather/location", w.handleSetLocation)
+	mux.HandleFunc("PUT /api/widgets/weather/units", w.handleSetUnits)
 }
 
 func (w *Widget) loadLocation() (location, error) {
@@ -115,6 +127,11 @@ func (w *Widget) refresh(ctx context.Context) error {
 
 	lat := fmt.Sprintf("%.4f", loc.Latitude)
 	lon := fmt.Sprintf("%.4f", loc.Longitude)
+	units, err := w.store.GetSetting(unitsSetting)
+	if err != nil {
+		units = "imperial"
+	}
+	tempUnit, windUnit := unitsParams(units)
 
 	var fc struct {
 		Current json.RawMessage `json:"current"`
@@ -130,8 +147,8 @@ func (w *Widget) refresh(ctx context.Context) error {
 		"forecast_days":    {"6"},
 		"forecast_hours":   {"12"},
 		"timezone":         {"auto"},
-		"temperature_unit": {"fahrenheit"},
-		"wind_speed_unit":  {"mph"},
+		"temperature_unit": {tempUnit},
+		"wind_speed_unit":  {windUnit},
 	}, &fc)
 	if err != nil {
 		return err
@@ -139,6 +156,7 @@ func (w *Widget) refresh(ctx context.Context) error {
 
 	next := &forecast{
 		Location:  loc,
+		Units:     units,
 		FetchedAt: time.Now(),
 		Current:   fc.Current,
 		Hourly:    fc.Hourly,
@@ -245,4 +263,26 @@ func (w *Widget) handleSetLocation(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(rw, http.StatusOK, loc)
+}
+
+// handleSetUnits switches imperial/metric and refreshes immediately so the
+// board never shows mixed units.
+func (w *Widget) handleSetUnits(rw http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Units string `json:"units"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
+		(req.Units != "imperial" && req.Units != "metric") {
+		httpx.BadRequest(rw, `units must be "imperial" or "metric"`)
+		return
+	}
+	if err := w.store.SetSetting(unitsSetting, req.Units); err != nil {
+		httpx.Fail(rw, err)
+		return
+	}
+	if err := w.refresh(r.Context()); err != nil {
+		httpx.Fail(rw, err)
+		return
+	}
+	httpx.JSON(rw, http.StatusOK, map[string]string{"units": req.Units})
 }

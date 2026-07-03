@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
+import { Selector } from "@astryxdesign/core/Selector";
 import { VStack } from "@astryxdesign/core/VStack";
 import { apiFetch } from "../api";
 import { useWidgetData } from "../useWidgetData";
-import type { WidgetProps } from "./registry";
+import type { WidgetProps, WidgetSettingsProps } from "./registry";
 
 // WMO weather interpretation codes → label + emoji.
 const WMO: Record<number, [string, string]> = {
@@ -49,6 +50,7 @@ function aqiBadge(aqi: number) {
 
 interface Forecast {
   location: { name: string };
+  units: "imperial" | "metric";
   usAqi: number | null;
   current: {
     temperature_2m: number;
@@ -182,6 +184,10 @@ export function WeatherWidget(_props: WidgetProps) {
           <Text type="supporting" size="xsm" maxLines={1}>
             feels {Math.round(f.current.apparent_temperature)}° · {f.location.name}
           </Text>
+          <Text type="supporting" size="xsm" maxLines={1}>
+            wind {Math.round(f.current.wind_speed_10m)} {f.units === "metric" ? "km/h" : "mph"} ·{" "}
+            {Math.round(f.current.relative_humidity_2m)}% humidity
+          </Text>
           {f.usAqi != null && <HStack>{aqiBadge(Math.round(f.usAqi))}</HStack>}
         </VStack>
       </HStack>
@@ -210,6 +216,11 @@ export function WeatherWidget(_props: WidgetProps) {
                 {new Date(`${t}T12:00:00`).toLocaleDateString([], { weekday: "short" })}
               </Text>
               <span>{wmo(f.daily.weather_code[idx])[1]}</span>
+              {f.daily.precipitation_probability_max[idx] >= 20 && (
+                <Text type="supporting" size="xsm" className="weather-precip">
+                  {f.daily.precipitation_probability_max[idx]}%
+                </Text>
+              )}
               <Text hasTabularNumbers className="ml-auto">
                 {Math.round(f.daily.temperature_2m_min[idx])}°–
                 {Math.round(f.daily.temperature_2m_max[idx])}°
@@ -218,6 +229,119 @@ export function WeatherWidget(_props: WidgetProps) {
           );
         })}
       </VStack>
+    </VStack>
+  );
+}
+
+export function WeatherSettings({ config, save }: WidgetSettingsProps) {
+  const [current, setCurrent] = useState<{ name: string; units: string } | null>(null);
+  const [query, setQuery] = useState("");
+  const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+  const [units, setUnits] = useState<string>("imperial");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(`${api}/forecast`)
+      .then((r) => r.json())
+      .then((d: ForecastResponse) => {
+        if (d.forecast) {
+          setCurrent({ name: d.forecast.location.name, units: d.forecast.units });
+          setUnits(d.forecast.units ?? "imperial");
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const search = async () => {
+    if (!query.trim()) return;
+    setError("");
+    const res = await fetch(`${api}/geocode?q=${encodeURIComponent(query.trim())}`);
+    const found = res.ok ? ((await res.json()) as Candidate[]) : [];
+    if (found.length === 0) {
+      setError(`no places found for "${query}"`);
+      return;
+    }
+    setCandidates(found);
+  };
+
+  const choose = async (c: Candidate) => {
+    setError("");
+    const res = await fetch(`${api}/location`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(c),
+    });
+    if (!res.ok) {
+      setError("failed to set location");
+      return;
+    }
+    setCurrent((cur) => ({ name: c.name, units: cur?.units ?? units }));
+    setCandidates(null);
+    setQuery("");
+  };
+
+  const apply = async () => {
+    setError("");
+    if (units !== current?.units) {
+      const res = await fetch(`${api}/units`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ units }),
+      });
+      if (!res.ok) {
+        setError("failed to set units");
+        return;
+      }
+    }
+    save(config); // nothing stored per-instance yet; closes the dialog
+  };
+
+  return (
+    <VStack gap={3}>
+      <VStack gap={1}>
+        <Text type="supporting" size="xsm">
+          LOCATION
+        </Text>
+        <Text>{current?.name ?? "Not set"}</Text>
+        <HStack gap={2} align="end">
+          <TextInput
+            label="Change location"
+            isLabelHidden
+            placeholder="Search a new place…"
+            value={query}
+            onChange={setQuery}
+            onEnter={search}
+            className="min-w-0 flex-1"
+          />
+          <Button size="sm" variant="secondary" label="Search" onClick={search} />
+        </HStack>
+        {candidates && (
+          <VStack as="ul" gap={1.5} className="plain-list">
+            {candidates.map((c) => (
+              <li key={`${c.latitude},${c.longitude}`}>
+                <button className="weather-candidate no-drag" onClick={() => choose(c)}>
+                  {c.name}
+                </button>
+              </li>
+            ))}
+          </VStack>
+        )}
+      </VStack>
+
+      <Selector
+        label="Units"
+        value={units}
+        options={[
+          { value: "imperial", label: "Imperial (°F, mph)" },
+          { value: "metric", label: "Metric (°C, km/h)" },
+        ]}
+        onChange={(v) => setUnits(v ?? "imperial")}
+      />
+
+      {error && <Text className="form-error">{error}</Text>}
+      <HStack justify="end">
+        <Button size="sm" variant="primary" label="Save" onClick={apply} />
+      </HStack>
     </VStack>
   );
 }
