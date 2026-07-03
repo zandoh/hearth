@@ -6,6 +6,7 @@ import GridLayout, {
   type LayoutItem as GridPos,
 } from "react-grid-layout";
 import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "@astryxdesign/core/Banner";
 import { Dialog } from "@astryxdesign/core/Dialog";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Icon } from "@astryxdesign/core/Icon";
@@ -17,7 +18,8 @@ import { getViews, updateView } from "./api";
 import { useConfirm } from "./confirm";
 import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
-import { useTopic } from "./useSSE";
+import { idleReturnMs, msUntilNightlyReload } from "./kiosk";
+import { useConnectionState, useTopic } from "./useSSE";
 import { widgetRegistry } from "./widgets/registry";
 import type { View } from "./types";
 
@@ -121,6 +123,8 @@ export default function App() {
   const [views, setViews] = useState<View[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
+  const editingRef = useRef(false);
+  editingRef.current = editing;
   const [interacting, setInteracting] = useState(false);
   // Live grid positions accumulate here between gestures; re-rendering per
   // drag tick would cancel the drag, so this stays out of React state.
@@ -130,6 +134,9 @@ export default function App() {
   const { width, containerRef, mounted } = useContainerWidth();
   const { confirm, confirmDialog } = useConfirm();
   const [managingViews, setManagingViews] = useState(false);
+  const connection = useConnectionState();
+  // Debounce the offline banner so sub-second blips never flash it.
+  const [showOffline, setShowOffline] = useState(false);
   // Widget instance whose settings dialog is open.
   const [configFor, setConfigFor] = useState<string | null>(null);
 
@@ -139,6 +146,53 @@ export default function App() {
 
   useEffect(loadViews, [loadViews]);
   useTopic("views", loadViews);
+
+  useEffect(() => {
+    if (connection === "connected") {
+      setShowOffline(false);
+      return;
+    }
+    const id = setTimeout(() => setShowOffline(true), 2000);
+    return () => clearTimeout(id);
+  }, [connection]);
+
+  // Kiosk housekeeping: nightly reload keeps week-long sessions fresh
+  // (skipped while someone is mid-edit; retried an hour later).
+  useEffect(() => {
+    let id: ReturnType<typeof setTimeout>;
+    const schedule = (delay: number) => {
+      id = setTimeout(() => {
+        if (editingRef.current) schedule(60 * 60 * 1000);
+        else window.location.reload();
+      }, delay);
+    };
+    schedule(msUntilNightlyReload(new Date()));
+    return () => clearTimeout(id);
+  }, []);
+
+  // After a stretch with no touches, return to the default view and leave
+  // edit mode — the wall screen should always come back to rest.
+  useEffect(() => {
+    const idleMs = idleReturnMs(window.location.search);
+    let last = Date.now();
+    const touch = () => {
+      last = Date.now();
+    };
+    const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+    for (const ev of events) window.addEventListener(ev, touch, { passive: true });
+    const id = setInterval(() => {
+      if (Date.now() - last < idleMs) return;
+      last = Date.now();
+      setEditing(false);
+      setActiveId(null); // null falls back to the default view
+      setManagingViews(false);
+      setConfigFor(null);
+    }, 1000);
+    return () => {
+      clearInterval(id);
+      for (const ev of events) window.removeEventListener(ev, touch);
+    };
+  }, []);
 
   const active: View | undefined = useMemo(
     () => views.find((v) => v.id === activeId) ?? views.find((v) => v.isDefault) ?? views[0],
@@ -294,6 +348,15 @@ export default function App() {
           onClick={() => setEditing(!editing)}
         />
       </HStack>
+
+      {showOffline && (
+        <Banner
+          status="warning"
+          container="section"
+          title="Reconnecting…"
+          description="The board can't reach the Hearth server. It will catch up automatically."
+        />
+      )}
 
       {editing && (
         <HStack className="widget-palette" gap={1.5} align="center" wrap="wrap">
