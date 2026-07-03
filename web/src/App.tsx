@@ -10,6 +10,7 @@ import { Banner } from "@astryxdesign/core/Banner";
 import { Dialog } from "@astryxdesign/core/Dialog";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Icon } from "@astryxdesign/core/Icon";
+import { Keyboard as KeyboardGlyph, Pencil } from "lucide-react";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
@@ -348,16 +349,18 @@ export default function App() {
           variant={oskOn ? "secondary" : "ghost"}
           label={oskOn ? "Disable on-screen keyboard" : "Enable on-screen keyboard"}
           tooltip="On-screen keyboard"
-          icon={<KeyboardIcon />}
+          icon={<Icon icon={KeyboardGlyph} size="sm" />}
           onClick={() => {
             setOskEnabled(!oskOn);
             setOskOn(!oskOn);
           }}
         />
-        <Button
+        <IconButton
           size="sm"
-          variant={editing ? "primary" : "secondary"}
-          label={editing ? "Done" : "Edit layout"}
+          variant={editing ? "primary" : "ghost"}
+          label={editing ? "Done editing" : "Edit layout"}
+          tooltip={editing ? "Done editing" : "Edit layout"}
+          icon={<Icon icon={Pencil} size="sm" />}
           onClick={() => setEditing(!editing)}
         />
       </HStack>
@@ -496,21 +499,5 @@ export default function App() {
       {confirmDialog}
       <OnScreenKeyboard />
     </div>
-  );
-}
-
-// No keyboard glyph in Astryx's semantic icon set; a minimal inline SVG
-// keeps the icon system's sizing/color behavior via Icon's component form.
-function KeyboardIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 13h.01M10 13h.01M14 13h.01M18 13h.01M8 16h8"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
