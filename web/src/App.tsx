@@ -30,7 +30,13 @@ import { createCompactor } from "./compactor";
 import { useConfirm } from "./confirm";
 import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
-import { idleReturnMs, msUntilNightlyReload, scheduledViewID, screensaverMs } from "./kiosk";
+import {
+  idleReturnMs,
+  msUntilNightlyReload,
+  resolveActiveView,
+  scheduledViewID,
+  screensaverMs,
+} from "./kiosk";
 import { OnScreenKeyboard, oskEnabled, setOskEnabled } from "./OnScreenKeyboard";
 import { nextThemeMode, setThemeMode, useThemeMode } from "./themeMode";
 import { TOPICS } from "./topics";
@@ -199,15 +205,10 @@ export default function App() {
     return () => clearInterval(id);
   }, [views]);
 
-  const active: View | undefined = useMemo(() => {
-    if (guest) return guestView;
-    return (
-      views.find((v) => v.id === activeId) ??
-      views.find((v) => v.id === scheduledId) ??
-      views.find((v) => v.isDefault) ??
-      views[0]
-    );
-  }, [guest, guestView, views, activeId, scheduledId]);
+  const active: View | undefined = useMemo(
+    () => resolveActiveView(views, { guest, guestView, activeId, scheduledId }),
+    [guest, guestView, views, activeId, scheduledId],
+  );
 
   const items = active?.layout ?? [];
   const gridLayout: Layout = items.map(({ i, x, y, w, h }) => ({

@@ -80,3 +80,31 @@ export function scheduledViewID(views: SchedulableView[], now: Date): number | n
   }
   return null;
 }
+
+/**
+ * The one rule for which view the kiosk shows. Precedence, strictly:
+ *   1. guest mode -> the guest view, always — a scheduled window firing
+ *      mid-guest must never switch the board off it;
+ *   2. a manual pick (until idle-return clears it);
+ *   3. a scheduled view whose window contains now;
+ *   4. the default view;
+ *   5. the first view.
+ * Pure so every ordering is table-testable; App only supplies state.
+ */
+export function resolveActiveView<V extends { id: number; isDefault: boolean }>(
+  views: V[],
+  state: {
+    guest: boolean;
+    guestView: V | undefined;
+    activeId: number | null;
+    scheduledId: number | null;
+  },
+): V | undefined {
+  if (state.guest) return state.guestView;
+  return (
+    views.find((v) => v.id === state.activeId) ??
+    views.find((v) => v.id === state.scheduledId) ??
+    views.find((v) => v.isDefault) ??
+    views[0]
+  );
+}

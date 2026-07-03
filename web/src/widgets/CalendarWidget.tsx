@@ -22,6 +22,7 @@ import {
   type Calendar,
   createEvent,
   deleteEvent,
+  editedDates,
   updateEvent,
   eventOnDay,
   eventTimeLabel,
@@ -331,36 +332,12 @@ function DayDialog({
     day: "numeric",
   });
 
-  // Editing must not reshape the event: keep its original start date and,
-  // when the all-day flag is untouched, its original end — a week-long
-  // all-day event edited for a typo stays week-long. Only toggling the
-  // all-day switch falls back to the create-style one-day/one-hour default.
-  const editedDates = (e: CalEvent) => {
-    const baseDate = e.startsAt.slice(0, 10);
-    if (allDay && e.allDay) return { startsAt: e.startsAt, endsAt: e.endsAt };
-    if (!allDay && !e.allDay) {
-      const startsAt = rfc3339Local(new Date(`${baseDate}T${time}:00`));
-      const duration = new Date(e.endsAt).getTime() - new Date(e.startsAt).getTime();
-      return {
-        startsAt,
-        endsAt:
-          duration > 0
-            ? rfc3339Local(new Date(new Date(startsAt).getTime() + duration))
-            : undefined,
-      };
-    }
-    return {
-      startsAt: allDay ? baseDate : rfc3339Local(new Date(`${baseDate}T${time}:00`)),
-      endsAt: undefined,
-    };
-  };
-
   const submit = () =>
     mutate(async () => {
       const calId = calendarId ?? writable[0]?.id;
       if (!calId || !title.trim()) throw new Error("pick a calendar and enter a title");
       const dates = editing
-        ? editedDates(editing)
+        ? editedDates(editing, { allDay, time })
         : {
             startsAt: allDay ? day : rfc3339Local(new Date(`${day}T${time}:00`)),
             endsAt: undefined,

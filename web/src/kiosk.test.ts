@@ -6,6 +6,7 @@ import {
   inQuietWindow,
   msUntilNightlyReload,
   nightWakeMs,
+  resolveActiveView,
   scheduledViewID,
 } from "./kiosk";
 
@@ -94,5 +95,37 @@ describe("scheduledViewID", () => {
   });
   test("half-configured schedules never match", () => {
     expect(scheduledViewID([{ id: 9, scheduleStart: "06:00" }], at(7))).toBe(null);
+  });
+});
+
+describe("resolveActiveView", () => {
+  const home = { id: 1, isDefault: true };
+  const morning = { id: 2, isDefault: false };
+  const guestV = { id: 3, isDefault: false };
+  const views = [home, morning, guestV];
+  const base = { guest: false, guestView: guestV, activeId: null, scheduledId: null };
+
+  test("at rest -> default view", () => {
+    expect(resolveActiveView(views, base)).toBe(home);
+  });
+  test("scheduled window beats default at rest", () => {
+    expect(resolveActiveView(views, { ...base, scheduledId: 2 })).toBe(morning);
+  });
+  test("manual pick beats a firing schedule", () => {
+    expect(resolveActiveView(views, { ...base, activeId: 1, scheduledId: 2 })).toBe(home);
+  });
+  test("guest wins over everything — schedule can never escape guest mode", () => {
+    expect(resolveActiveView(views, { ...base, guest: true, activeId: 1, scheduledId: 2 })).toBe(
+      guestV,
+    );
+  });
+  test("guest with no guest view -> undefined (screensaver branch)", () => {
+    expect(resolveActiveView(views, { ...base, guest: true, guestView: undefined })).toBeUndefined();
+  });
+  test("stale ids fall through cleanly", () => {
+    expect(resolveActiveView(views, { ...base, activeId: 99, scheduledId: 98 })).toBe(home);
+  });
+  test("no default -> first view", () => {
+    expect(resolveActiveView([morning, guestV], base)).toBe(morning);
   });
 });

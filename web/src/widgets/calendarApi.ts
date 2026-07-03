@@ -126,3 +126,34 @@ export function eventTimeLabel(e: CalEvent): string {
     minute: "2-digit",
   });
 }
+
+/**
+ * The dates for an edited event. Editing must not reshape the event: an
+ * all-day event keeps its exact span (a week-long event edited for a typo
+ * stays week-long — this earned a production bug), a timed event keeps its
+ * date and duration with only the time-of-day applied. Toggling the
+ * all-day flag falls back to the create-style defaults, since the old
+ * duration stops meaning anything.
+ */
+export function editedDates(
+  e: Pick<CalEvent, "startsAt" | "endsAt" | "allDay">,
+  form: { allDay: boolean; time: string },
+): { startsAt: string; endsAt?: string } {
+  const baseDate = e.startsAt.slice(0, 10);
+  if (form.allDay && e.allDay) return { startsAt: e.startsAt, endsAt: e.endsAt };
+  if (!form.allDay && !e.allDay) {
+    const startsAt = rfc3339Local(new Date(`${baseDate}T${form.time}:00`));
+    const duration = new Date(e.endsAt).getTime() - new Date(e.startsAt).getTime();
+    return {
+      startsAt,
+      endsAt:
+        duration > 0
+          ? rfc3339Local(new Date(new Date(startsAt).getTime() + duration))
+          : undefined,
+    };
+  }
+  return {
+    startsAt: form.allDay ? baseDate : rfc3339Local(new Date(`${baseDate}T${form.time}:00`)),
+    endsAt: undefined,
+  };
+}
