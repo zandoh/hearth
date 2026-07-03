@@ -19,6 +19,7 @@ import { useConfirm } from "./confirm";
 import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
 import { idleReturnMs, msUntilNightlyReload } from "./kiosk";
+import { OnScreenKeyboard, oskEnabled, setOskEnabled } from "./OnScreenKeyboard";
 import { useConnectionState, useTopic } from "./useSSE";
 import { widgetRegistry } from "./widgets/registry";
 import type { View } from "./types";
@@ -134,6 +135,7 @@ export default function App() {
   const { width, containerRef, mounted } = useContainerWidth();
   const { confirm, confirmDialog } = useConfirm();
   const [managingViews, setManagingViews] = useState(false);
+  const [oskOn, setOskOn] = useState(oskEnabled);
   const connection = useConnectionState();
   // Debounce the offline banner so sub-second blips never flash it.
   const [showOffline, setShowOffline] = useState(false);
@@ -341,6 +343,17 @@ export default function App() {
             />
           )}
         </HStack>
+        <IconButton
+          size="sm"
+          variant={oskOn ? "secondary" : "ghost"}
+          label={oskOn ? "Disable on-screen keyboard" : "Enable on-screen keyboard"}
+          tooltip="On-screen keyboard"
+          icon={<KeyboardIcon />}
+          onClick={() => {
+            setOskEnabled(!oskOn);
+            setOskOn(!oskOn);
+          }}
+        />
         <Button
           size="sm"
           variant={editing ? "primary" : "secondary"}
@@ -481,6 +494,23 @@ export default function App() {
           );
         })()}
       {confirmDialog}
+      <OnScreenKeyboard />
     </div>
+  );
+}
+
+// No keyboard glyph in Astryx's semantic icon set; a minimal inline SVG
+// keeps the icon system's sizing/color behavior via Icon's component form.
+function KeyboardIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 13h.01M10 13h.01M14 13h.01M18 13h.01M8 16h8"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

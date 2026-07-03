@@ -432,3 +432,42 @@ input[type="color"] {
     width 160ms ease,
     height 160ms ease;
 }
+
+/* --- on-screen keyboard (kiosk) --- */
+
+.osk-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-background-surface);
+  border-top: var(--border-width) solid var(--color-border-emphasized);
+  box-shadow: 0 -8px 24px var(--color-shadow);
+}
+
+.osk-dock .simple-keyboard {
+  max-width: 900px;
+  margin: 0 auto;
+  background: none;
+}
+
+.osk-dock .simple-keyboard .hg-button {
+  height: 52px;
+  font-size: 1.05rem;
+  border-radius: var(--radius-element);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-background-muted);
+  color: var(--color-text-primary);
+  box-shadow: none;
+}
+
+.osk-dock .simple-keyboard .hg-button:active {
+  background: var(--color-accent-muted);
+}
+
+.osk-dock .simple-keyboard .hg-button.hg-functionBtn {
+  background: var(--color-background-body);
+  color: var(--color-text-secondary);
+}
