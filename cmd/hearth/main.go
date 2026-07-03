@@ -27,6 +27,10 @@ import (
 )
 
 func main() {
+	// Local secrets convenience; real env vars always win. Must happen
+	// before flag parsing side effects read any configuration.
+	loadDotEnv(".env")
+
 	addr := flag.String("addr", ":8080", "listen address")
 	dbPath := flag.String("db", "hearth.db", "path to SQLite database")
 	flag.Parse()

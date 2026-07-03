@@ -99,11 +99,13 @@ OAuth credentials — they stay on your server and are **never committed**:
 3. Create an **OAuth client ID** of type **Web application** with redirect URI
    `http://localhost:8080/api/widgets/calendar/google/callback`
    (replace host/port with wherever Hearth runs; set `HEARTH_BASE_URL` to match).
-4. Run Hearth with the credentials in the environment:
+4. Copy `.env.example` to `.env` next to the binary and fill in the
+   credentials — Hearth loads it on start (real environment variables
+   override the file, and `.env` is gitignored):
 
 ```sh
-HEARTH_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com \
-HEARTH_GOOGLE_CLIENT_SECRET=yyy \
+cp .env.example .env
+# edit .env, then:
 ./bin/hearth
 ```
 

@@ -12,6 +12,7 @@ web/dist/*
 # Secrets — never commit credentials; runtime config comes from env vars
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 client_secret*.json
