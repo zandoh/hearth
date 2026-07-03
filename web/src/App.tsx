@@ -104,6 +104,18 @@ const freePlacement: Compactor = {
 const BUILD_ID = import.meta.env.VITE_BUILD_ID ?? "dev";
 console.info(`hearth build ${BUILD_ID}`);
 
+// Brand mark (Guidelines §1): ember house held in a ring. The ring takes
+// the current text color; the house is always ember. Never recolored,
+// rotated, stretched, or outlined.
+function HearthMark() {
+  return (
+    <svg viewBox="0 0 64 64" width="26" height="26" aria-hidden>
+      <circle cx="32" cy="32" r="20" fill="none" stroke="currentColor" strokeWidth="4" />
+      <polygon points="32,22 41,30 41,41 23,41 23,30" fill="#D97742" />
+    </svg>
+  );
+}
+
 // Guide geometry mirrors RGL defaults: 10px margins/padding, 72px rows.
 /** Grid guides shown while a drag/resize gesture is in progress. */
 function GridGuides({ rows }: { rows: number }) {
@@ -323,10 +335,9 @@ export default function App() {
   return (
     <div className="app">
       <HStack as="header" className="app-header" gap={4} align="center">
-        <span title={`build ${BUILD_ID}`}>
-          <Heading level={1} className="app-title">
-            Hearth
-          </Heading>
+        <span className="brand-lockup" title={`build ${BUILD_ID}`}>
+          <HearthMark />
+          <span className="brand-wordmark">hearth</span>
         </span>
         <HStack as="nav" gap={1.5} className="flex-1">
           {views.map((v) => (

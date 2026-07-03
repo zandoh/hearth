@@ -56,7 +56,7 @@ export function ClockWidget({ item }: WidgetProps) {
 
   return (
     <VStack height="100%" justify="center" align="center" gap={1}>
-      <Text type="display-2" hasTabularNumbers>
+      <Text type="display-2" hasTabularNumbers className="brand-data">
         {display.toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",

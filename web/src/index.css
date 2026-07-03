@@ -7,7 +7,6 @@
 @import "tailwindcss/preflight.css" layer(base);
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
-@import "@astryxdesign/theme-neutral/theme.css";
 @import "@astryxdesign/core/tailwind-theme.css";
 @import "tailwindcss/utilities.css" layer(utilities);
 
@@ -543,4 +542,29 @@ input[type="color"] {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+/* --- brand --- */
+
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  /* lockup gap = half the mark width (Guidelines §1) */
+  gap: 13px;
+  user-select: none;
+}
+
+.brand-wordmark {
+  font-family: var(--font-family-heading, "Space Grotesk", sans-serif);
+  font-weight: 600;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+/* data readings render in the mono data face (Guidelines §3) */
+.brand-data {
+  font-family: var(--font-family-code, "IBM Plex Mono", monospace);
+  font-weight: 500;
 }

@@ -176,7 +176,7 @@ export function WeatherWidget(_props: WidgetProps) {
     <VStack className="widget-body" gap={3}>
       <HStack gap={3} align="center">
         <span className="weather-icon">{icon}</span>
-        <Text type="display-2" hasTabularNumbers>
+        <Text type="display-2" hasTabularNumbers className="brand-data">
           {Math.round(f.current.temperature_2m)}°
         </Text>
         <VStack gap={0.5} className="min-w-0">

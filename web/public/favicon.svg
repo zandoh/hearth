@@ -1,6 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Hearth: a warm flame on a slate tile -->
-  <rect width="64" height="64" rx="14" fill="#1F1F22"/>
-  <path d="M32 12c2 7-6 10.5-6 17 0 2.4 1 4.4 2.4 5.9C26.6 30 22 28.8 20.5 24 17 28 15 32.7 15 37.5 15 46.6 22.6 54 32 54s17-7.4 17-16.5c0-9.8-9.4-13-11.5-21.5C36 14 34 12.7 32 12z" fill="#F2790233" stroke="#FB8C00" stroke-width="2.4" stroke-linejoin="round"/>
-  <path d="M32 33c1.2 4-3.4 5.8-3.4 9.3 0 3.2 2.6 5.7 5.9 5.7s5.9-2.5 5.9-5.7c0-4.8-5.6-6-8.4-9.3z" fill="#FB8C00"/>
+  <!-- App icon (Guidelines §4): char tile, mark centered at 60% tile width -->
+  <rect width="64" height="64" rx="14" fill="#1B1916"/>
+  <g transform="translate(32 32) scale(0.6) translate(-32 -32)">
+    <circle cx="32" cy="32" r="20" fill="none" stroke="#F4F1EB" stroke-width="4"/>
+    <polygon points="32,22 41,30 41,41 23,41 23,30" fill="#D97742"/>
+  </g>
 </svg>
