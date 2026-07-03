@@ -39,12 +39,36 @@ func main() {
 
 	addr := flag.String("addr", ":8080", "listen address")
 	dbPath := flag.String("db", "hearth.db", "path to SQLite database")
+	resetGuestPin := flag.Bool("reset-guest-pin", false,
+		"clear the guest-mode PIN and exit (admin recovery for a forgotten PIN)")
 	flag.Parse()
+
+	if *resetGuestPin {
+		if err := doResetGuestPin(*dbPath); err != nil {
+			slog.Error("reset guest pin failed", "err", err)
+			os.Exit(1)
+		}
+		slog.Info("guest PIN cleared; any exit attempt on a locked device now unlocks it")
+		return
+	}
 
 	if err := run(*addr, *dbPath); err != nil {
 		slog.Error("hearth exited", "err", err)
 		os.Exit(1)
 	}
+}
+
+// doResetGuestPin is the offline admin path for a forgotten guest PIN: it
+// writes straight to the database, so it works whether or not the server
+// is running. The running server reads settings per request and needs no
+// restart to notice.
+func doResetGuestPin(dbPath string) error {
+	st, err := store.Open(dbPath)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	return server.ResetGuestPin(st)
 }
 
 func run(addr, dbPath string) error {

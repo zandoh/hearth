@@ -22,6 +22,12 @@ const (
 	guestViewSetting = "guest_view_id"
 )
 
+// ResetGuestPin clears the stored guest PIN. It backs the -reset-guest-pin
+// admin flag: the recovery path when the household forgets the PIN.
+func ResetGuestPin(st *store.Store) error {
+	return st.DeleteSetting(guestPinSetting)
+}
+
 func hashPin(pin string) string {
 	sum := sha256.Sum256([]byte(pin))
 	return hex.EncodeToString(sum[:])
@@ -88,7 +94,10 @@ func (s *Server) handleVerifyGuestPin(w http.ResponseWriter, r *http.Request) {
 	}
 	existing, err := s.store.GetSetting(guestPinSetting)
 	if err != nil {
-		httpx.Error(w, http.StatusConflict, "no guest PIN is configured")
+		// No PIN on record — e.g. an admin ran `hearth -reset-guest-pin`
+		// while a device was locked in guest mode. Any attempt unlocks,
+		// so the kiosk can always recover.
+		httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		return
 	}
 	if subtle.ConstantTimeCompare([]byte(existing), []byte(hashPin(req.Pin))) != 1 {

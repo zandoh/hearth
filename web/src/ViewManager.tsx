@@ -68,68 +68,72 @@ export function ViewManager({
           The default view is what the kiosk shows on load. Each view keeps its own widget layout.
         </Text>
 
-        <VStack as="ul" gap={2} className="plain-list">
+        <VStack as="ul" gap={3} className="plain-list">
           {views.map((v) => (
-            <HStack as="li" key={v.id} gap={2} align="center">
-              <TextInput
-                label={`Rename ${v.name}`}
-                isLabelHidden
-                value={names[v.id] ?? v.name}
-                onChange={(value) => setNames((n) => ({ ...n, [v.id]: value }))}
-                onEnter={() => rename(v)}
-                className="min-w-0 flex-1"
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                label="Rename"
-                isDisabled={(names[v.id] ?? v.name).trim() === v.name}
-                onClick={() => rename(v)}
-              />
-              {v.isDefault ? (
-                <Badge variant="info" label="Default" />
-              ) : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  label="Make default"
-                  onClick={() => act(() => setDefaultView(v.id))}
+            <VStack as="li" key={v.id} gap={1} className="view-row">
+              <HStack gap={2} align="center">
+                <TextInput
+                  label={`Rename ${v.name}`}
+                  isLabelHidden
+                  value={names[v.id] ?? v.name}
+                  onChange={(value) => setNames((n) => ({ ...n, [v.id]: value }))}
+                  onEnter={() => rename(v)}
+                  className="min-w-0 flex-1"
                 />
-              )}
-              {guest?.guestViewId === v.id ? (
-                <Badge variant="teal" label="Guest" />
-              ) : (
                 <Button
                   size="sm"
                   variant="ghost"
-                  label="Set guest"
+                  label="Rename"
+                  isDisabled={(names[v.id] ?? v.name).trim() === v.name}
+                  onClick={() => rename(v)}
+                />
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  label={`Delete ${v.name}`}
+                  icon={<Icon icon="close" size="sm" />}
+                  isDisabled={views.length <= 1}
                   onClick={() =>
-                    act(async () => {
-                      await setGuestView(v.id);
-                      setGuest(await getGuestConfig());
-                    })
+                    confirm(
+                      {
+                        title: `Delete "${v.name}"?`,
+                        description:
+                          "The view's layout is deleted. Widget data (events, lists, chores) is not affected.",
+                        actionLabel: "Delete",
+                      },
+                      () => act(() => deleteView(v.id)),
+                    )
                   }
                 />
-              )}
-              <IconButton
-                size="sm"
-                variant="ghost"
-                label={`Delete ${v.name}`}
-                icon={<Icon icon="close" size="sm" />}
-                isDisabled={views.length <= 1}
-                onClick={() =>
-                  confirm(
-                    {
-                      title: `Delete "${v.name}"?`,
-                      description:
-                        "The view's layout is deleted. Widget data (events, lists, chores) is not affected.",
-                      actionLabel: "Delete",
-                    },
-                    () => act(() => deleteView(v.id)),
-                  )
-                }
-              />
-            </HStack>
+              </HStack>
+              <HStack gap={2} align="center" wrap="wrap">
+                {v.isDefault ? (
+                  <Badge variant="info" label="Default" />
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    label="Make default"
+                    onClick={() => act(() => setDefaultView(v.id))}
+                  />
+                )}
+                {guest?.guestViewId === v.id ? (
+                  <Badge variant="teal" label="Guest" />
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    label="Set guest"
+                    onClick={() =>
+                      act(async () => {
+                        await setGuestView(v.id);
+                        setGuest(await getGuestConfig());
+                      })
+                    }
+                  />
+                )}
+              </HStack>
+            </VStack>
           ))}
         </VStack>
 
@@ -194,6 +198,13 @@ export function ViewManager({
             />
           ) : null}
         </HStack>
+        {guest?.pinSet && (
+          <Text type="supporting" size="xsm">
+            Forgot the PIN? On the server, run{" "}
+            <code className="brand-data">hearth -reset-guest-pin</code> — the next unlock attempt
+            then succeeds with any PIN.
+          </Text>
+        )}
 
         {error && <Text className="form-error">{error}</Text>}
         <HStack justify="end">

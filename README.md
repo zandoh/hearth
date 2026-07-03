@@ -60,6 +60,20 @@ make build   # builds web/ with bun, embeds it, produces bin/hearth
 
 Flags: `-addr :8080`, `-db hearth.db`.
 
+### Forgot the guest PIN?
+
+Resetting it is deliberately an admin task on the server (there is no
+"forgot PIN" on the kiosk — that would defeat the lock):
+
+```sh
+./hearth -reset-guest-pin                      # binary install
+docker compose exec hearth /hearth -reset-guest-pin -db /data/hearth.db
+```
+
+It writes straight to the database, so it works while the server is
+running. A device locked in guest mode unlocks on its next exit attempt
+with any PIN; set a fresh PIN afterwards in Views → Guest mode.
+
 ### Hosting at a friendly name (e.g. hearth.local)
 
 Hearth binds any hostname — point DNS/mDNS at the box and it works. On a
