@@ -29,6 +29,33 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/widgets/guestbook", w.handleList)
 	mux.HandleFunc("POST /api/widgets/guestbook", w.handleAdd)
 	mux.HandleFunc("DELETE /api/widgets/guestbook/{id}", w.handleDelete)
+	mux.HandleFunc("PUT /api/widgets/guestbook/{id}/position", w.handleMove)
+}
+
+// handleMove pins a note somewhere on the wall. Coordinates are fractions
+// of the wall (top-left of the note), clamped server-side so a buggy or
+// hostile client can't park notes off-canvas for everyone.
+func (w *Widget) handleMove(rw http.ResponseWriter, r *http.Request) {
+	id, ok := httpx.ID(r)
+	if !ok {
+		httpx.BadRequest(rw, "invalid id")
+		return
+	}
+	var req struct {
+		X float64 `json:"x"`
+		Y float64 `json:"y"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpx.BadRequest(rw, "invalid JSON body")
+		return
+	}
+	clamp := func(v float64) float64 { return min(max(v, 0), 1) }
+	if err := w.store.SetGuestbookNotePosition(id, clamp(req.X), clamp(req.Y)); err != nil {
+		httpx.Fail(rw, err)
+		return
+	}
+	w.Publish("changed")
+	rw.WriteHeader(http.StatusNoContent)
 }
 
 func (w *Widget) handleList(rw http.ResponseWriter, r *http.Request) {

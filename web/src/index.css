@@ -616,23 +616,33 @@ input[type="color"] {
 
 /* --- guest book sticky notes --- */
 
+/* Corkboard: notes sit wherever they were dragged, no grid. */
 .note-wall {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--spacing-3);
-  overflow-y: auto;
-  padding: var(--spacing-1);
+  position: relative;
+  flex: 1;
+  min-height: 140px;
+  overflow: hidden;
 }
 
 .sticky-note {
-  position: relative;
+  position: absolute;
+  width: 160px;
   min-height: 120px;
   padding: var(--spacing-3);
   border-radius: 2px;
   box-shadow: 0 4px 10px var(--color-shadow);
-  color: #1b1916;
   display: flex;
   flex-direction: column;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sticky-note.lifted {
+  cursor: grabbing;
+  z-index: 5;
+  box-shadow: 0 10px 24px var(--color-shadow);
 }
 
 .sticky-note > button {
@@ -640,6 +650,16 @@ input[type="color"] {
   top: 2px;
   right: 2px;
   opacity: 0.4;
+}
+
+/* Notes are light paper in both themes, so the ink is always Char. The
+   explicit selectors beat the design system's themed <p>/button colors
+   (Paper in dark mode — unreadable on yellow). */
+.sticky-note .sticky-message,
+.sticky-note .sticky-author,
+.sticky-note button,
+.sticky-note svg {
+  color: #1b1916;
 }
 
 .sticky-message {
