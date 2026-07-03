@@ -58,14 +58,22 @@ describe("toggleTag", () => {
 });
 
 describe("knownTags", () => {
-  test("defaults plus every configured widget tag list", () => {
+  test("a configured widget narrows the set — no unconditional defaults", () => {
+    const views = [{ layout: [{ widget: "countdown", config: { tags: ["countdown"] } }] }];
+    expect(knownTags(views)).toEqual(["countdown"]);
+  });
+  test("an unconfigured tag-driven widget watches the defaults", () => {
+    const views = [{ layout: [{ widget: "countdown", config: {} }] }];
+    expect(knownTags(views).sort()).toEqual(["countdown", "travel", "trip"]);
+  });
+  test("union across instances, plus any widget with a tags list", () => {
     const views = [
-      { layout: [{ config: { tags: ["ski", "countdown"] } }] },
-      { layout: [{ config: {} }, { config: { tags: "camp" } }] },
+      { layout: [{ widget: "countdown", config: { tags: ["ski"] } }] },
+      { layout: [{ widget: "futurething", config: { tags: "camp" } }] },
     ];
-    const tags = knownTags(views);
-    expect(tags).toContain("countdown");
-    expect(tags).toContain("ski");
-    expect(tags).toContain("camp");
+    expect(knownTags(views).sort()).toEqual(["camp", "ski"]);
+  });
+  test("no tag-driven widgets -> no pills", () => {
+    expect(knownTags([{ layout: [{ widget: "clock", config: {} }] }])).toEqual([]);
   });
 });

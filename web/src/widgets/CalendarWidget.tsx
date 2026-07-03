@@ -432,21 +432,23 @@ function DayDialog({
               value={notes}
               onChange={(v) => setNotes(v)}
             />
-            <HStack gap={1.5} wrap="wrap">
-              {systemTags.map((tag) => {
-                const on = eventTags({ title, notes }).has(tag);
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={`tag-pill no-drag${on ? " on" : ""}`}
-                    onClick={() => setNotes(toggleTag(notes, tag))}
-                  >
-                    #{tag}
-                  </button>
-                );
-              })}
-            </HStack>
+            {systemTags.length > 0 && (
+              <HStack gap={1.5} wrap="wrap">
+                {systemTags.map((tag) => {
+                  const on = eventTags({ title, notes }).has(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      className={`tag-pill no-drag${on ? " on" : ""}`}
+                      onClick={() => setNotes(toggleTag(notes, tag))}
+                    >
+                      #{tag}
+                    </button>
+                  );
+                })}
+              </HStack>
+            )}
             <HStack justify="end" gap={2}>
               <Button size="sm" variant="ghost" label="Cancel" onClick={resetForm} />
               <Button
