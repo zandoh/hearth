@@ -13,6 +13,9 @@ import { WeatherSettings, WeatherWidget } from "./WeatherWidget";
 
 export interface WidgetProps {
   item: LayoutItem;
+  // Persist this instance's config (merged into the layout item). Widgets
+  // use it for remembered UI state like the calendar's active view mode.
+  saveConfig?: (config: Record<string, unknown>) => void;
 }
 
 // Per-instance settings form, opened from the gear in the widget's chrome

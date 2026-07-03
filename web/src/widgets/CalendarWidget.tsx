@@ -29,6 +29,47 @@ import { CalendarSettings } from "./CalendarSettings";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+type CalView = "month" | "week" | "workweek" | "day";
+
+const VIEW_OPTIONS: { value: CalView; label: string }[] = [
+  { value: "month", label: "Month" },
+  { value: "week", label: "Week" },
+  { value: "workweek", label: "Work week" },
+  { value: "day", label: "Day" },
+];
+
+const parseView = (v: unknown): CalView =>
+  v === "week" || v === "workweek" || v === "day" ? v : "month";
+
+const addDays = (d: Date, n: number) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
+
+/** The days visible for a non-month view, as YYYY-MM-DD. */
+function visibleDays(view: CalView, anchor: Date): string[] {
+  if (view === "day") return [ymd(anchor)];
+  const sunday = addDays(anchor, -anchor.getDay());
+  if (view === "workweek") {
+    return Array.from({ length: 5 }, (_, i) => ymd(addDays(sunday, i + 1)));
+  }
+  return Array.from({ length: 7 }, (_, i) => ymd(addDays(sunday, i)));
+}
+
+function viewTitle(view: CalView, anchor: Date, days: string[]): string {
+  if (view === "month") {
+    return anchor.toLocaleDateString([], { month: "long", year: "numeric" });
+  }
+  if (view === "day") {
+    return anchor.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  }
+  const first = new Date(`${days[0]}T12:00:00`);
+  const last = new Date(`${days[days.length - 1]}T12:00:00`);
+  const opts = { month: "short", day: "numeric" } as const;
+  return `${first.toLocaleDateString([], opts)} – ${last.toLocaleDateString([], opts)}`;
+}
+
 interface DayCell {
   date: string; // YYYY-MM-DD
   dayOfMonth: number;
@@ -47,25 +88,27 @@ function monthGrid(year: number, month: number): DayCell[] {
   return cells.slice(35).some((c) => c.inMonth) ? cells : cells.slice(0, 35);
 }
 
-export function CalendarWidget(_props: WidgetProps) {
-  const [cursor, setCursor] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
-  });
+export function CalendarWidget({ item, saveConfig }: WidgetProps) {
+  const [view, setView] = useState<CalView>(() => parseView(item.config.view));
+  const [anchor, setAnchor] = useState(() => new Date());
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const cells = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
+  const cells = useMemo(
+    () => (view === "month" ? monthGrid(anchor.getFullYear(), anchor.getMonth()) : []),
+    [view, anchor],
+  );
+  const days = useMemo(() => visibleDays(view, anchor), [view, anchor]);
 
   const reload = useCallback(() => {
-    // Fetch the whole visible grid plus a day of slack on each side.
-    const start = `${cells[0].date}T00:00:00Z`;
-    const last = cells[cells.length - 1].date;
-    getEvents(start, `${last}T23:59:59Z`).then(setEvents).catch(console.error);
+    // Fetch the whole visible range plus a day of slack on each side.
+    const first = view === "month" ? cells[0].date : days[0];
+    const last = view === "month" ? cells[cells.length - 1].date : days[days.length - 1];
+    getEvents(`${first}T00:00:00Z`, `${last}T23:59:59Z`).then(setEvents).catch(console.error);
     getCalendars().then(setCalendars).catch(console.error);
-  }, [cells]);
+  }, [view, cells, days]);
 
   useEffect(reload, [reload]);
   useTopic("calendar", reload);
@@ -76,43 +119,54 @@ export function CalendarWidget(_props: WidgetProps) {
   }, [calendars]);
 
   const today = ymd(new Date());
-  const monthName = new Date(cursor.year, cursor.month, 1).toLocaleDateString([], {
-    month: "long",
-    year: "numeric",
-  });
+  const title = viewTitle(view, anchor, days);
 
-  const shiftMonth = (delta: number) => {
-    const d = new Date(cursor.year, cursor.month + delta, 1);
-    setCursor({ year: d.getFullYear(), month: d.getMonth() });
+  const shift = (dir: 1 | -1) => {
+    if (view === "month") {
+      setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1));
+    } else if (view === "day") {
+      setAnchor(addDays(anchor, dir));
+    } else {
+      setAnchor(addDays(anchor, dir * 7));
+    }
   };
+
+  const changeView = (v: CalView) => {
+    setView(v);
+    saveConfig?.({ ...item.config, view: v });
+  };
+
+  const unitLabel = view === "month" ? "month" : view === "day" ? "day" : "week";
 
   return (
     <VStack className="widget-body cal" gap={1.5}>
-      <HStack justify="between" align="center">
-        <Heading level={3}>{monthName}</Heading>
-        <HStack gap={0.5}>
+      <HStack justify="between" align="center" gap={2}>
+        <Heading level={3} className="min-w-0">
+          {title}
+        </Heading>
+        <HStack gap={0.5} align="center">
+          <Selector
+            label="Calendar view"
+            isLabelHidden
+            size="sm"
+            value={view}
+            options={VIEW_OPTIONS}
+            onChange={(v) => changeView(parseView(v))}
+          />
           <IconButton
             size="sm"
             variant="ghost"
-            label="Previous month"
+            label={`Previous ${unitLabel}`}
             icon={<Icon icon="chevronLeft" size="sm" />}
-            onClick={() => shiftMonth(-1)}
+            onClick={() => shift(-1)}
           />
-          <Button
-            size="sm"
-            variant="ghost"
-            label="Today"
-            onClick={() => {
-              const now = new Date();
-              setCursor({ year: now.getFullYear(), month: now.getMonth() });
-            }}
-          />
+          <Button size="sm" variant="ghost" label="Today" onClick={() => setAnchor(new Date())} />
           <IconButton
             size="sm"
             variant="ghost"
-            label="Next month"
+            label={`Next ${unitLabel}`}
             icon={<Icon icon="chevronRight" size="sm" />}
-            onClick={() => shiftMonth(1)}
+            onClick={() => shift(1)}
           />
           <IconButton
             size="sm"
@@ -124,43 +178,117 @@ export function CalendarWidget(_props: WidgetProps) {
         </HStack>
       </HStack>
 
-      <div className="cal-weekdays">
-        {WEEKDAYS.map((d) => (
-          <div key={d}>{d}</div>
-        ))}
-      </div>
+      {view === "month" && (
+        <div className="cal-weekdays">
+          {WEEKDAYS.map((d) => (
+            <div key={d}>{d}</div>
+          ))}
+        </div>
+      )}
 
-      <div className="cal-grid" style={{ gridTemplateRows: `repeat(${cells.length / 7}, 1fr)` }}>
-        {cells.map((cell) => {
-          const dayEvents = events.filter((e) => eventOnDay(e, cell.date));
-          return (
-            <button
-              key={cell.date}
-              className={
-                "cal-day" +
-                (cell.inMonth ? "" : " out-month") +
-                (cell.date === today ? " today" : "")
-              }
-              onClick={() => setSelectedDay(cell.date)}
-            >
-              <span className="cal-day-num">{cell.dayOfMonth}</span>
-              <span className="cal-day-events">
-                {dayEvents.slice(0, 3).map((e) => (
-                  <span
-                    key={e.id}
-                    className="cal-chip"
-                    style={{ background: colorOf(e.calendarId) }}
-                    title={e.title}
-                  >
+      {view !== "month" && view !== "day" && (
+        <div
+          className="cal-week-grid"
+          style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}
+        >
+          {days.map((d) => {
+            const dayEvents = events.filter((e) => eventOnDay(e, d));
+            const dayDate = new Date(`${d}T12:00:00`);
+            return (
+              <button
+                key={d}
+                className={`cal-week-col${d === today ? " today" : ""}`}
+                onClick={() => setSelectedDay(d)}
+              >
+                <span className="cal-week-head">
+                  {dayDate.toLocaleDateString([], { weekday: "short" })}{" "}
+                  <strong>{dayDate.getDate()}</strong>
+                </span>
+                <span className="cal-week-events">
+                  {dayEvents.map((e) => (
+                    <span
+                      key={e.id}
+                      className="cal-week-event"
+                      style={{ borderLeftColor: colorOf(e.calendarId) }}
+                    >
+                      <span className="cal-week-time">{eventTimeLabel(e)}</span>
+                      {e.title}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {view === "day" && (
+        <VStack gap={2} className="cal-day-view">
+          {events.filter((e) => eventOnDay(e, days[0])).length === 0 && (
+            <Text type="supporting">Nothing scheduled.</Text>
+          )}
+          <VStack as="ul" gap={2} className="plain-list">
+            {events
+              .filter((e) => eventOnDay(e, days[0]))
+              .map((e) => (
+                <HStack as="li" key={e.id} gap={2} align="center">
+                  <span className="cal-dot" style={{ background: colorOf(e.calendarId) }} />
+                  <Text type="supporting" hasTabularNumbers className="min-w-16">
+                    {eventTimeLabel(e)}
+                  </Text>
+                  <Text maxLines={1} className="flex-1">
                     {e.title}
-                  </span>
-                ))}
-                {dayEvents.length > 3 && <span className="cal-more">+{dayEvents.length - 3}</span>}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                    {e.location ? ` · ${e.location}` : ""}
+                  </Text>
+                </HStack>
+              ))}
+          </VStack>
+          <HStack>
+            <Button
+              size="sm"
+              variant="secondary"
+              label="+ Add event"
+              onClick={() => setSelectedDay(days[0])}
+            />
+          </HStack>
+        </VStack>
+      )}
+
+      {view === "month" && (
+        <div className="cal-grid" style={{ gridTemplateRows: `repeat(${cells.length / 7}, 1fr)` }}>
+          {cells.map((cell) => {
+            const dayEvents = events.filter((e) => eventOnDay(e, cell.date));
+            return (
+              <button
+                key={cell.date}
+                className={
+                  "cal-day" +
+                  (cell.inMonth ? "" : " out-month") +
+                  (cell.date === today ? " today" : "")
+                }
+                onClick={() => setSelectedDay(cell.date)}
+              >
+                <span className="cal-day-num">{cell.dayOfMonth}</span>
+                <span className="cal-day-events">
+                  {dayEvents.slice(0, 3).map((e) => (
+                    <span
+                      key={e.id}
+                      className="cal-chip"
+                      style={{ background: colorOf(e.calendarId) }}
+                      title={e.title}
+                    >
+                      {e.title}
+                    </span>
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <span className="cal-more">+{dayEvents.length - 3}</span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {selectedDay && (
         <DayDialog

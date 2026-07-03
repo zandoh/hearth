@@ -278,7 +278,7 @@ export default function App() {
     );
   };
 
-  const saveConfig = (instanceId: string, config: Record<string, unknown>) => {
+  const persistConfig = (instanceId: string, config: Record<string, unknown>) => {
     if (!active) return;
     const merged = mergePositions(active.layout, liveLayoutRef.current);
     updateView(
@@ -286,6 +286,10 @@ export default function App() {
       active.name,
       merged.map((item) => (item.i === instanceId ? { ...item, config } : item)),
     ).catch(console.error);
+  };
+
+  const saveConfig = (instanceId: string, config: Record<string, unknown>) => {
+    persistConfig(instanceId, config);
     setConfigFor(null);
   };
 
@@ -464,7 +468,7 @@ export default function App() {
                   )}
                   <div className="widget-content">
                     {def ? (
-                      <def.component item={item} />
+                      <def.component item={item} saveConfig={(cfg) => persistConfig(item.i, cfg)} />
                     ) : (
                       <div className="widget-unknown">Unknown widget: {item.widget}</div>
                     )}
