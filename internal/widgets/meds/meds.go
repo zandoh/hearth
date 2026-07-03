@@ -111,9 +111,10 @@ func (w *Widget) handleToday(rw http.ResponseWriter, r *http.Request) {
 
 func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name   string   `json:"name"`
-		Person string   `json:"person"`
-		Times  []string `json:"times"`
+		Name      string   `json:"name"`
+		Person    string   `json:"person"` // legacy free text
+		ProfileID int64    `json:"profileId"`
+		Times     []string `json:"times"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
 		strings.TrimSpace(req.Name) == "" {
@@ -131,7 +132,7 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 	med, err := w.store.CreateMedication(
-		strings.TrimSpace(req.Name), strings.TrimSpace(req.Person), req.Times)
+		strings.TrimSpace(req.Name), strings.TrimSpace(req.Person), req.ProfileID, req.Times)
 	if err != nil {
 		httpx.Fail(rw, err)
 		return

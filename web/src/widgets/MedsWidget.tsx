@@ -10,6 +10,8 @@ import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { apiFetch } from "../api";
+import { Avatar } from "../Avatar";
+import { useProfiles } from "../profiles";
 import { useConfirm } from "../confirm";
 import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
@@ -22,7 +24,8 @@ interface Dose {
 interface Med {
   id: number;
   name: string;
-  person: string;
+  person: string; // legacy free text; profileId supersedes it
+  profileId?: number;
   times: string[];
   doses: Dose[];
 }
@@ -54,7 +57,9 @@ export function MedsWidget(_props: WidgetProps) {
   const meds = data?.medications ?? [];
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
-  const [person, setPerson] = useState("");
+  const [profileId, setProfileId] = useState("0");
+  const { profiles } = useProfiles();
+  const profileOf = (id?: number) => profiles.find((p) => p.id === id);
   const [schedule, setSchedule] = useState("am");
   const [error, setError] = useState("");
   const { confirm, confirmDialog } = useConfirm();
@@ -83,14 +88,14 @@ export function MedsWidget(_props: WidgetProps) {
     try {
       await apiFetch(api, {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), person: person.trim(), times: slots }),
+        body: JSON.stringify({ name: name.trim(), profileId: Number(profileId), times: slots }),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed to add");
       return;
     }
     setName("");
-    setPerson("");
+    setProfileId("0");
     setAdding(false);
     reload();
   };
@@ -111,7 +116,17 @@ export function MedsWidget(_props: WidgetProps) {
       {adding && (
         <VStack gap={2}>
           <TextInput label="Medication" value={name} onChange={(v) => setName(v)} />
-          <TextInput label="Person" isOptional value={person} onChange={(v) => setPerson(v)} />
+          {profiles.length > 0 && (
+            <Selector
+              label="Person"
+              value={profileId}
+              options={[
+                { value: "0", label: "Whole household" },
+                ...profiles.map((p) => ({ value: String(p.id), label: p.name })),
+              ]}
+              onChange={(v) => setProfileId(v ?? "0")}
+            />
+          )}
           <Selector
             label="Schedule"
             value={schedule}
@@ -135,9 +150,10 @@ export function MedsWidget(_props: WidgetProps) {
       <VStack as="ul" gap={2} className="plain-list">
         {meds.map((m) => (
           <HStack as="li" key={m.id} gap={2} align="center">
+            {profileOf(m.profileId) && <Avatar profile={profileOf(m.profileId)!} />}
             <VStack gap={0} className="min-w-0 flex-1">
               <Text maxLines={1}>{m.name}</Text>
-              {m.person && (
+              {!profileOf(m.profileId) && m.person && (
                 <Text type="supporting" size="xsm">
                   {m.person}
                 </Text>

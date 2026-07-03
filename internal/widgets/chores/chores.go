@@ -79,8 +79,9 @@ func (w *Widget) handleList(rw http.ResponseWriter, r *http.Request) {
 
 func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title     string `json:"title"`
-		EveryDays int    `json:"everyDays"`
+		Title      string `json:"title"`
+		EveryDays  int    `json:"everyDays"`
+		AssigneeID int64  `json:"assigneeId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
 		strings.TrimSpace(req.Title) == "" {
@@ -91,7 +92,7 @@ func (w *Widget) handleCreate(rw http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(rw, "everyDays must be 0 (one-off) or more")
 		return
 	}
-	chore, err := w.store.CreateChore(strings.TrimSpace(req.Title), req.EveryDays)
+	chore, err := w.store.CreateChore(strings.TrimSpace(req.Title), req.EveryDays, req.AssigneeID)
 	if err != nil {
 		httpx.Fail(rw, err)
 		return

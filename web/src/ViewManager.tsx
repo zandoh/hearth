@@ -15,8 +15,10 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { useEffect } from "react";
 import { createView, deleteView, setDefaultView, updateView } from "./api";
 import { useConfirm } from "./confirm";
+import { Avatar } from "./Avatar";
 import { type GuestConfig, getGuestConfig, setGuestPin, setGuestView } from "./guestMode";
 import { type NightConfig, getNightConfig, setNightConfig } from "./night";
+import { type Profile, createProfile, deleteProfile, updateProfile, useProfiles } from "./profiles";
 import type { View } from "./types";
 
 const SHADE_OPTIONS = [
@@ -161,6 +163,13 @@ export function ViewManager({
           <Button size="sm" variant="secondary" label="Add view" onClick={add} />
         </HStack>
 
+        <Heading level={3}>Household</Heading>
+        <Text type="supporting">
+          The people behind chores and medications. Deleting someone keeps their chores and meds,
+          just unassigned.
+        </Text>
+        <HouseholdSection act={act} confirm={confirm} />
+
         <Heading level={3}>Guest mode</Heading>
         <Text type="supporting">
           Guests see only the guest view (or the screensaver if none is set). Leaving guest mode
@@ -240,6 +249,110 @@ export function ViewManager({
         {confirmDialog}
       </VStack>
     </Dialog>
+  );
+}
+
+// Household profiles: add, rename (Enter), recolor, delete.
+function HouseholdSection({
+  act,
+  confirm,
+}: {
+  act: (fn: () => Promise<unknown>) => void;
+  confirm: (
+    opts: { title: string; description: string; actionLabel: string },
+    onConfirm: () => void,
+  ) => void;
+}) {
+  const { profiles, reload } = useProfiles();
+  const [names, setNames] = useState<Record<number, string>>({});
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState("#D97742");
+
+  const rename = (p: Profile) => {
+    const name = (names[p.id] ?? p.name).trim();
+    if (!name || name === p.name) return;
+    act(async () => {
+      await updateProfile({ ...p, name });
+      reload();
+    });
+  };
+
+  const add = () => {
+    const name = newName.trim();
+    if (!name) return;
+    act(async () => {
+      await createProfile(name, newColor);
+      setNewName("");
+      reload();
+    });
+  };
+
+  return (
+    <VStack gap={2}>
+      <VStack as="ul" gap={2} className="plain-list">
+        {profiles.map((p) => (
+          <HStack as="li" key={p.id} gap={2} align="center">
+            <Avatar profile={p} />
+            <TextInput
+              label={`Rename ${p.name}`}
+              isLabelHidden
+              value={names[p.id] ?? p.name}
+              onChange={(value) => setNames((n) => ({ ...n, [p.id]: value }))}
+              onEnter={() => rename(p)}
+              className="min-w-0 flex-1"
+            />
+            <input
+              type="color"
+              value={p.color}
+              onChange={(e) =>
+                act(async () => {
+                  await updateProfile({ ...p, color: e.target.value });
+                  reload();
+                })
+              }
+              title={`${p.name}'s color`}
+            />
+            <IconButton
+              size="sm"
+              variant="ghost"
+              label={`Delete ${p.name}`}
+              icon={<Icon icon="close" size="sm" />}
+              onClick={() =>
+                confirm(
+                  {
+                    title: `Remove ${p.name}?`,
+                    description: "Their chores and medications stay, just unassigned.",
+                    actionLabel: "Remove",
+                  },
+                  () =>
+                    act(async () => {
+                      await deleteProfile(p.id);
+                      reload();
+                    }),
+                )
+              }
+            />
+          </HStack>
+        ))}
+      </VStack>
+      <HStack gap={2} align="end">
+        <TextInput
+          label="New person"
+          placeholder="e.g. Riley"
+          value={newName}
+          onChange={setNewName}
+          onEnter={add}
+          className="min-w-0 flex-1"
+        />
+        <input
+          type="color"
+          value={newColor}
+          onChange={(e) => setNewColor(e.target.value)}
+          title="Color"
+        />
+        <Button size="sm" variant="secondary" label="Add person" onClick={add} />
+      </HStack>
+    </VStack>
   );
 }
 

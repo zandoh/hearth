@@ -1,15 +1,17 @@
 package store
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 )
 
 type Medication struct {
-	ID     int64    `json:"id"`
-	Name   string   `json:"name"`
-	Person string   `json:"person"`
-	Times  []string `json:"times"` // "HH:MM" dose slots
+	ID        int64    `json:"id"`
+	Name      string   `json:"name"`
+	Person    string   `json:"person"` // legacy free text; profiles supersede it
+	ProfileID int64    `json:"profileId,omitempty"`
+	Times     []string `json:"times"` // "HH:MM" dose slots
 }
 
 // DoseKey identifies one dose checkbox: medication + slot, for a given day.
@@ -19,7 +21,8 @@ type DoseKey struct {
 }
 
 func (s *Store) ListMedications() ([]Medication, error) {
-	rows, err := s.db.Query("SELECT id, name, person, times FROM medications ORDER BY id")
+	rows, err := s.db.Query(
+		"SELECT id, name, person, profile_id, times FROM medications ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -28,9 +31,11 @@ func (s *Store) ListMedications() ([]Medication, error) {
 	for rows.Next() {
 		var m Medication
 		var times string
-		if err := rows.Scan(&m.ID, &m.Name, &m.Person, &times); err != nil {
+		var profile sql.NullInt64
+		if err := rows.Scan(&m.ID, &m.Name, &m.Person, &profile, &times); err != nil {
 			return nil, err
 		}
+		m.ProfileID = profile.Int64
 		if err := json.Unmarshal([]byte(times), &m.Times); err != nil {
 			return nil, fmt.Errorf("medication %d has corrupt times: %w", m.ID, err)
 		}
@@ -39,14 +44,18 @@ func (s *Store) ListMedications() ([]Medication, error) {
 	return meds, rows.Err()
 }
 
-func (s *Store) CreateMedication(name, person string, times []string) (Medication, error) {
+func (s *Store) CreateMedication(name, person string, profileID int64, times []string) (Medication, error) {
 	b, err := json.Marshal(times)
 	if err != nil {
 		return Medication{}, err
 	}
+	var profile any
+	if profileID != 0 {
+		profile = profileID
+	}
 	res, err := s.db.Exec(
-		"INSERT INTO medications (name, person, times) VALUES (?, ?, ?)",
-		name, person, string(b),
+		"INSERT INTO medications (name, person, profile_id, times) VALUES (?, ?, ?, ?)",
+		name, person, profile, string(b),
 	)
 	if err != nil {
 		return Medication{}, err
@@ -55,7 +64,7 @@ func (s *Store) CreateMedication(name, person string, times []string) (Medicatio
 	if err != nil {
 		return Medication{}, err
 	}
-	return Medication{ID: id, Name: name, Person: person, Times: times}, nil
+	return Medication{ID: id, Name: name, Person: person, ProfileID: profileID, Times: times}, nil
 }
 
 func (s *Store) DeleteMedication(id int64) error {

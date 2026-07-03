@@ -43,6 +43,11 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 	s.mux.HandleFunc("GET /api/night", s.handleGetNight)
 	s.mux.HandleFunc("PUT /api/night", s.handleSetNight)
 
+	s.mux.HandleFunc("GET /api/profiles", s.handleListProfiles)
+	s.mux.HandleFunc("POST /api/profiles", s.handleCreateProfile)
+	s.mux.HandleFunc("PUT /api/profiles/{id}", s.handleUpdateProfile)
+	s.mux.HandleFunc("DELETE /api/profiles/{id}", s.handleDeleteProfile)
+
 	reg.Mount(s.mux)
 
 	s.mux.Handle("/", spaHandler(dist))

@@ -142,6 +142,39 @@ export default async function features({ browser, base }) {
   );
   await sseCtx.close();
 
+  // --- profiles: assignee avatars render and deletes unassign live ---
+  const riley = await (
+    await fetch(`${base}/api/profiles`, {
+      method: "POST",
+      body: JSON.stringify({ name: "Riley", color: "#4F6DF5" }),
+    })
+  ).json();
+  await seedView(base, [{ i: "chores-1", widget: "chores", x: 0, y: 0, w: 5, h: 6, config: {} }]);
+  await fetch(`${base}/api/widgets/chores`, {
+    method: "POST",
+    body: JSON.stringify({ title: "Feed the cat", everyDays: 1, assigneeId: riley.id }),
+  });
+  const profCtx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const profPage = await profCtx.newPage();
+  await profPage.goto(base);
+  await profPage.waitForSelector(".widget-card");
+  step(
+    "assignee avatar renders",
+    (await profPage.locator('.widget-card [aria-label="Riley"]').count()) === 1,
+  );
+  await fetch(`${base}/api/profiles/${riley.id}`, { method: "DELETE" });
+  await profPage.waitForTimeout(800);
+  step(
+    "profile delete unassigns live",
+    (await profPage.locator('.widget-card [aria-label="Riley"]').count()) === 0,
+  );
+  const unassigned = await (await fetch(`${base}/api/widgets/chores`)).json();
+  step(
+    "chore survives profile delete",
+    unassigned.some((c) => c.title === "Feed the cat" && !c.assigneeId),
+  );
+  await profCtx.close();
+
   // --- night dimming: shade during quiet hours, tap-to-wake, re-dim ---
   await fetch(`${base}/api/night`, {
     method: "PUT",

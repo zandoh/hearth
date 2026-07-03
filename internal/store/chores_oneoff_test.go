@@ -7,7 +7,7 @@ import (
 
 func TestOneOffChoreCompletionDeletes(t *testing.T) {
 	s := openTestStore(t)
-	todo, err := s.CreateChore("Call mom", 0)
+	todo, err := s.CreateChore("Call mom", 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

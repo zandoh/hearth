@@ -6,12 +6,15 @@ import { IconButton } from "@astryxdesign/core/IconButton";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { HStack } from "@astryxdesign/core/HStack";
 import { NumberInput } from "@astryxdesign/core/NumberInput";
+import { Selector } from "@astryxdesign/core/Selector";
 import { Switch } from "@astryxdesign/core/Switch";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { apiFetch } from "../api";
+import { Avatar } from "../Avatar";
 import { useConfirm } from "../confirm";
+import { useProfiles } from "../profiles";
 import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
 
@@ -20,6 +23,7 @@ interface Chore {
   title: string;
   everyDays: number; // 0 = one-off: done once, then gone
   lastDone?: string;
+  assigneeId?: number;
   dueOn: string;
   dueIn: number; // negative = overdue
   neverDone: boolean;
@@ -58,7 +62,10 @@ export function ChoresWidget(_props: WidgetProps) {
   const [title, setTitle] = useState("");
   const [repeats, setRepeats] = useState(true);
   const [everyDays, setEveryDays] = useState(7);
+  const [assignee, setAssignee] = useState("0");
+  const { profiles } = useProfiles();
   const { confirm, confirmDialog } = useConfirm();
+  const profileOf = (id?: number) => profiles.find((p) => p.id === id);
 
   const existing = useMemo(() => new Set(chores.map((c) => c.title.toLowerCase())), [chores]);
   const suggestions = SUGGESTIONS.filter((s) => !existing.has(s.title.toLowerCase()));
@@ -79,7 +86,7 @@ export function ChoresWidget(_props: WidgetProps) {
   const create = async (name: string, interval: number) => {
     await apiFetch(api, {
       method: "POST",
-      body: JSON.stringify({ title: name, everyDays: interval }),
+      body: JSON.stringify({ title: name, everyDays: interval, assigneeId: Number(assignee) }),
     })
       .then(reload)
       .catch(console.error);
@@ -125,6 +132,19 @@ export function ChoresWidget(_props: WidgetProps) {
                 value={everyDays}
                 onChange={(v) => setEveryDays(Math.max(1, v ?? 1))}
                 className="w-24"
+              />
+            )}
+            {profiles.length > 0 && (
+              <Selector
+                label="Assignee"
+                isLabelHidden
+                size="sm"
+                value={assignee}
+                options={[
+                  { value: "0", label: "Anyone" },
+                  ...profiles.map((p) => ({ value: String(p.id), label: p.name })),
+                ]}
+                onChange={setAssignee}
               />
             )}
             <IconButton
@@ -190,6 +210,7 @@ export function ChoresWidget(_props: WidgetProps) {
                 </Text>
               )}
             </VStack>
+            {profileOf(c.assigneeId) && <Avatar profile={profileOf(c.assigneeId)!} />}
             {c.oneOff && <Badge variant="neutral" label="To-do" />}
             {!c.oneOff && c.dueIn < 0 && <Badge variant="error" label={`${-c.dueIn}d overdue`} />}
             {!c.oneOff && c.dueIn === 0 && <Badge variant="warning" label="Due today" />}

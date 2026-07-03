@@ -6,24 +6,28 @@ import (
 )
 
 type Chore struct {
-	ID        int64  `json:"id"`
-	Title     string `json:"title"`
-	EveryDays int    `json:"everyDays"`
-	LastDone  string `json:"lastDone,omitempty"` // YYYY-MM-DD, "" if never
+	ID         int64  `json:"id"`
+	Title      string `json:"title"`
+	EveryDays  int    `json:"everyDays"`
+	LastDone   string `json:"lastDone,omitempty"` // YYYY-MM-DD, "" if never
+	AssigneeID int64  `json:"assigneeId,omitempty"`
 }
 
 func scanChore(row interface{ Scan(...any) error }) (Chore, error) {
 	var c Chore
 	var lastDone sql.NullString
-	if err := row.Scan(&c.ID, &c.Title, &c.EveryDays, &lastDone); err != nil {
+	var assignee sql.NullInt64
+	if err := row.Scan(&c.ID, &c.Title, &c.EveryDays, &lastDone, &assignee); err != nil {
 		return Chore{}, err
 	}
 	c.LastDone = lastDone.String
+	c.AssigneeID = assignee.Int64
 	return c, nil
 }
 
 func (s *Store) ListChores() ([]Chore, error) {
-	rows, err := s.db.Query("SELECT id, title, every_days, last_done FROM chores ORDER BY id")
+	rows, err := s.db.Query(
+		"SELECT id, title, every_days, last_done, assignee_id FROM chores ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -39,8 +43,15 @@ func (s *Store) ListChores() ([]Chore, error) {
 	return chores, rows.Err()
 }
 
-func (s *Store) CreateChore(title string, everyDays int) (Chore, error) {
-	res, err := s.db.Exec("INSERT INTO chores (title, every_days) VALUES (?, ?)", title, everyDays)
+func (s *Store) CreateChore(title string, everyDays int, assigneeID int64) (Chore, error) {
+	// 0 means unassigned, stored as NULL so profile-deletion semantics hold.
+	var assignee any
+	if assigneeID != 0 {
+		assignee = assigneeID
+	}
+	res, err := s.db.Exec(
+		"INSERT INTO chores (title, every_days, assignee_id) VALUES (?, ?, ?)",
+		title, everyDays, assignee)
 	if err != nil {
 		return Chore{}, err
 	}
@@ -48,7 +59,8 @@ func (s *Store) CreateChore(title string, everyDays int) (Chore, error) {
 	if err != nil {
 		return Chore{}, err
 	}
-	row := s.db.QueryRow("SELECT id, title, every_days, last_done FROM chores WHERE id = ?", id)
+	row := s.db.QueryRow(
+		"SELECT id, title, every_days, last_done, assignee_id FROM chores WHERE id = ?", id)
 	return scanChore(row)
 }
 
