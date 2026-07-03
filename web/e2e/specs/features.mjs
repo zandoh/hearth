@@ -97,6 +97,40 @@ export default async function features({ browser, base }) {
   );
   await page.locator('button:has-text("Close")').last().click();
 
+  // --- editing a multi-day event must not shrink its span ---
+  // Regression: the edit form used to omit endsAt, so touching a week-long
+  // all-day event's description truncated it to a single day.
+  const spanEnd = new Date(t);
+  spanEnd.setDate(spanEnd.getDate() + 4);
+  const spanEndYmd = `${spanEnd.getFullYear()}-${pad(spanEnd.getMonth() + 1)}-${pad(spanEnd.getDate())}`;
+  await fetch(`${base}/api/widgets/calendar/events`, {
+    method: "POST",
+    body: JSON.stringify({
+      calendarId: localCal.id,
+      title: "Spanning",
+      allDay: true,
+      startsAt: todayYmd,
+      endsAt: spanEndYmd,
+    }),
+  });
+  await page.waitForTimeout(500);
+  await page.locator('.cal-day:has-text("Spanning")').first().click();
+  await page.locator('[aria-label="Edit Spanning"]').click();
+  await page.getByLabel("Notes").fill("#trip");
+  await page.locator('button:has-text("Save changes")').click();
+  await page.waitForTimeout(600);
+  const spanEv = (
+    await (
+      await fetch(`${base}/api/widgets/calendar/events?start=2020-01-01T00:00:00Z&end=2030-01-01T00:00:00Z`)
+    ).json()
+  ).find((e) => e.title === "Spanning");
+  step(
+    "multi-day span survives an edit",
+    spanEv?.startsAt === todayYmd && spanEv?.endsAt === spanEndYmd,
+    `${spanEv?.startsAt} -> ${spanEv?.endsAt}`,
+  );
+  await page.locator('button:has-text("Close")').last().click();
+
   step("no page errors", errors.length === 0, errors.slice(0, 2).join("; "));
   await page.close();
 

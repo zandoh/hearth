@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@astryxdesign/core/Button";
 import { Dialog } from "@astryxdesign/core/Dialog";
@@ -13,7 +13,9 @@ import { Text } from "@astryxdesign/core/Text";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
-import { useTopic } from "../useSSE";
+import { TOPICS } from "../topics";
+import { useMutate } from "../useMutate";
+import { useTopicData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
 import {
   type CalEvent,
@@ -94,8 +96,6 @@ function monthGrid(year: number, month: number): DayCell[] {
 export function CalendarWidget({ item, saveConfig }: WidgetProps) {
   const [view, setView] = useState<CalView>(() => parseView(item.config.view));
   const [anchor, setAnchor] = useState(() => new Date());
-  const [events, setEvents] = useState<CalEvent[]>([]);
-  const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -105,21 +105,31 @@ export function CalendarWidget({ item, saveConfig }: WidgetProps) {
   );
   const days = useMemo(() => visibleDays(view, anchor), [view, anchor]);
 
-  const reload = useCallback(() => {
-    // Fetch the whole visible range plus a day of slack on each side.
+  // Fetch the whole visible range plus a day of slack on each side.
+  const fetchVisibleEvents = useCallback(() => {
     const first = view === "month" ? cells[0].date : days[0];
     const last = view === "month" ? cells[cells.length - 1].date : days[days.length - 1];
-    getEvents(`${first}T00:00:00Z`, `${last}T23:59:59Z`).then(setEvents).catch(console.error);
-    getCalendars().then(setCalendars).catch(console.error);
+    return getEvents(`${first}T00:00:00Z`, `${last}T23:59:59Z`);
   }, [view, cells, days]);
-
-  useEffect(reload, [reload]);
-  useTopic("calendar", reload);
+  const { data: eventsData, reload: reloadEvents } = useTopicData(
+    TOPICS.calendar,
+    fetchVisibleEvents,
+  );
+  const { data: calendarsData, reload: reloadCalendars } = useTopicData(
+    TOPICS.calendar,
+    getCalendars,
+  );
+  const events = eventsData ?? [];
+  const calendars = calendarsData ?? [];
+  const reload = useCallback(() => {
+    reloadEvents();
+    reloadCalendars();
+  }, [reloadEvents, reloadCalendars]);
 
   const colorOf = useMemo(() => {
-    const m = new Map(calendars.map((c) => [c.id, c.color]));
+    const m = new Map((calendarsData ?? []).map((c) => [c.id, c.color]));
     return (calendarId: number) => m.get(calendarId) ?? "var(--color-icon-gray)";
-  }, [calendars]);
+  }, [calendarsData]);
 
   const today = ymd(new Date());
   const title = viewTitle(view, anchor, days);
@@ -329,25 +339,24 @@ function DayDialog({
 }) {
   const writable = calendars.filter((c) => c.enabled);
   const [formOpen, setFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editing, setEditing] = useState<CalEvent | null>(null);
   const [title, setTitle] = useState("");
   const [calendarId, setCalendarId] = useState<number | null>(null);
   const [allDay, setAllDay] = useState(false);
   const [time, setTime] = useState("12:00" as ISOTimeString);
   const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
+  const { mutate, error } = useMutate(onChanged);
 
   const resetForm = () => {
     setFormOpen(false);
-    setEditingId(null);
+    setEditing(null);
     setTitle("");
     setNotes("");
-    setError("");
   };
 
   const startEdit = (e: CalEvent) => {
     setFormOpen(true);
-    setEditingId(e.id);
+    setEditing(e);
     setTitle(e.title);
     setCalendarId(e.calendarId);
     setAllDay(e.allDay);
@@ -366,27 +375,49 @@ function DayDialog({
     day: "numeric",
   });
 
-  const submit = async () => {
-    const calId = calendarId ?? writable[0]?.id;
-    if (!calId || !title.trim()) {
-      setError("pick a calendar and enter a title");
-      return;
+  // Editing must not reshape the event: keep its original start date and,
+  // when the all-day flag is untouched, its original end — a week-long
+  // all-day event edited for a typo stays week-long. Only toggling the
+  // all-day switch falls back to the create-style one-day/one-hour default.
+  const editedDates = (e: CalEvent) => {
+    const baseDate = e.startsAt.slice(0, 10);
+    if (allDay && e.allDay) return { startsAt: e.startsAt, endsAt: e.endsAt };
+    if (!allDay && !e.allDay) {
+      const startsAt = rfc3339Local(new Date(`${baseDate}T${time}:00`));
+      const duration = new Date(e.endsAt).getTime() - new Date(e.startsAt).getTime();
+      return {
+        startsAt,
+        endsAt:
+          duration > 0
+            ? rfc3339Local(new Date(new Date(startsAt).getTime() + duration))
+            : undefined,
+      };
     }
-    const input = {
-      calendarId: calId,
-      title: title.trim(),
-      allDay,
-      startsAt: allDay ? day : rfc3339Local(new Date(`${day}T${time}:00`)),
-      notes: notes.trim(),
+    return {
+      startsAt: allDay ? baseDate : rfc3339Local(new Date(`${baseDate}T${time}:00`)),
+      endsAt: undefined,
     };
-    try {
-      await (editingId ? updateEvent(editingId, input) : createEvent(input));
-      resetForm();
-      onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "failed to save");
-    }
   };
+
+  const submit = () =>
+    mutate(async () => {
+      const calId = calendarId ?? writable[0]?.id;
+      if (!calId || !title.trim()) throw new Error("pick a calendar and enter a title");
+      const dates = editing
+        ? editedDates(editing)
+        : {
+            startsAt: allDay ? day : rfc3339Local(new Date(`${day}T${time}:00`)),
+            endsAt: undefined,
+          };
+      const input = {
+        calendarId: calId,
+        title: title.trim(),
+        allDay,
+        ...dates,
+        notes: notes.trim(),
+      };
+      await (editing ? updateEvent(editing.id, input) : createEvent(input));
+    }, resetForm);
 
   return (
     <Dialog isOpen width={480} onOpenChange={(open) => !open && onClose()}>
@@ -418,11 +449,13 @@ function DayDialog({
                 variant="ghost"
                 label={`Delete ${e.title}`}
                 icon={<Icon icon="close" size="sm" />}
-                onClick={() => deleteEvent(e.id).then(onChanged).catch(console.error)}
+                onClick={() => mutate(() => deleteEvent(e.id))}
               />
             </HStack>
           ))}
         </VStack>
+
+        {error && <Text className="form-error">{error}</Text>}
 
         {formOpen ? (
           <VStack gap={2}>
@@ -443,13 +476,12 @@ function DayDialog({
               value={notes}
               onChange={(v) => setNotes(v)}
             />
-            {error && <Text className="form-error">{error}</Text>}
             <HStack justify="end" gap={2}>
               <Button size="sm" variant="ghost" label="Cancel" onClick={resetForm} />
               <Button
                 size="sm"
                 variant="primary"
-                label={editingId ? "Save changes" : "Add event"}
+                label={editing ? "Save changes" : "Add event"}
                 onClick={submit}
               />
             </HStack>
