@@ -15,7 +15,8 @@
 
 A self-hosted home hub for an always-on touchscreen: a widget grid the whole
 household shares — calendar (with Google sync), chores, groceries, weather,
-medications — with drag-to-arrange layouts saved as named views.
+medications, meal plan, guest book, and countdowns — with drag-to-arrange
+layouts saved as named views.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
@@ -193,9 +194,30 @@ add whichever calendars the household wants on the board. Events sync every
 5 minutes (plus instantly on "Sync now"); events added in Hearth are written
 straight to Google.
 
+## Features
+
+- **Ten widgets**: clock, calendar (Google sync, month/week/work-week/day
+  time-grid views), agenda, chores (recurring + one-offs, assignees),
+  groceries, medications (AM/PM/daily/weekly dose tracking), weather
+  (Open-Meteo, no API key), weekly meal plan, guest book (drag-anywhere
+  sticky notes), and countdowns.
+- **Views**: drag-to-arrange layouts saved as named views — reorderable,
+  hideable, schedulable (a Morning view from 6 to 9, back to the default
+  after), with starter templates on first boot.
+- **Household profiles**: the people behind chore assignees and med owners,
+  as colored avatars.
+- **Event tags**: hashtag a calendar event (`#countdown`, `#travel` — pills
+  in the event form remember them for you) and tag-driven widgets pick it
+  up automatically.
+- **Kiosk resilience**: SSE live updates across every screen, offline
+  banner, nightly self-reload, idle return-to-rest, DVD-bounce screensaver,
+  night dimming on a quiet-hours schedule, and an on-screen touch keyboard.
+- **Guest mode**: lock the wall to one view (or the screensaver) behind a
+  PIN; admin recovery via `-reset-guest-pin`.
+- **Backups**: nightly SQLite snapshots (keep 7), one-click download,
+  `-restore` to swap one back in.
+
 ## Roadmap
 
-Phase 1: calendar (+ Google Calendar sync), chores, grocery list, weather,
-medications. Phase 2: maintenance reminders, profiles, kiosk polish (night
-dimming, photo screensaver). Phase 3: utilities trends, notifications, mobile
-(PWA).
+Post-1.0 ideas: kitchen timers, photo-frame screensaver, chore rotation,
+voice entry (needs HTTPS), utilities trends, mobile (PWA).

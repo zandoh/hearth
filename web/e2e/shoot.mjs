@@ -57,20 +57,26 @@ function at(days, hhmm) {
 }
 
 async function seed(dbPath) {
-  // The board: clock + agenda down the left, calendar center, groceries
-  // right, chores and meds across the bottom.
+  // The board: clock + agenda down the left, calendar center, groceries and
+  // countdown right, chores/meds/guest book across the bottom.
   await put("/api/views/1", {
     name: "Home",
     layout: [
       { i: "clock-1", widget: "clock", x: 0, y: 0, w: 3, h: 3, config: {} },
       { i: "agenda-1", widget: "agenda", x: 0, y: 3, w: 3, h: 5, config: {} },
       { i: "calendar-1", widget: "calendar", x: 3, y: 0, w: 6, h: 8, config: {} },
-      { i: "grocery-1", widget: "grocery", x: 9, y: 0, w: 3, h: 8, config: {} },
-      { i: "chores-1", widget: "chores", x: 0, y: 8, w: 6, h: 4, config: {} },
-      { i: "meds-1", widget: "meds", x: 6, y: 8, w: 6, h: 4, config: {} },
+      { i: "grocery-1", widget: "grocery", x: 9, y: 0, w: 3, h: 4, config: {} },
+      { i: "countdown-1", widget: "countdown", x: 9, y: 4, w: 3, h: 4, config: {} },
+      { i: "chores-1", widget: "chores", x: 0, y: 8, w: 4, h: 4, config: {} },
+      { i: "meds-1", widget: "meds", x: 4, y: 8, w: 4, h: 4, config: {} },
+      { i: "guestbook-1", widget: "guestbook", x: 8, y: 8, w: 4, h: 4, config: {} },
     ],
   });
   await post("/api/views", { name: "Kitchen", layout: [] });
+
+  // Household profiles: avatars on chores and meds.
+  const hannah = await post("/api/profiles", { name: "Hannah", color: "#eab308" });
+  const zac = await post("/api/profiles", { name: "Zac", color: "#22c55e" });
 
   const family = await post("/api/widgets/calendar/calendars", {
     name: "Family",
@@ -104,6 +110,21 @@ async function seed(dbPath) {
     startsAt: at(2, "09:00"),
     allDay: false,
   });
+  // Tagged events feed the countdown widget.
+  await post("/api/widgets/calendar/events", {
+    calendarId: family.id,
+    title: "Beach week",
+    startsAt: ymd(12),
+    allDay: true,
+    notes: "book the house #countdown",
+  });
+  await post("/api/widgets/calendar/events", {
+    calendarId: family.id,
+    title: "Nana & Pop visit",
+    startsAt: ymd(23),
+    allDay: true,
+    notes: "#countdown",
+  });
 
   for (const name of ["Eggs", "Sourdough", "Blueberries"]) {
     await post("/api/widgets/grocery", { name });
@@ -114,7 +135,11 @@ async function seed(dbPath) {
   // The store seeds "Water plants" (3d) and "Wash sheets" (7d), both
   // never-done (due today). Add one long-cadence chore, then mark Water
   // plants done today so the board shows a mix of due-today and upcoming.
-  await post("/api/widgets/chores", { title: "Replace furnace filter", everyDays: 90 });
+  await post("/api/widgets/chores", {
+    title: "Replace furnace filter",
+    everyDays: 90,
+    assigneeId: zac.id,
+  });
   execFileSync("sqlite3", [
     dbPath,
     "UPDATE chores SET last_done = date('now','localtime') WHERE title = 'Water plants'",
@@ -122,11 +147,23 @@ async function seed(dbPath) {
 
   const vitd = await post("/api/widgets/meds", {
     name: "Vitamin D",
-    person: "Hannah",
+    profileId: hannah.id,
     times: ["AM"],
   });
-  await post("/api/widgets/meds", { name: "Allergy tabs", person: "Zac", times: ["AM", "PM"] });
+  await post("/api/widgets/meds", { name: "Allergy tabs", profileId: zac.id, times: ["AM", "PM"] });
   await post(`/api/widgets/meds/${vitd.id}/toggle`, { slot: "AM" });
+
+  // A note on the guest book wall.
+  const note = await post("/api/widgets/guestbook", {
+    author: "Grandma",
+    message: "Thanks for a wonderful weekend!",
+    color: "yellow",
+  });
+  await fetch(`${BASE}/api/widgets/guestbook/${note.id}/position`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ x: 0.18, y: 0.2 }),
+  });
 }
 
 async function shoot(browser, colorScheme, path) {
