@@ -17,9 +17,3 @@ export interface View {
   layout: LayoutItem[];
   isDefault: boolean;
 }
-
-export interface Profile {
-  id: number;
-  name: string;
-  color: string;
-}

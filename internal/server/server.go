@@ -1,5 +1,5 @@
-// Package server assembles the HTTP API: platform routes (views, profiles,
-// SSE stream), widget routes via the registry, and the embedded SPA.
+// Package server assembles the HTTP API: platform routes (views, SSE
+// stream), widget routes via the registry, and the embedded SPA.
 package server
 
 import (
@@ -32,9 +32,6 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 	s.mux.HandleFunc("POST /api/views", s.handleCreateView)
 	s.mux.HandleFunc("PUT /api/views/{id}", s.handleUpdateView)
 	s.mux.HandleFunc("DELETE /api/views/{id}", s.handleDeleteView)
-
-	s.mux.HandleFunc("GET /api/profiles", s.handleListProfiles)
-	s.mux.HandleFunc("POST /api/profiles", s.handleCreateProfile)
 
 	reg.Mount(s.mux)
 
@@ -129,35 +126,6 @@ func (s *Server) handleDeleteView(w http.ResponseWriter, r *http.Request) {
 	}
 	s.hub.Publish("views", "changed")
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) handleListProfiles(w http.ResponseWriter, r *http.Request) {
-	profiles, err := s.store.ListProfiles()
-	if err != nil {
-		httpx.Fail(w, err)
-		return
-	}
-	httpx.JSON(w, http.StatusOK, profiles)
-}
-
-func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name  string `json:"name"`
-		Color string `json:"color"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Name) == "" {
-		httpx.BadRequest(w, "name is required")
-		return
-	}
-	if req.Color == "" {
-		req.Color = "#7a7a7a"
-	}
-	profile, err := s.store.CreateProfile(req.Name, req.Color)
-	if err != nil {
-		httpx.Fail(w, err)
-		return
-	}
-	httpx.JSON(w, http.StatusCreated, profile)
 }
 
 // spaHandler serves the embedded frontend build, falling back to index.html

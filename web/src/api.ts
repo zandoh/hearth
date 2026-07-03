@@ -1,4 +1,4 @@
-import type { LayoutItem, Profile, View } from "./types";
+import type { LayoutItem, View } from "./types";
 
 /**
  * The one fetch convention for the whole app: JSON in/out, and on failure
@@ -33,5 +33,3 @@ export const updateView = (id: number, name: string, layout: LayoutItem[]) =>
   apiFetch<View>(`/api/views/${id}`, { method: "PUT", body: JSON.stringify({ name, layout }) });
 
 export const deleteView = (id: number) => apiFetch<void>(`/api/views/${id}`, { method: "DELETE" });
-
-export const getProfiles = () => apiFetch<Profile[]>("/api/profiles");

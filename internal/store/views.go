@@ -109,38 +109,3 @@ func (s *Store) DeleteView(id int64) error {
 	}
 	return nil
 }
-
-type Profile struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Color string `json:"color"`
-}
-
-func (s *Store) ListProfiles() ([]Profile, error) {
-	rows, err := s.db.Query("SELECT id, name, color FROM profiles ORDER BY id")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	profiles := []Profile{}
-	for rows.Next() {
-		var p Profile
-		if err := rows.Scan(&p.ID, &p.Name, &p.Color); err != nil {
-			return nil, err
-		}
-		profiles = append(profiles, p)
-	}
-	return profiles, rows.Err()
-}
-
-func (s *Store) CreateProfile(name, color string) (Profile, error) {
-	res, err := s.db.Exec("INSERT INTO profiles (name, color) VALUES (?, ?)", name, color)
-	if err != nil {
-		return Profile{}, err
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return Profile{}, err
-	}
-	return Profile{ID: id, Name: name, Color: color}, nil
-}
