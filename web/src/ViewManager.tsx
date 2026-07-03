@@ -6,14 +6,24 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Icon } from "@astryxdesign/core/Icon";
 import { IconButton } from "@astryxdesign/core/IconButton";
+import { Selector } from "@astryxdesign/core/Selector";
+import { Switch } from "@astryxdesign/core/Switch";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
+import { TimeInput, type ISOTimeString } from "@astryxdesign/core/TimeInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useEffect } from "react";
 import { createView, deleteView, setDefaultView, updateView } from "./api";
 import { useConfirm } from "./confirm";
 import { type GuestConfig, getGuestConfig, setGuestPin, setGuestView } from "./guestMode";
+import { type NightConfig, getNightConfig, setNightConfig } from "./night";
 import type { View } from "./types";
+
+const SHADE_OPTIONS = [
+  { value: "0.45", label: "Soft" },
+  { value: "0.6", label: "Medium" },
+  { value: "0.75", label: "Deep" },
+];
 
 // Manage saved views: rename, set the kiosk's default, delete, create.
 // Mutations publish on the "views" SSE topic, so the list refreshes through
@@ -33,10 +43,12 @@ export function ViewManager({
   const [guest, setGuest] = useState<GuestConfig | null>(null);
   const [pin, setPin] = useState("");
   const [currentPin, setCurrentPin] = useState("");
+  const [night, setNight] = useState<NightConfig | null>(null);
   const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     getGuestConfig().then(setGuest).catch(console.error);
+    getNightConfig().then(setNight).catch(console.error);
   }, []);
 
   const act = (fn: () => Promise<unknown>) => {
@@ -206,6 +218,21 @@ export function ViewManager({
           </Text>
         )}
 
+        <Heading level={3}>Night dimming</Heading>
+        <Text type="supporting">
+          Every screen dims during quiet hours. A tap wakes it for a couple of minutes.
+        </Text>
+        {night && (
+          <NightControls
+            night={night}
+            save={(next) =>
+              act(async () => {
+                setNight(await setNightConfig(next));
+              })
+            }
+          />
+        )}
+
         {error && <Text className="form-error">{error}</Text>}
         <HStack justify="end">
           <Button variant="ghost" label="Close" onClick={onClose} />
@@ -213,5 +240,38 @@ export function ViewManager({
         {confirmDialog}
       </VStack>
     </Dialog>
+  );
+}
+
+// Night dimming controls; every change saves immediately.
+function NightControls({ night, save }: { night: NightConfig; save: (next: NightConfig) => void }) {
+  const shadeValue = SHADE_OPTIONS.find((o) => Number(o.value) === night.level)?.value ?? "0.6";
+  return (
+    <HStack gap={2} align="end" wrap="wrap">
+      <Switch
+        label="Dim at night"
+        value={night.enabled}
+        onChange={(enabled) => save({ ...night, enabled })}
+      />
+      <TimeInput
+        label="From"
+        value={night.start as ISOTimeString}
+        onChange={(start) => start && save({ ...night, start })}
+        className="w-32"
+      />
+      <TimeInput
+        label="Until"
+        value={night.end as ISOTimeString}
+        onChange={(end) => end && save({ ...night, end })}
+        className="w-32"
+      />
+      <Selector
+        label="Shade"
+        size="sm"
+        value={shadeValue}
+        options={SHADE_OPTIONS}
+        onChange={(v) => save({ ...night, level: Number(v) })}
+      />
+    </HStack>
   );
 }

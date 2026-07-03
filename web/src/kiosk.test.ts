@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { IDLE_RETURN_MS, idleReturnMs, msUntilNightlyReload } from "./kiosk";
+import {
+  IDLE_RETURN_MS,
+  NIGHT_WAKE_MS,
+  idleReturnMs,
+  inQuietWindow,
+  msUntilNightlyReload,
+  nightWakeMs,
+} from "./kiosk";
 
 describe("msUntilNightlyReload", () => {
   test("before the slot: later the same night", () => {
@@ -29,5 +36,39 @@ describe("idleReturnMs", () => {
   test("garbage and too-small values fall back", () => {
     expect(idleReturnMs("?idleMs=nope")).toBe(IDLE_RETURN_MS);
     expect(idleReturnMs("?idleMs=10")).toBe(IDLE_RETURN_MS);
+  });
+});
+
+describe("inQuietWindow", () => {
+  const at = (h: number, m = 0) => new Date(2026, 6, 2, h, m);
+
+  test("overnight window spans midnight", () => {
+    expect(inQuietWindow(at(23), "22:00", "07:00")).toBe(true);
+    expect(inQuietWindow(at(3), "22:00", "07:00")).toBe(true);
+    expect(inQuietWindow(at(12), "22:00", "07:00")).toBe(false);
+  });
+
+  test("same-day window", () => {
+    expect(inQuietWindow(at(14), "13:00", "15:00")).toBe(true);
+    expect(inQuietWindow(at(16), "13:00", "15:00")).toBe(false);
+  });
+
+  test("boundaries: start inclusive, end exclusive", () => {
+    expect(inQuietWindow(at(22, 0), "22:00", "07:00")).toBe(true);
+    expect(inQuietWindow(at(7, 0), "22:00", "07:00")).toBe(false);
+  });
+
+  test("start === end never dims", () => {
+    expect(inQuietWindow(at(22), "22:00", "22:00")).toBe(false);
+  });
+});
+
+describe("nightWakeMs", () => {
+  test("default without override", () => {
+    expect(nightWakeMs("")).toBe(NIGHT_WAKE_MS);
+  });
+  test("debug override, garbage falls back", () => {
+    expect(nightWakeMs("?nightWakeMs=1500")).toBe(1500);
+    expect(nightWakeMs("?nightWakeMs=nah")).toBe(NIGHT_WAKE_MS);
   });
 });

@@ -40,6 +40,9 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 	s.mux.HandleFunc("POST /api/guest/pin", s.handleSetGuestPin)
 	s.mux.HandleFunc("POST /api/guest/verify", s.handleVerifyGuestPin)
 
+	s.mux.HandleFunc("GET /api/night", s.handleGetNight)
+	s.mux.HandleFunc("PUT /api/night", s.handleSetNight)
+
 	reg.Mount(s.mux)
 
 	s.mux.Handle("/", spaHandler(dist))

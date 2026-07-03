@@ -32,3 +32,30 @@ export function screensaverMs(search: string): number {
   const n = raw ? Number(raw) : NaN;
   return Number.isFinite(n) && n >= 1000 ? n : SCREENSAVER_MS;
 }
+
+// During night dimming, a tap wakes the board to full brightness for this
+// long before the shade eases back. Overridable via ?nightWakeMs=.
+export const NIGHT_WAKE_MS = 2 * 60 * 1000;
+
+export function nightWakeMs(search: string): number {
+  const raw = new URLSearchParams(search).get("nightWakeMs");
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 500 ? n : NIGHT_WAKE_MS;
+}
+
+/**
+ * Whether `now` falls inside the quiet window. Windows are HH:MM local and
+ * may cross midnight (22:00–07:00). start === end means no window at all —
+ * that shape is ambiguous, so it never dims rather than always dims.
+ */
+export function inQuietWindow(now: Date, start: string, end: string): boolean {
+  const minutes = (hhmm: string) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const s = minutes(start);
+  const e = minutes(end);
+  if (s === e) return false;
+  const n = now.getHours() * 60 + now.getMinutes();
+  return s < e ? n >= s && n < e : n >= s || n < e;
+}

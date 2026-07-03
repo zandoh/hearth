@@ -577,6 +577,24 @@ input[type="color"] {
   font-weight: 500;
 }
 
+/* --- night shade --- */
+/* Above everything, dialogs and screensaver included: quiet hours dim the
+   whole panel. Input passes through except while dim, when the shade itself
+   catches the wake tap. */
+.night-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.6s ease;
+}
+
+.night-shade.on {
+  pointer-events: auto;
+}
+
 /* --- screensaver --- */
 
 .screensaver {

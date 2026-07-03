@@ -24,6 +24,7 @@ import {
   useGuestActive,
   verifyGuestPin,
 } from "./guestMode";
+import { NightShade } from "./NightShade";
 import { Screensaver } from "./Screensaver";
 import { useConfirm } from "./confirm";
 import { ViewManager } from "./ViewManager";
@@ -655,6 +656,7 @@ export default function App() {
         </Dialog>
       )}
       <OnScreenKeyboard />
+      <NightShade />
     </div>
   );
 }
