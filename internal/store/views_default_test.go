@@ -42,3 +42,29 @@ func TestDeleteViewGuards(t *testing.T) {
 		t.Errorf("after deleting default: %+v, want Kitchen promoted to default", remaining)
 	}
 }
+
+func TestReorderViews(t *testing.T) {
+	s := openTestStore(t)
+	b, _ := s.CreateView("B", nil)
+	c, _ := s.CreateView("C", nil)
+
+	views, err := s.ListViews()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(views) != 3 || views[1].ID != b.ID || views[2].ID != c.ID {
+		t.Fatalf("new views should append in order, got %+v", views)
+	}
+
+	// Home(1), B, C -> C, Home, B
+	if err := s.ReorderViews([]int64{c.ID, views[0].ID, b.ID}); err != nil {
+		t.Fatal(err)
+	}
+	views, err = s.ListViews()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if views[0].ID != c.ID || views[2].ID != b.ID {
+		t.Fatalf("reorder not applied: %+v", views)
+	}
+}

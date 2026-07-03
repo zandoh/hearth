@@ -13,7 +13,14 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { TimeInput, type ISOTimeString } from "@astryxdesign/core/TimeInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useEffect } from "react";
-import { createView, deleteView, setDefaultView, setViewSchedule, updateView } from "./api";
+import {
+  createView,
+  deleteView,
+  reorderViews,
+  setDefaultView,
+  setViewSchedule,
+  updateView,
+} from "./api";
 import { useConfirm } from "./confirm";
 import { Avatar } from "./Avatar";
 import { type GuestConfig, getGuestConfig, setGuestPin, setGuestView } from "./guestMode";
@@ -60,6 +67,16 @@ export function ViewManager({
     getNightConfig().then(setNight).catch(console.error);
   }, []);
 
+  // Swap the view with its neighbor and persist the whole order.
+  const move = (view: View, dir: -1 | 1) => {
+    const ids = views.map((v) => v.id);
+    const i = ids.indexOf(view.id);
+    const j = i + dir;
+    if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    act(() => reorderViews(ids));
+  };
+
   const rename = (view: View) => {
     const name = (names[view.id] ?? view.name).trim();
     if (!name || name === view.name) return;
@@ -90,6 +107,24 @@ export function ViewManager({
           {views.map((v) => (
             <VStack as="li" key={v.id} gap={1} className="view-row">
               <HStack gap={2} align="center">
+                <VStack gap={0} className="view-move">
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    label={`Move ${v.name} up`}
+                    icon={<Icon icon="arrowUp" size="sm" />}
+                    isDisabled={views[0]?.id === v.id}
+                    onClick={() => move(v, -1)}
+                  />
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    label={`Move ${v.name} down`}
+                    icon={<Icon icon="arrowDown" size="sm" />}
+                    isDisabled={views[views.length - 1]?.id === v.id}
+                    onClick={() => move(v, 1)}
+                  />
+                </VStack>
                 <TextInput
                   label={`Rename ${v.name}`}
                   isLabelHidden

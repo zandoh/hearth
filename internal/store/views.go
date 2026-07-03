@@ -47,7 +47,8 @@ func scanView(row interface{ Scan(...any) error }) (View, error) {
 }
 
 func (s *Store) ListViews() ([]View, error) {
-	rows, err := s.db.Query("SELECT id, name, layout, is_default, schedule_start, schedule_end FROM views ORDER BY id")
+	rows, err := s.db.Query(
+		"SELECT id, name, layout, is_default, schedule_start, schedule_end FROM views ORDER BY sort_order, id")
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,9 @@ func (s *Store) CreateView(name string, layout []LayoutItem) (View, error) {
 	if err != nil {
 		return View{}, err
 	}
-	res, err := s.db.Exec("INSERT INTO views (name, layout) VALUES (?, ?)", name, string(b))
+	res, err := s.db.Exec(
+		"INSERT INTO views (name, layout, sort_order) VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM views))",
+		name, string(b))
 	if err != nil {
 		return View{}, err
 	}
@@ -181,4 +184,20 @@ func (s *Store) SetViewSchedule(id int64, start, end string) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// ReorderViews rewrites the switcher order to match ids; views not listed
+// keep their relative place after the listed ones.
+func (s *Store) ReorderViews(ids []int64) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for i, id := range ids {
+		if _, err := tx.Exec("UPDATE views SET sort_order = ? WHERE id = ?", i+1, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
