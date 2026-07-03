@@ -74,6 +74,47 @@ export function OnScreenKeyboard() {
     };
   }, [enabled]);
 
+  // Focus lands on pointerDOWN, but nothing may change under the finger
+  // before pointerUP: if the dock mounts mid-tap it can cover the field
+  // (and the dialog shrink moves content), so the browser retargets the
+  // synthesized click to the <dialog> element — which Astryx reads as a
+  // backdrop click and dismisses the whole modal. The dock therefore
+  // mounts on the next pointerup (or shortly after, for keyboard focus).
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!target) {
+      setShow(false);
+      return;
+    }
+    const done = () => setShow(true);
+    document.addEventListener("pointerup", done, { once: true });
+    const id = setTimeout(done, 250);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("pointerup", done);
+    };
+  }, [target]);
+
+  // The dialog resize (css :has(.osk-settled)) waits a beat longer still.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!show) {
+      setSettled(false);
+      return;
+    }
+    const id = setTimeout(() => setSettled(true), 120);
+    return () => clearTimeout(id);
+  }, [show]);
+
+  // Once the layout has settled, bring the focused field into view.
+  useEffect(() => {
+    if (!target || !settled) return;
+    const id = requestAnimationFrame(() =>
+      target.scrollIntoView({ block: "center", behavior: "smooth" }),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [target, settled]);
+
   const onKeyPress = useCallback(
     (button: string) => {
       const el = targetRef.current;
@@ -106,7 +147,7 @@ export function OnScreenKeyboard() {
     [shift],
   );
 
-  if (!enabled || !target) return null;
+  if (!enabled || !target || !show) return null;
 
   // Astryx dialogs are native <dialog> shown with showModal(): they live in
   // the browser's top layer, above any z-index, and make everything outside
@@ -119,7 +160,7 @@ export function OnScreenKeyboard() {
 
   return createPortal(
     <div
-      className="osk-dock"
+      className={`osk-dock${settled ? " osk-settled" : ""}`}
       // Keep pointer-downs on keys from stealing focus off the input.
       onMouseDown={(e) => e.preventDefault()}
       onTouchStart={(e) => e.stopPropagation()}

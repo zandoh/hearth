@@ -331,8 +331,26 @@ input[type="color"] {
   color: var(--color-text-secondary);
 }
 
+/* Astryx's dialog content wrapper is a flex column with overflow hidden —
+   tall content just clips. Making the body the scroller (min-height: 0 so
+   flex lets it shrink) restores scrolling in every dialog. */
 .cal-dialog-body {
   padding: var(--spacing-1);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* With the touch keyboard docked inside a modal, hand the dialog only the
+   space above the keys: hug the top and cap the height so the focused
+   field can always be scrolled into view instead of hiding under the
+   keyboard. Keyed on .osk-settled (added ~150ms after the dock mounts):
+   resizing during the focusing tap moves the content mid-tap and the
+   pointerup hits the backdrop, which dismisses the dialog. */
+dialog[open]:has(.osk-settled) {
+  margin-top: var(--spacing-4);
+  margin-bottom: auto;
+  max-height: max(calc(100dvh - 400px), 220px);
+  transition: max-height 0.25s ease;
 }
 
 .cal-dot {
