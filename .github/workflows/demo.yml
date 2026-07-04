@@ -25,6 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Enables Pages (source: GitHub Actions) on first run if it isn't yet.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
         working-directory: web
