@@ -7,8 +7,11 @@
 name: demo
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/demo.yml"
   workflow_dispatch:
 
 permissions:
