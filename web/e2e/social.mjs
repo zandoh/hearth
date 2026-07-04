@@ -1,7 +1,10 @@
-// Re-render the GitHub social preview (docs/social-preview.png) from
-// social-card.html: the brand lockup and tagline beside the current
-// board-dark.png hero. Re-run after re-shooting the heroes, then upload
-// in GitHub -> Settings -> Social preview (there is no API for it).
+// Renders both share images from social-card.html:
+//   docs/social-preview.png  1280x640 @2x — GitHub's social preview spec
+//   web/public/og.png        1200x630 @2x — 1.91:1 for og:image unfurls,
+//                            with a call-to-action (validators flag both
+//                            the 2:1 ratio and CTA-less images)
+// Re-run after re-shooting the heroes; GitHub's image needs a manual
+// re-upload in Settings, og.png deploys with the demo automatically.
 //
 //   bun e2e/social.mjs
 import { dirname, join } from "node:path";
@@ -10,13 +13,18 @@ import { chromium } from "playwright";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const browser = await chromium.launch();
-// 1280x640 is GitHub's recommended canvas; deviceScaleFactor 2 renders
-// crisp at 2560x1280 (GitHub accepts anything >= 640x320).
-const page = await browser.newPage({ viewport: { width: 1280, height: 640 }, deviceScaleFactor: 2 });
-await page.goto("file://" + join(here, "social-card.html"));
-await page.evaluate(() => document.fonts.ready);
-await page.waitForTimeout(400);
-const out = join(here, "..", "..", "docs", "social-preview.png");
-await page.screenshot({ path: out });
+
+async function shoot(width, height, bodyClass, out) {
+  const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 2 });
+  await page.goto("file://" + join(here, "social-card.html"));
+  if (bodyClass) await page.evaluate((c) => document.body.classList.add(c), bodyClass);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: out });
+  await page.close();
+  console.log("wrote " + out);
+}
+
+await shoot(1280, 640, null, join(here, "..", "..", "docs", "social-preview.png"));
+await shoot(1200, 630, "og", join(here, "..", "public", "og.png"));
 await browser.close();
-console.log("wrote " + out);

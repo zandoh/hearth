@@ -54,6 +54,23 @@
     overflow: hidden;
   }
   .shot img { width: 100%; display: block; }
+  .cta {
+    display: none;
+    align-self: flex-start;
+    background: #D97742; color: #1B1916;
+    font-weight: 600; font-size: 22px;
+    padding: 12px 26px; border-radius: 999px;
+  }
+  /* og variant: 1200x630 (1.91:1) with a call-to-action for link unfurls */
+  body.og { width: 1200px; height: 630px; }
+  body.og .content { width: 540px; left: 72px; gap: 22px; }
+  body.og .wordmark { font-size: 76px; }
+  body.og .lockup svg { width: 80px; height: 80px; }
+  body.og .tagline { font-size: 26px; }
+  body.og .sub { display: none; }
+  body.og .cta { display: inline-block; }
+  body.og .repo { left: 76px; bottom: 44px; }
+  body.og .shot { width: 700px; right: -160px; top: 60px; }
 </style></head>
 <body>
   <div class="glow"></div>
@@ -69,6 +86,7 @@
     </div>
     <div class="tagline">The quiet fire at the center of&nbsp;your&nbsp;home.</div>
     <div class="sub">A self-hosted widget board for the household — calendar, chores, groceries, meds — on the wall, in one Go binary.</div>
+    <div class="cta">Try the live demo&nbsp;&nbsp;&rarr;</div>
   </div>
   <div class="repo">github.com/zandoh/hearth</div>
   <div class="shot"><img src="../../docs/board-dark.png"></div>
