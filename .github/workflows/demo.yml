@@ -1,0 +1,47 @@
+# Deploys the public demo to GitHub Pages: the real frontend with the
+# backend running in the visitor's browser (VITE_DEMO=1). Every visitor
+# gets their own sandbox in localStorage that re-seeds after 24 hours —
+# there is no shared server and no shared state to clean up.
+#
+# One-time setup: repo Settings -> Pages -> Source: "GitHub Actions".
+name: demo
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+        working-directory: web
+      - run: bun run build
+        working-directory: web
+        env:
+          VITE_DEMO: "1"
+          VITE_BASE: /hearth/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

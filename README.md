@@ -23,6 +23,9 @@ layouts saved as named views.
   <img alt="The Hearth board: clock, agenda, calendar, groceries, chores, and medications widgets" src="docs/board-light.png">
 </picture>
 
+**[Try the live demo](https://zandoh.github.io/hearth/)** — the full app with
+the backend running in your browser; your sandbox resets daily.
+
 Ships as a **single Go binary** with the web app embedded. The web UI is the
 first client of an API-first backend; a future mobile app talks to the same
 API.

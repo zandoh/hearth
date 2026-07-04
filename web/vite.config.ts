@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
+  // GitHub Pages serves the demo under /hearth/; default stays root.
+  base: process.env.VITE_BASE ?? '/',
   plugins: [react(), tailwindcss()],
   // react-draggable (used by react-grid-layout) reads process.env at runtime;
   // production builds strip it but the dev server doesn't shim `process`, so

@@ -1,3 +1,5 @@
+import { isDemo } from "./demo";
+import { demoFetch } from "./demo/api";
 import type { LayoutItem, View } from "./types";
 
 /**
@@ -6,10 +8,14 @@ import type { LayoutItem, View } from "./types";
  * can show it instead of a bare status code.
  */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  // Demo builds route every call to the in-browser backend; there is no
+  // server behind GitHub Pages.
+  const res = isDemo
+    ? await demoFetch(path, init)
+    : await fetch(path, {
+        headers: { "Content-Type": "application/json" },
+        ...init,
+      });
   if (!res.ok) {
     let message = `${init?.method ?? "GET"} ${path}: ${res.status}`;
     try {

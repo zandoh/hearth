@@ -23,6 +23,7 @@ import {
   useGuestActive,
   verifyGuestPin,
 } from "./guestMode";
+import { DemoBanner } from "./DemoBanner";
 import { NightShade } from "./NightShade";
 import { useIdleTimer } from "./useIdleTimer";
 import { Onboarding } from "./Onboarding";
@@ -579,6 +580,7 @@ export default function App() {
       )}
       <OnScreenKeyboard />
       <NightShade />
+      <DemoBanner />
       {!guest && <Onboarding />}
     </div>
   );

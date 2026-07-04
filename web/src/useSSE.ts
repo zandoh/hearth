@@ -1,4 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
+import { isDemo } from "./demo";
+import { onDemoTopic } from "./demo/bus";
 
 // One shared EventSource for the whole app; widgets subscribe to topics.
 // EventSource reconnects automatically, which is exactly what an always-on
@@ -23,7 +25,18 @@ function setConnectionState(next: ConnectionState) {
   for (const l of connectionListeners) l();
 }
 
+let demoBridged = false;
+
 function ensureSource() {
+  if (isDemo) {
+    // No stream on GitHub Pages: bridge the demo bus into the same
+    // handler map, once. Connection is by definition healthy.
+    if (!demoBridged) {
+      demoBridged = true;
+      onDemoTopic((topic) => handlers.get(topic)?.forEach((h) => h("changed")));
+    }
+    return;
+  }
   if (source) return;
   source = new EventSource("/api/stream");
   source.onopen = () => {

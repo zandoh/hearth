@@ -29,6 +29,7 @@ import { Avatar } from "./Avatar";
 import { type GuestConfig, getGuestConfig, setGuestPin, setGuestView } from "./guestMode";
 import { type NightConfig, getNightConfig, setNightConfig } from "./night";
 import { type Profile, createProfile, deleteProfile, updateProfile, useProfiles } from "./profiles";
+import { isDemo } from "./demo";
 import type { View } from "./types";
 import { useMutate } from "./useMutate";
 
@@ -393,21 +394,25 @@ export function ViewManager({
           />
         )}
 
-        <Heading level={3}>Backups</Heading>
-        <Text type="supporting">
-          A snapshot is written to backups/ next to the database every night; the last 7 are kept.
-          Download grabs a fresh copy right now.
-        </Text>
-        <HStack>
-          <Button
-            size="sm"
-            variant="secondary"
-            label="Download backup"
-            onClick={() => {
-              window.location.href = "/api/backup";
-            }}
-          />
-        </HStack>
+        {!isDemo && (
+          <>
+            <Heading level={3}>Backups</Heading>
+            <Text type="supporting">
+              A snapshot is written to backups/ next to the database every night; the last 7 are
+              kept. Download grabs a fresh copy right now.
+            </Text>
+            <HStack>
+              <Button
+                size="sm"
+                variant="secondary"
+                label="Download backup"
+                onClick={() => {
+                  window.location.href = "/api/backup";
+                }}
+              />
+            </HStack>
+          </>
+        )}
 
         {error && <Text className="form-error">{error}</Text>}
         <HStack justify="end">
