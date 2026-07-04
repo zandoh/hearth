@@ -1,0 +1,44 @@
+name: Bug report
+description: Something on the board is broken
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what did you see, what did you expect?
+      placeholder: I edited a week-long event and it shrank to one day…
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Hearth version
+      description: Release tag, or the build id logged in the browser console on load.
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How is it running?
+      options:
+        - Docker (ghcr image)
+        - Prebuilt binary
+        - Built from source
+        - Dev servers (make dev-api / dev-web)
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Screen / browser
+      description: The device showing the problem — kiosk touchscreen, laptop Chrome, etc.
+      placeholder: Chrome on the wall-mounted touchscreen
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server logs (if relevant)
+      description: Lines from the hearth process around the time it happened.
+      render: text

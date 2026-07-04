@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question — how do I…?
+    url: https://github.com/zandoh/hearth/discussions/categories/q-a
+    about: Setup, deployment, and how-do-I questions live in Discussions.
+  - name: Idea worth talking through first
+    url: https://github.com/zandoh/hearth/discussions/categories/ideas
+    about: Not sure it's a concrete feature request yet? Start here.

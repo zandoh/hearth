@@ -1,0 +1,24 @@
+name: Feature request
+description: Something the household needs
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The household problem
+      description: >
+        Describe the situation at home, not the software. "We keep forgetting
+        whose turn it is to take out the bins" beats "add a rotation field".
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How you handle it today
+      placeholder: A magnet on the fridge / a shared note / shouting
+  - type: textarea
+    id: shape
+    attributes:
+      label: (Optional) What you imagine it looking like
+      description: A widget? Part of an existing one? A setting?

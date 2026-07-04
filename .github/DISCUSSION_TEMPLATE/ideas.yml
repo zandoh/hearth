@@ -1,0 +1,14 @@
+title: "[Idea] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The household problem
+      description: The situation at home, not the software.
+    validations:
+      required: true
+  - type: textarea
+    id: sketch
+    attributes:
+      label: Rough shape (optional)
+      description: Widget? Setting? Tag convention? Screensaver trick?
