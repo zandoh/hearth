@@ -62,6 +62,30 @@ jobs:
             release/SHA256SUMS
           generate_release_notes: true
 
+      # Announced from here rather than a `release:` trigger elsewhere:
+      # releases published with GITHUB_TOKEN never fire events for other
+      # workflows. Non-fatal — a broken webhook must not fail the release.
+      - name: Announce release on Discord
+        continue-on-error: true
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          [ -n "$WEBHOOK_URL" ] || { echo "DISCORD_WEBHOOK not set; skipping"; exit 0; }
+          # Discord embeds don't render markdown headers; bold them instead.
+          sed -E 's/^#{1,4} +(.*)/**\1**/' release-notes.md > notes.txt
+          jq -n --arg tag "$TAG" --rawfile notes notes.txt \
+            '{username: "Hearth Releases",
+              embeds: [{
+                title: ("🚀 Hearth " + $tag + " released"),
+                url: ("https://github.com/${{ github.repository }}/releases/tag/" + $tag),
+                description: ($notes
+                  | if length > 4000 then .[:4000] + "\n…" else . end),
+                color: 5793266,
+                timestamp: (now | todate)
+              }]}' \
+          | curl -sSf -H 'Content-Type: application/json' -d @- "$WEBHOOK_URL"
+
   docker:
     runs-on: ubuntu-latest
     steps:
