@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Keyboard from "react-simple-keyboard";
-import "react-simple-keyboard/build/css/index.css";
+
+// react-simple-keyboard only loads when a text field actually focuses with
+// the OSK enabled — it's dead weight for every plain board view otherwise.
+const OskDock = lazy(() => import("./OskDock"));
 
 // Touch keyboard for the wall kiosk. Docks to the bottom whenever a text
 // input gains focus and the keyboard is enabled (auto on coarse-pointer
@@ -49,6 +51,19 @@ export function OnScreenKeyboard() {
     window.addEventListener("hearth-osk-changed", onChange);
     return () => window.removeEventListener("hearth-osk-changed", onChange);
   }, []);
+
+  // Warm the lazy chunk while idle so the first tap on a field never waits
+  // on the network; the asset is immutable-cached after this.
+  useEffect(() => {
+    if (!enabled) return;
+    const warm = () => void import("./OskDock");
+    if ("requestIdleCallback" in window) {
+      const id = requestIdleCallback(warm);
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(warm, 2000);
+    return () => clearTimeout(id);
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) {
@@ -165,33 +180,9 @@ export function OnScreenKeyboard() {
       onMouseDown={(e) => e.preventDefault()}
       onTouchStart={(e) => e.stopPropagation()}
     >
-      <Keyboard
-        layoutName={shift ? "shift" : "default"}
-        layout={{
-          default: [
-            "1 2 3 4 5 6 7 8 9 0 {bksp}",
-            "q w e r t y u i o p",
-            "a s d f g h j k l '",
-            "{shift} z x c v b n m , . -",
-            "{hide} {space} {enter}",
-          ],
-          shift: [
-            "! @ # $ % & * ( ) / {bksp}",
-            "Q W E R T Y U I O P",
-            'A S D F G H J K L "',
-            "{shift} Z X C V B N M ; : _",
-            "{hide} {space} {enter}",
-          ],
-        }}
-        display={{
-          "{bksp}": "⌫",
-          "{enter}": "return",
-          "{shift}": "⇧",
-          "{space}": " ",
-          "{hide}": "⌄",
-        }}
-        onKeyPress={onKeyPress}
-      />
+      <Suspense fallback={null}>
+        <OskDock shift={shift} onKeyPress={onKeyPress} />
+      </Suspense>
     </div>,
     host,
   );

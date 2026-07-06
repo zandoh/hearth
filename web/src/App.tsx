@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, {
   useContainerWidth,
   type Layout,
@@ -30,7 +30,6 @@ import { Onboarding } from "./Onboarding";
 import { Screensaver } from "./Screensaver";
 import { createCompactor } from "./compactor";
 import { useConfirm } from "./confirm";
-import { ViewManager } from "./ViewManager";
 import { GRID_COLS, MIN_WIDGET_H, MIN_WIDGET_W, firstFit, mergePositions } from "./layout";
 import {
   idleReturnMs,
@@ -47,6 +46,10 @@ import { widgetRegistry } from "./widgets/registry";
 import type { View } from "./types";
 
 const ROW_HEIGHT = 72;
+
+// Edit-mode-only surface, split out of the startup bundle; App warms the
+// chunk the moment edit mode opens so the dialog never visibly waits.
+const ViewManager = lazy(() => import("./ViewManager").then((m) => ({ default: m.ViewManager })));
 
 // Stamped at build time (Makefile passes VITE_BUILD_ID); shown in the tab
 // console and on the wordmark so a stale cached bundle is immediately obvious.
@@ -118,6 +121,10 @@ export default function App() {
 
   useEffect(loadViews, [loadViews]);
   useTopic(TOPICS.views, loadViews);
+
+  useEffect(() => {
+    if (editing) void import("./ViewManager");
+  }, [editing]);
 
   const loadGuestConfig = useCallback(() => {
     getGuestConfig().then(setGuestConfig).catch(console.error);
@@ -532,11 +539,13 @@ export default function App() {
         )}
       </main>
       {managingViews && (
-        <ViewManager
-          views={views}
-          onSwitch={(id) => setActiveId(id)}
-          onClose={() => setManagingViews(false)}
-        />
+        <Suspense fallback={null}>
+          <ViewManager
+            views={views}
+            onSwitch={(id) => setActiveId(id)}
+            onClose={() => setManagingViews(false)}
+          />
+        </Suspense>
       )}
       {configFor &&
         (() => {
