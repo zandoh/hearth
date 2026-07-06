@@ -1,4 +1,4 @@
-# CI/CD status to Discord via the shared tonk layer (secret: DISCORD_WEBHOOK).
+# CI/CD status to Discord via the shared tonk layer (secret: TONK_DISCORD_WEBHOOK).
 #
 # Failure and back-to-green alerts arrive via workflow_run rather than steps
 # inside each workflow, so a run that dies before its own notify step would
@@ -22,4 +22,4 @@ jobs:
   notify:
     uses: zandoh/tonk/.github/workflows/notify.yml@v1
     secrets:
-      webhook: ${{ secrets.DISCORD_WEBHOOK }}
+      webhook: ${{ secrets.TONK_DISCORD_WEBHOOK }}

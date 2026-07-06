@@ -80,7 +80,7 @@ jobs:
         continue-on-error: true
         uses: zandoh/tonk/actions/discord-notify@v1
         with:
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          webhook-url: ${{ secrets.TONK_DISCORD_WEBHOOK }}
           title: 🚀 Hearth ${{ github.ref_name }} released
           description: ${{ steps.discord-notes.outputs.notes }}
           url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
