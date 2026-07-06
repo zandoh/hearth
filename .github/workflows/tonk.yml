@@ -17,6 +17,7 @@ on:
 
 permissions:
   actions: read # recovery detection reads previous run conclusions
+  contents: read # reads .github/discord.yml
 
 jobs:
   notify:
