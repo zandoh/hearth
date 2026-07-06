@@ -12,6 +12,21 @@ export default defineConfig({
   define: {
     'process.env.DRAGGABLE_DEBUG': 'false',
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Dependencies change far less often than app code; a separate
+        // vendor chunk means a hearth update only re-downloads the small
+        // app chunk on the kiosk instead of react-dom + Astryx every time.
+        codeSplitting: {
+          // react-simple-keyboard is excluded: it's only reachable through
+          // the lazy OskDock import and would otherwise be pulled into the
+          // eagerly-loaded vendor chunk.
+          groups: [{ name: 'vendor', test: /node_modules(?![\\/]react-simple-keyboard)/ }],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       // Go backend during development; in production the binary serves both.
