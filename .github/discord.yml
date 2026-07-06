@@ -1,0 +1,6 @@
+# tonk notification personality — https://github.com/zandoh/tonk
+username: Hearth CI
+notify:
+  failure: true
+  recovery: true
+  pull-requests: false # red PRs are part of iterating

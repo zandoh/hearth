@@ -1,0 +1,25 @@
+# CI/CD status to Discord via the shared tonk layer (secret: DISCORD_WEBHOOK).
+#
+# Failure and back-to-green alerts arrive via workflow_run rather than steps
+# inside each workflow, so a run that dies before its own notify step would
+# have executed still reports. Release announcements live in release.yml
+# instead: releases published with the workflow GITHUB_TOKEN never emit a
+# `release` event to other workflows, so an `on: release` job here would
+# silently never fire.
+#
+# Personality and event toggles: .github/discord.yml
+name: tonk
+
+on:
+  workflow_run:
+    workflows: [CI, Release, demo]
+    types: [completed]
+
+permissions:
+  actions: read # recovery detection reads previous run conclusions
+
+jobs:
+  notify:
+    uses: zandoh/tonk/.github/workflows/notify.yml@v1
+    secrets:
+      webhook: ${{ secrets.DISCORD_WEBHOOK }}
