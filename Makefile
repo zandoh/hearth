@@ -11,6 +11,7 @@ build: web
 web:
 	cd web && bun install && \
 	VITE_BUILD_ID="$$(git rev-parse --short HEAD 2>/dev/null || echo local)-$$(date +%m%d.%H%M)" bun run build && \
+	bun scripts/compress.mjs && \
 	touch dist/.gitkeep
 
 run: build
@@ -49,4 +50,4 @@ fmt:
 	cd web && bun run fmt
 
 clean:
-	rm -rf bin web/dist/assets web/dist/index.html
+	rm -rf bin web/dist/assets web/dist/index.html*

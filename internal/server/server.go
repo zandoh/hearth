@@ -5,7 +5,10 @@ package server
 import (
 	"errors"
 	"io/fs"
+	"mime"
 	"net/http"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/zandoh/hearth/internal/httpx"
@@ -260,7 +263,14 @@ func spaHandler(dist fs.FS) http.Handler {
 			} else {
 				w.Header().Set("Cache-Control", "no-cache")
 			}
+			if serveCompressed(w, r, dist, path) {
+				return
+			}
 			fileServer.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-cache")
+		if serveCompressed(w, r, dist, "index.html") {
 			return
 		}
 		index, err := fs.ReadFile(dist, "index.html")
@@ -269,7 +279,56 @@ func spaHandler(dist fs.FS) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-cache")
 		w.Write(index)
 	})
+}
+
+// serveCompressed writes the precompressed sibling (path.br / path.gz) that
+// the frontend build emits next to text assets, when the client accepts
+// that encoding. Returns false — caller serves the plain file — when no
+// acceptable variant exists. The whole dist FS is embedded in the binary,
+// so ReadFile is a memory copy, not disk I/O.
+func serveCompressed(w http.ResponseWriter, r *http.Request, dist fs.FS, path string) bool {
+	accept := r.Header.Get("Accept-Encoding")
+	for _, enc := range [...]struct{ coding, ext string }{{"br", ".br"}, {"gzip", ".gz"}} {
+		if !acceptsEncoding(accept, enc.coding) {
+			continue
+		}
+		data, err := fs.ReadFile(dist, path+enc.ext)
+		if err != nil {
+			continue
+		}
+		ctype := mime.TypeByExtension(filepath.Ext(path))
+		if ctype == "" {
+			ctype = "application/octet-stream"
+		}
+		w.Header().Set("Content-Type", ctype)
+		w.Header().Set("Content-Encoding", enc.coding)
+		w.Header().Add("Vary", "Accept-Encoding")
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		if r.Method != http.MethodHead {
+			w.Write(data)
+		}
+		return true
+	}
+	return false
+}
+
+// acceptsEncoding reports whether an Accept-Encoding header lists the
+// coding without disabling it (`br;q=0`). Token match must be exact:
+// "gzip" must not match inside "x-gzip-foo".
+func acceptsEncoding(header, coding string) bool {
+	for part := range strings.SplitSeq(header, ",") {
+		token, params, _ := strings.Cut(part, ";")
+		if !strings.EqualFold(strings.TrimSpace(token), coding) {
+			continue
+		}
+		params = strings.ReplaceAll(params, " ", "")
+		if v, ok := strings.CutPrefix(params, "q="); ok {
+			q, err := strconv.ParseFloat(v, 64)
+			return err != nil || q > 0
+		}
+		return true
+	}
+	return false
 }

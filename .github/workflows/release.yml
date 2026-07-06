@@ -27,6 +27,7 @@ jobs:
           cd web
           bun install --frozen-lockfile
           VITE_BUILD_ID=${{ github.ref_name }} bun run build
+          bun scripts/compress.mjs
 
       - name: Cross-compile binaries
         run: |

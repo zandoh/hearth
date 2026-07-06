@@ -7,7 +7,7 @@ COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY web/ .
 ARG BUILD_ID=docker
-RUN VITE_BUILD_ID=$BUILD_ID bun run build
+RUN VITE_BUILD_ID=$BUILD_ID bun run build && bun scripts/compress.mjs
 
 FROM golang:1.25 AS build
 WORKDIR /src

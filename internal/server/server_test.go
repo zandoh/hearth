@@ -224,3 +224,84 @@ func TestViewHiddenAndReorder(t *testing.T) {
 	res, body = call(t, srv, "PUT", "/api/views/order", map[string]any{"ids": []int{}})
 	wantStatus(t, res, body, http.StatusBadRequest)
 }
+
+// TestSPACompression: the build writes .br/.gz siblings next to text assets
+// and spaHandler must pick the best one the client accepts — including on
+// the index.html fallback — without ever compressing for clients that
+// don't ask for it.
+func TestSPACompression(t *testing.T) {
+	dist := fstest.MapFS{
+		"index.html":       {Data: []byte("<html>plain</html>")},
+		"index.html.gz":    {Data: []byte("GZHTML")},
+		"assets/app.js":    {Data: []byte("console.log('plain')")},
+		"assets/app.js.br": {Data: []byte("BRJS")},
+		"assets/app.js.gz": {Data: []byte("GZJS")},
+		"assets/uncomp.js": {Data: []byte("no siblings")},
+	}
+	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { st.Close() })
+	srv := httptest.NewServer(New(st, sse.NewHub(), widget.NewRegistry(), dist))
+	t.Cleanup(srv.Close)
+
+	get := func(path, acceptEncoding string) (*http.Response, string) {
+		t.Helper()
+		req, err := http.NewRequest("GET", srv.URL+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if acceptEncoding != "" {
+			req.Header.Set("Accept-Encoding", acceptEncoding)
+		}
+		// DisableCompression: the default transport would silently add
+		// gzip and decode it, hiding exactly what we're testing.
+		client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
+		res, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var buf bytes.Buffer
+		buf.ReadFrom(res.Body)
+		return res, buf.String()
+	}
+
+	cases := []struct {
+		name, path, accept, wantEncoding, wantBody string
+	}{
+		{"brotli preferred", "/assets/app.js", "gzip, deflate, br, zstd", "br", "BRJS"},
+		{"gzip fallback", "/assets/app.js", "gzip", "gzip", "GZJS"},
+		{"no accept header", "/assets/app.js", "", "", "console.log('plain')"},
+		{"q=0 disables", "/assets/app.js", "br;q=0, gzip;q=0", "", "console.log('plain')"},
+		{"no siblings", "/assets/uncomp.js", "gzip, br", "", "no siblings"},
+		{"spa fallback route", "/some/client/route", "gzip", "gzip", "GZHTML"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, body := get(tc.path, tc.accept)
+			if res.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d", res.StatusCode)
+			}
+			if enc := res.Header.Get("Content-Encoding"); enc != tc.wantEncoding {
+				t.Errorf("Content-Encoding = %q, want %q", enc, tc.wantEncoding)
+			}
+			if body != tc.wantBody {
+				t.Errorf("body = %q, want %q", body, tc.wantBody)
+			}
+			if ct := res.Header.Get("Content-Type"); tc.wantEncoding != "" && ct == "" {
+				t.Error("compressed response missing Content-Type")
+			}
+		})
+	}
+
+	// Hashed assets stay immutable regardless of encoding negotiation.
+	res, _ := get("/assets/app.js", "br")
+	if cc := res.Header.Get("Cache-Control"); cc != "public, max-age=31536000, immutable" {
+		t.Errorf("Cache-Control = %q", cc)
+	}
+	if vary := res.Header.Get("Vary"); vary != "Accept-Encoding" {
+		t.Errorf("Vary = %q", vary)
+	}
+}
