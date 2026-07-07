@@ -1,5 +1,4 @@
-# tonk notification personality — https://github.com/zandoh/tonk
-username: Hearth CI
+# tonk notification settings — https://github.com/zandoh/tonk
 notify:
   failure: true
   recovery: true

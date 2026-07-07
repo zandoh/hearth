@@ -132,7 +132,6 @@ jobs:
           description: ${{ steps.discord-notes.outputs.notes }}
           url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
           color: "5793266"
-          username: Hearth Releases
 
   docker:
     # :latest must not ship if the release itself failed.
