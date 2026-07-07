@@ -8,8 +8,55 @@ permissions:
   contents: write
   packages: write
 
+# Never cancel a release mid-flight: killing an in-progress upload can leave
+# ghcr tags and GitHub Release assets inconsistent. Queue instead.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  # Release tags carry no tests of their own, so refuse to ship unless the
+  # tagged commit's CI already passed. Polls because tagging right after
+  # pushing to main usually races a still-running CI run.
+  verify-ci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - name: Require green `ci` check on the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          deadline=$(( $(date +%s) + 20 * 60 ))
+          while :; do
+            # Latest check-run named `ci` wins — reruns create duplicates.
+            run=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100" \
+              --jq '[.check_runs[] | select(.name == "ci")] | sort_by(.started_at) | last // empty')
+            if [ -n "$run" ]; then
+              status=$(jq -r '.status' <<<"$run")
+              conclusion=$(jq -r '.conclusion' <<<"$run")
+              if [ "$status" = "completed" ]; then
+                if [ "$conclusion" = "success" ]; then
+                  echo "ci check passed on $GITHUB_SHA"
+                  exit 0
+                fi
+                echo "::error::ci check on $GITHUB_SHA concluded '$conclusion' — refusing to release"
+                exit 1
+              fi
+              echo "ci check is '$status' — waiting..."
+            else
+              echo "no ci check-run found yet on $GITHUB_SHA — waiting..."
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::timed out after 20m waiting for a successful ci check on $GITHUB_SHA (was this commit ever pushed to main?)"
+              exit 1
+            fi
+            sleep 30
+          done
+
   binaries:
+    needs: verify-ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -88,6 +135,8 @@ jobs:
           username: Hearth Releases
 
   docker:
+    # :latest must not ship if the release itself failed.
+    needs: [verify-ci, binaries]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

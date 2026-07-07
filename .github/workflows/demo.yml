@@ -34,6 +34,14 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
         working-directory: web
+      # Mirror CI's frontend checks so a red push can't update the public
+      # demo while racing CI on the same commit.
+      - run: bun run lint
+        working-directory: web
+      - run: bun run fmt:check
+        working-directory: web
+      - run: bun test
+        working-directory: web
       - run: bun run build
         working-directory: web
         env:
