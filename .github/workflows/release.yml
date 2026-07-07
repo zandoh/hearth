@@ -78,7 +78,7 @@ jobs:
 
       - name: Announce release on Discord
         continue-on-error: true
-        uses: zandoh/tonk/actions/discord-notify@v1
+        uses: zandoh/tonk@v2
         with:
           webhook-url: ${{ secrets.TONK_DISCORD_WEBHOOK }}
           title: 🚀 Hearth ${{ github.ref_name }} released

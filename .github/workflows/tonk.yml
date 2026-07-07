@@ -21,6 +21,6 @@ permissions:
 
 jobs:
   notify:
-    uses: zandoh/tonk/.github/workflows/notify.yml@v1
+    uses: zandoh/tonk/.github/workflows/notify.yml@v2
     secrets:
       webhook: ${{ secrets.TONK_DISCORD_WEBHOOK }}
