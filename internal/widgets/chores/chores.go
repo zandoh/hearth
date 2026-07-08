@@ -50,7 +50,10 @@ func dueView(c store.Chore, now time.Time) choreView {
 		v.NeverDone = true
 		return v
 	}
-	last, err := time.Parse("2006-01-02", c.LastDone)
+	// Parse in now's location so the due date and now share a zone; a
+	// UTC-parsed date subtracted from a local now truncates dueIn to the
+	// wrong day for part of every day in non-UTC deployments.
+	last, err := time.ParseInLocation("2006-01-02", c.LastDone, now.Location())
 	if err != nil {
 		last = now
 	}

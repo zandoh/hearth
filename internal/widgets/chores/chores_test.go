@@ -55,6 +55,15 @@ func TestDueView(t *testing.T) {
 			want:  choreView{DueOn: "2026-07-04", DueIn: 1},
 		},
 		{
+			// Non-UTC regression: in a UTC-5 zone at 21:00 local, a chore due in
+			// two local days must read dueIn=2. The old UTC-parsed math truncated
+			// this to 1. now = 2026-07-01 21:00 (-05:00).
+			name:  "non-UTC zone counts whole local days",
+			chore: store.Chore{EveryDays: 3, LastDone: "2026-07-01"},
+			now:   time.Date(2026, 7, 1, 21, 0, 0, 0, time.FixedZone("TEST-5", -5*3600)),
+			want:  choreView{DueOn: "2026-07-04", DueIn: 2},
+		},
+		{
 			name:  "corrupt lastDone falls back to now",
 			chore: store.Chore{EveryDays: 2, LastDone: "garbage"},
 			now:   midnight,
