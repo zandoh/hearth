@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/zandoh/hearth/internal/httpx"
@@ -90,6 +91,13 @@ func (r *Registry) StartJobs(ctx context.Context) {
 		for _, job := range w.Jobs() {
 			go func(id string, j Job) {
 				run := func() {
+					defer func() {
+						if p := recover(); p != nil {
+							slog.Error("widget job panicked",
+								"widget", id, "job", j.Name, "panic", p,
+								"stack", string(debug.Stack()))
+						}
+					}()
 					if err := j.Run(ctx); err != nil {
 						slog.Error("widget job failed", "widget", id, "job", j.Name, "err", err)
 					}

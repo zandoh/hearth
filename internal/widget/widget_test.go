@@ -2,11 +2,13 @@ package widget
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zandoh/hearth/internal/sse"
 )
@@ -102,6 +104,48 @@ type fakeWidget struct {
 func (f fakeWidget) Routes(mux *http.ServeMux) {
 	*f.mounted = append(*f.mounted, f.Slug)
 	mux.HandleFunc("GET /api/widgets/"+f.Slug, func(w http.ResponseWriter, r *http.Request) {})
+}
+
+func TestStartJobsRecoversPanics(t *testing.T) {
+	reg := NewRegistry()
+	panicked := make(chan struct{}, 1)
+	ok := make(chan struct{}, 1)
+
+	reg.Register(jobWidget{Base: Base{Slug: "boom"}, run: func(ctx context.Context) error {
+		panicked <- struct{}{}
+		panic("simulated upstream parse failure")
+	}})
+	reg.Register(jobWidget{Base: Base{Slug: "fine"}, run: func(ctx context.Context) error {
+		ok <- struct{}{}
+		return nil
+	}})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	reg.StartJobs(ctx)
+
+	// If the panic weren't recovered, the test binary would crash here.
+	select {
+	case <-panicked:
+	case <-time.After(2 * time.Second):
+		t.Fatal("panicking job never ran")
+	}
+	select {
+	case <-ok:
+	case <-time.After(2 * time.Second):
+		t.Fatal("sibling job did not run — scheduler did not survive the panic")
+	}
+}
+
+// jobWidget is a test widget with a single configurable startup job.
+type jobWidget struct {
+	Base
+	run func(ctx context.Context) error
+}
+
+func (jw jobWidget) Routes(mux *http.ServeMux) {}
+func (jw jobWidget) Jobs() []Job {
+	return []Job{{Name: "test", Interval: time.Hour, Run: jw.run}}
 }
 
 func TestRegistryRegisterAndMountOrder(t *testing.T) {
