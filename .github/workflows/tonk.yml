@@ -14,6 +14,8 @@ on:
   workflow_run:
     workflows: [CI, Release, demo]
     types: [completed]
+  pull_request:
+    types: [opened, reopened, closed]
 
 permissions:
   actions: read # recovery detection reads previous run conclusions
@@ -21,6 +23,13 @@ permissions:
 
 jobs:
   notify:
+    if: github.event_name == 'workflow_run'
     uses: zandoh/tonk/.github/workflows/notify.yml@v2
+    secrets:
+      webhook: ${{ secrets.TONK_DISCORD_WEBHOOK }}
+
+  pr:
+    if: github.event_name == 'pull_request'
+    uses: zandoh/tonk/.github/workflows/pr.yml@v2
     secrets:
       webhook: ${{ secrets.TONK_DISCORD_WEBHOOK }}
