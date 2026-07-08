@@ -6,7 +6,10 @@ import (
 	"errors"
 	"io/fs"
 	"mime"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,14 +22,76 @@ import (
 )
 
 type Server struct {
-	store *store.Store
-	hub   *sse.Hub
-	reg   *widget.Registry
-	mux   *http.ServeMux
+	store   *store.Store
+	hub     *sse.Hub
+	reg     *widget.Registry
+	mux     *http.ServeMux
+	allowed map[string]bool
+}
+
+// allowedHosts returns the set of extra hostnames permitted beyond the
+// built-in localhost / private-IP / .local defaults: the host of
+// HEARTH_BASE_URL plus any comma-separated HEARTH_ALLOWED_HOSTS. This is the
+// reverse-proxy escape hatch — a proxy that presents a public hostname must
+// list it here.
+func allowedHosts() map[string]bool {
+	set := map[string]bool{}
+	add := func(h string) {
+		h = strings.ToLower(strings.TrimSpace(h))
+		if h != "" {
+			set[h] = true
+		}
+	}
+	if base := os.Getenv("HEARTH_BASE_URL"); base != "" {
+		if u, err := url.Parse(base); err == nil && u.Host != "" {
+			add(u.Hostname())
+		}
+	}
+	for _, h := range strings.Split(os.Getenv("HEARTH_ALLOWED_HOSTS"), ",") {
+		add(h)
+	}
+	return set
+}
+
+// hostAllowed defends against DNS rebinding: the browser sends the ORIGINAL
+// attacker hostname in Host even after rebinding to our LAN IP, so a Host
+// that isn't a local name, a private/loopback IP literal, or an explicitly
+// configured name is rejected.
+func hostAllowed(host string, extra map[string]bool) bool {
+	h := host
+	if hostOnly, _, err := net.SplitHostPort(host); err == nil {
+		h = hostOnly
+	}
+	h = strings.ToLower(strings.TrimSuffix(h, "."))
+	if h == "" {
+		return false
+	}
+	if h == "localhost" || strings.HasSuffix(h, ".local") || strings.HasSuffix(h, ".localhost") {
+		return true
+	}
+	if ip := net.ParseIP(h); ip != nil {
+		return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
+	}
+	return extra[h]
+}
+
+// originAllowed rejects cross-site state-changing requests: a present Origin
+// must match the request Host. Absent Origin (native clients, top-level
+// navigations like the OAuth redirect) is allowed.
+func originAllowed(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Host, r.Host)
 }
 
 func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Server {
-	s := &Server{store: st, hub: hub, reg: reg, mux: http.NewServeMux()}
+	s := &Server{store: st, hub: hub, reg: reg, mux: http.NewServeMux(), allowed: allowedHosts()}
 
 	s.mux.HandleFunc("GET /api/healthz", s.handleHealthz)
 	s.mux.HandleFunc("GET /api/widgets", s.handleListWidgets)
@@ -66,6 +131,17 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !hostAllowed(r.Host, s.allowed) {
+		httpx.Error(w, http.StatusForbidden, "forbidden host")
+		return
+	}
+	switch r.Method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		if !originAllowed(r) {
+			httpx.Error(w, http.StatusForbidden, "cross-origin request blocked")
+			return
+		}
+	}
 	s.mux.ServeHTTP(w, r)
 }
 

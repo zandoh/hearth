@@ -109,6 +109,11 @@ one-time Google connect through a localhost tunnel instead:
 `http://localhost:8080` with `HEARTH_BASE_URL` unset. Day-to-day use at
 `hearth.local` is unaffected — only the consent redirect cares.
 
+If you front Hearth with a reverse proxy that presents a public hostname
+(Tailscale, nginx, and the like), set `HEARTH_ALLOWED_HOSTS` to that
+hostname so the server accepts it — comma-separated for several. `localhost`,
+private LAN IPs, and `*.local` names are always accepted without it.
+
 ## Development
 
 Two terminals, then browse **http://localhost:5173**:

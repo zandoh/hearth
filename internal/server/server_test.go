@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -62,6 +63,51 @@ func wantStatus(t *testing.T, res *http.Response, body []byte, want int) {
 	t.Helper()
 	if res.StatusCode != want {
 		t.Fatalf("%s %s = %d, want %d (%s)", res.Request.Method, res.Request.URL.Path, res.StatusCode, want, body)
+	}
+}
+
+func TestForeignHostRejected(t *testing.T) {
+	srv := newTestServer(t)
+	req, _ := http.NewRequest("GET", srv.URL+"/api/views", nil)
+	req.Host = "evil.example.com" // simulates a rebound attacker hostname
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("foreign Host = %d, want 403", res.StatusCode)
+	}
+}
+
+func TestCrossOriginWriteRejected(t *testing.T) {
+	srv := newTestServer(t)
+	req, _ := http.NewRequest("POST", srv.URL+"/api/views",
+		strings.NewReader(`{"name":"x","layout":[]}`))
+	req.Header.Set("Origin", "http://evil.example.com")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross-origin POST = %d, want 403", res.StatusCode)
+	}
+}
+
+func TestSameOriginWriteAllowed(t *testing.T) {
+	srv := newTestServer(t)
+	// srv.URL is http://127.0.0.1:PORT; a same-origin write must pass.
+	req, _ := http.NewRequest("POST", srv.URL+"/api/views",
+		strings.NewReader(`{"name":"Kitchen","layout":[]}`))
+	req.Header.Set("Origin", srv.URL) // Origin host == request Host
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("same-origin POST = %d, want 201", res.StatusCode)
 	}
 }
 
