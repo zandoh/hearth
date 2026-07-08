@@ -351,3 +351,32 @@ func TestSPACompression(t *testing.T) {
 		t.Errorf("Vary = %q", vary)
 	}
 }
+
+func TestSecurityHeaders(t *testing.T) {
+	dist := fstest.MapFS{"index.html": {Data: []byte("<html></html>")}}
+	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { st.Close() })
+	srv := httptest.NewServer(New(st, sse.NewHub(), widget.NewRegistry(), dist))
+	t.Cleanup(srv.Close)
+
+	res, err := http.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	for _, h := range []struct{ key, want string }{
+		{"X-Content-Type-Options", "nosniff"},
+		{"X-Frame-Options", "DENY"},
+	} {
+		if got := res.Header.Get(h.key); got != h.want {
+			t.Errorf("%s = %q, want %q", h.key, got, h.want)
+		}
+	}
+	if csp := res.Header.Get("Content-Security-Policy"); !strings.Contains(csp, "script-src 'self'") ||
+		!strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Errorf("CSP missing expected directives: %q", csp)
+	}
+}
