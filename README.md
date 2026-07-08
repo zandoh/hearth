@@ -28,7 +28,8 @@ the backend running in your browser; your sandbox resets daily.
 
 Ships as a **single Go binary** with the web app embedded. The web UI is the
 first client of an API-first backend; a future mobile app talks to the same
-API.
+API. Every route, body shape, and SSE topic is documented in
+[docs/api.md](docs/api.md).
 
 ## Stack
 

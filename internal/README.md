@@ -37,6 +37,8 @@ internal/
    `web/README.md`.
 4. Data: a numbered migration in `store/migrations/` plus a `store/<name>.go`
    with one `<name>Cols` constant and one scan function per table.
+5. Document the new routes, body shapes, and published topic in
+   [`docs/api.md`](../docs/api.md) — it's hand-maintained and drifts otherwise.
 
 The clock widget is the smallest complete example; calendar is the largest
 (external API seam, sync job, write-through).
