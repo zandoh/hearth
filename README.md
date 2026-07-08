@@ -80,6 +80,11 @@ make build   # builds web/ with bun, embeds it, produces bin/hearth
 
 Flags: `-addr :8080`, `-db hearth.db`.
 
+Set `TZ` to your local zone (e.g. `TZ=America/New_York ./hearth`, or a `TZ=`
+line in `.env`) — chores, medications, the nightly reload, and scheduled views
+use local time, and an unset `TZ` defaults to UTC. Docker users set it in
+`compose.yml`.
+
 ### Forgot the guest PIN?
 
 Resetting it is deliberately an admin task on the server (there is no
