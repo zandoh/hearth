@@ -23,6 +23,13 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
       - name: Frontend deps
         run: cd web && bun install --frozen-lockfile
 
@@ -47,6 +54,13 @@ jobs:
 
       - name: Go tests
         run: go test ./...
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          restore-keys: playwright-${{ runner.os }}-
 
       - name: Install Playwright Chromium
         run: cd web && bunx playwright install --with-deps chromium
