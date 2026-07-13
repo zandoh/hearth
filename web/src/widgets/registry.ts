@@ -9,6 +9,7 @@ import { GroceryWidget } from "./GroceryWidget";
 import { GuestbookWidget } from "./GuestbookWidget";
 import { MealPlanWidget } from "./MealPlanWidget";
 import { MedsWidget } from "./MedsWidget";
+import { SportsSettings, SportsWidget } from "./SportsWidget";
 import { WeatherSettings, WeatherWidget } from "./WeatherWidget";
 
 // Client half of the widget contract. Every backend widget slug maps to a
@@ -83,6 +84,12 @@ export const widgetRegistry: Record<string, WidgetDef> = {
     component: WeatherWidget,
     defaultSize: { w: 4, h: 5 },
     settings: WeatherSettings,
+  },
+  sports: {
+    title: "Sports",
+    component: SportsWidget,
+    defaultSize: { w: 4, h: 5 },
+    settings: SportsSettings,
   },
   guestbook: {
     title: "Guest book",
