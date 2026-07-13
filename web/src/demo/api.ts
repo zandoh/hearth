@@ -1,4 +1,5 @@
 import { publishDemo } from "./bus";
+import { demoGames, demoTeams } from "./sports";
 import { type DemoState, demoState, persist, ymd } from "./state";
 
 // Demo mode's backend: the API surface the frontend actually calls,
@@ -593,6 +594,18 @@ export async function demoFetch(path: string, init?: RequestInit): Promise<Respo
         return mealplan(s, method, sub, body, url);
       case "weather":
         return weather(s, method, sub, body, url);
+      case "sports": {
+        const league = url.searchParams.get("league") ?? "";
+        if (sub === "teams" && method === "GET") {
+          const teams = demoTeams(league);
+          return teams ? json(teams) : bad("unknown league");
+        }
+        if (sub === "games" && method === "GET") {
+          const games = demoGames(league, url.searchParams.get("team") ?? "");
+          return games ? json(games) : bad("unknown league or team");
+        }
+        return bad("not found", 404);
+      }
     }
   }
 
