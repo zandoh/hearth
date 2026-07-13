@@ -63,7 +63,7 @@ payloads, e.g. the clock's tick, but a client can treat any event on a topic as
 
 | Kind | Topics |
 |---|---|
-| Widget (each equals the widget's id) | `clock`, `calendar`, `chores`, `grocery`, `meds`, `weather`, `guestbook`, `mealplan` |
+| Widget (each equals the widget's id) | `clock`, `calendar`, `chores`, `grocery`, `meds`, `weather`, `guestbook`, `mealplan`, `sports` |
 | Platform | `views`, `profiles`, `night`, `guest` |
 
 The contract lives in `internal/topics` and is mirrored by
@@ -224,6 +224,25 @@ when an operation needs a Google connection that isn't present.
 | POST | `/api/widgets/meds` | `{name, person, profileId, times[]}` — each time is `AM`, `PM`, `daily`, `weekly`, or `HH:MM` | `201` — the created medication | `meds` |
 | DELETE | `/api/widgets/meds/{id}` | — | `204` | `meds` |
 | POST | `/api/widgets/meds/{id}/toggle` | `{slot}` — one of the medication's dose slots | `200` `{"taken": bool}` | `meds` |
+
+### sports
+
+Scores and schedule for one NFL/NHL/MLB/NBA team per widget instance, from
+ESPN's public JSON API (no API key). The team choice lives in each widget
+instance's layout `config`, so the backend polls only teams that clients
+actually request: a first `GET /games` for a team answers `{pending:true}`
+and fetches in the background, then a per-minute job keeps requested teams
+fresh — via the league scoreboard while a game is live or imminent, via the
+team schedule every 30 minutes otherwise. Teams nobody has requested for two
+hours stop being polled.
+
+| Method | Path | Body | Success | Publishes |
+|---|---|---|---|---|
+| GET | `/api/widgets/sports/teams` | — | `200` — array of `{id, name, abbrev, logo}`; requires `?league=` (`nfl`, `nhl`, `mlb`, `nba`) | — |
+| GET | `/api/widgets/sports/games` | — | `200` `{pending:true}` until the first fetch lands, then `{games: {league, team, fetchedAt, [previous], [live], upcoming}}`; requires `?league=&team=` | — |
+
+The refresh job publishes `changed` on `sports` whenever any tracked team's
+data updates; each widget instance re-fetches its own team.
 
 ### weather
 
