@@ -140,16 +140,35 @@ export function SportsSettings({ config, save }: WidgetSettingsProps) {
   const [league, setLeague] = useState(cfg.league);
   const [teamId, setTeamId] = useState(cfg.teamId);
   const [count, setCount] = useState(cfg.count);
-  const [teams, setTeams] = useState<Team[] | null>(null);
+  const [teamsByLeague, setTeamsByLeague] = useState<Record<string, Team[]>>({});
   const { mutate, error } = useMutate();
 
+  // Prefetch every league on open (the backend keeps the lists warm, so
+  // these are LAN-local) — by the time a league is picked, its teams are
+  // already here and the dropdown appears without a loading swap.
   useEffect(() => {
-    setTeams(null);
-    if (!league) return;
+    let stale = false;
+    for (const { value } of LEAGUES) {
+      getTeams(value)
+        .then((list) => {
+          if (!stale) setTeamsByLeague((m) => ({ ...m, [value]: list }));
+        })
+        .catch(console.error); // retried via the league-change path below
+    }
+    return () => {
+      stale = true;
+    };
+  }, []);
+
+  // Retry path: picking a league whose prefetch failed refetches it with a
+  // visible error state.
+  const teams = league ? (teamsByLeague[league] ?? null) : null;
+  useEffect(() => {
+    if (!league || teamsByLeague[league]) return;
     let stale = false;
     mutate(async () => {
       const list = await getTeams(league);
-      if (!stale) setTeams(list);
+      if (!stale) setTeamsByLeague((m) => ({ ...m, [league]: list }));
     });
     return () => {
       stale = true;

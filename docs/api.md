@@ -234,7 +234,8 @@ actually request: a first `GET /games` for a team answers `{pending:true}`
 and fetches in the background, then a per-minute job keeps requested teams
 fresh — via the league scoreboard while a game is live or imminent, via the
 team schedule every 30 minutes otherwise. Teams nobody has requested for two
-hours stop being polled.
+hours stop being polled. League team lists are fetched at startup and kept
+warm (refreshed daily) so the settings dialog never waits on ESPN.
 
 | Method | Path | Body | Success | Publishes |
 |---|---|---|---|---|

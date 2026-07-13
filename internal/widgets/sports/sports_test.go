@@ -377,6 +377,59 @@ func TestFetchFailureKeepsLastGoodData(t *testing.T) {
 	}
 }
 
+func TestRefreshWarmsTeamLists(t *testing.T) {
+	w, fake := newTestWidget(t)
+	for league := range map[string]bool{"nfl": true, "nhl": true, "mlb": true, "nba": true} {
+		fake.teamLists[league] = []team{{ID: "1", Name: league + " team"}}
+	}
+
+	if err := w.refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for league := range fake.teamLists {
+		if n := fake.callCount("teams:" + league); n != 1 {
+			t.Errorf("teams:%s calls = %d, want 1 (warmed at startup tick)", league, n)
+		}
+	}
+
+	// A second tick and a settings-dialog GET both serve from the warm cache.
+	if err := w.refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if rec := get(t, w, "/api/widgets/sports/teams?league=nfl"); rec.Code != http.StatusOK {
+		t.Fatalf("teams after warm: %d", rec.Code)
+	}
+	if n := fake.callCount("teams:nfl"); n != 1 {
+		t.Errorf("teams:nfl calls = %d, want 1 (tick and GET served from cache)", n)
+	}
+}
+
+func TestTeamsWarmFailureBacksOff(t *testing.T) {
+	w, fake := newTestWidget(t)
+	fake.err = errors.New("espn down")
+	current := time.Date(2026, 7, 12, 18, 0, 0, 0, time.UTC)
+	w.now = func() time.Time { return current }
+
+	if err := w.refresh(context.Background()); err == nil {
+		t.Fatal("warm failures should surface from refresh")
+	}
+	if n := fake.callCount("teams:nfl"); n != 1 {
+		t.Fatalf("teams:nfl attempts = %d, want 1", n)
+	}
+
+	// Within the retry window nothing re-attempts; past it, one retry each.
+	current = current.Add(time.Minute)
+	w.refresh(context.Background())
+	if n := fake.callCount("teams:nfl"); n != 1 {
+		t.Errorf("teams:nfl attempts = %d, want 1 inside the backoff window", n)
+	}
+	current = current.Add(teamsRetry)
+	w.refresh(context.Background())
+	if n := fake.callCount("teams:nfl"); n != 2 {
+		t.Errorf("teams:nfl attempts = %d, want 2 after the backoff window", n)
+	}
+}
+
 func TestTeamsCaching(t *testing.T) {
 	w, fake := newTestWidget(t)
 	fake.teamLists["nhl"] = []team{{ID: "9", Name: "Boston Bruins", Abbrev: "BOS"}}

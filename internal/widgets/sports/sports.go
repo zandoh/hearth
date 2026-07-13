@@ -34,6 +34,9 @@ const (
 	liveGrace   = 6 * time.Hour
 	evictAfter  = 2 * time.Hour
 	teamsTTL    = 24 * time.Hour
+	// teamsRetry spaces out re-attempts after a failed team-list fetch so a
+	// long ESPN outage doesn't add four upstream calls to every tick.
+	teamsRetry  = 15 * time.Minute
 	maxUpcoming = 5
 )
 
@@ -54,8 +57,9 @@ type entry struct {
 }
 
 type teamListCache struct {
-	teams     []team
-	fetchedAt time.Time
+	teams       []team
+	fetchedAt   time.Time
+	attemptedAt time.Time
 }
 
 // teamGames is the shape served to the frontend.
@@ -161,15 +165,15 @@ func (w *Widget) handleTeams(rw http.ResponseWriter, r *http.Request) {
 	}
 	now := w.now()
 	w.mu.Lock()
-	cached, ok := w.teamLists[league]
+	cached := w.teamLists[league]
 	w.mu.Unlock()
-	if ok && now.Sub(cached.fetchedAt) < teamsTTL {
+	if now.Sub(cached.fetchedAt) < teamsTTL {
 		httpx.JSON(rw, http.StatusOK, cached.teams)
 		return
 	}
 	teams, err := w.api.teams(r.Context(), league)
 	if err != nil {
-		if ok { // a stale list beats an error for a settings dropdown
+		if cached.teams != nil { // a stale list beats an error for a dropdown
 			httpx.JSON(rw, http.StatusOK, cached.teams)
 			return
 		}
@@ -177,9 +181,41 @@ func (w *Widget) handleTeams(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.mu.Lock()
-	w.teamLists[league] = teamListCache{teams: teams, fetchedAt: now}
+	w.teamLists[league] = teamListCache{teams: teams, fetchedAt: now, attemptedAt: now}
 	w.mu.Unlock()
 	httpx.JSON(rw, http.StatusOK, teams)
+}
+
+// warmTeamLists keeps every league's team list in memory — fetched at
+// startup, refreshed daily — so opening the settings dialog never waits on
+// an ESPN round-trip. Failed fetches back off for teamsRetry.
+func (w *Widget) warmTeamLists(ctx context.Context) []error {
+	now := w.now()
+	var stale []string
+	w.mu.Lock()
+	for league := range leaguePath {
+		c := w.teamLists[league]
+		if now.Sub(c.fetchedAt) < teamsTTL || now.Sub(c.attemptedAt) < teamsRetry {
+			continue
+		}
+		c.attemptedAt = now
+		w.teamLists[league] = c
+		stale = append(stale, league)
+	}
+	w.mu.Unlock()
+
+	var errs []error
+	for _, league := range stale {
+		teams, err := w.api.teams(ctx, league)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		w.mu.Lock()
+		w.teamLists[league] = teamListCache{teams: teams, fetchedAt: w.now(), attemptedAt: w.now()}
+		w.mu.Unlock()
+	}
+	return errs
 }
 
 // refresh is the per-minute tick. Most ticks do nothing: it evicts keys
@@ -188,6 +224,7 @@ func (w *Widget) handleTeams(rw http.ResponseWriter, r *http.Request) {
 // scoreboard (once per league, shared by its teams) for live scores.
 func (w *Widget) refresh(ctx context.Context) error {
 	now := w.now()
+	errs := w.warmTeamLists(ctx)
 
 	type work struct {
 		key          teamKey
@@ -217,7 +254,6 @@ func (w *Widget) refresh(ctx context.Context) error {
 	w.mu.Unlock()
 
 	boards := map[string][]liveEvent{} // league → scoreboard, one call per tick
-	var errs []error
 	changed := false
 	for _, item := range todo {
 		if item.needSchedule {
