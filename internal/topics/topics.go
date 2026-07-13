@@ -15,6 +15,7 @@ const (
 	Weather   = "weather"
 	Guestbook = "guestbook"
 	MealPlan  = "mealplan"
+	Sports    = "sports"
 )
 
 // Platform topics — concepts owned by the server, not any single widget.

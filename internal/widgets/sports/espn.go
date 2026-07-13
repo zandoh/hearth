@@ -31,7 +31,7 @@ var leaguePath = map[string]string{
 // production adapter; tests substitute a fake.
 type sportsAPI interface {
 	teams(ctx context.Context, league string) ([]team, error)
-	schedule(ctx context.Context, league, teamID string) ([]game, error)
+	schedule(ctx context.Context, league, teamID string) (team, []game, error)
 	scoreboard(ctx context.Context, league string) ([]liveEvent, error)
 }
 
@@ -40,6 +40,7 @@ type team struct {
 	Name   string `json:"name"`
 	Abbrev string `json:"abbrev"`
 	Logo   string `json:"logo,omitempty"`
+	Record string `json:"record,omitempty"` // "52-39", schedule endpoint only
 }
 
 type gameStatus string
@@ -146,13 +147,17 @@ type espnTeam struct {
 	ID           string `json:"id"`
 	DisplayName  string `json:"displayName"`
 	Abbreviation string `json:"abbreviation"`
-	Logos        []struct {
+	// The teams and schedule-competitor shapes carry a logos array; the
+	// schedule's top-level team carries a singular logo URL instead.
+	Logos []struct {
 		Href string `json:"href"`
 	} `json:"logos"`
+	Logo          string `json:"logo"`
+	RecordSummary string `json:"recordSummary"`
 }
 
 func (t espnTeam) normalize() team {
-	out := team{ID: t.ID, Name: t.DisplayName, Abbrev: t.Abbreviation}
+	out := team{ID: t.ID, Name: t.DisplayName, Abbrev: t.Abbreviation, Logo: t.Logo, Record: t.RecordSummary}
 	if len(t.Logos) > 0 {
 		out.Logo = t.Logos[0].Href
 	}
@@ -207,15 +212,16 @@ func (c *espnClient) decodeTeams(ctx context.Context, url string) ([]team, error
 	return out, nil
 }
 
-// schedule returns the team's season schedule (past and future events),
-// normalized to the tracked team's perspective.
-func (c *espnClient) schedule(ctx context.Context, league, teamID string) ([]game, error) {
+// schedule returns the team (with its record) and the team's season
+// schedule (past and future events), normalized to that team's perspective.
+func (c *espnClient) schedule(ctx context.Context, league, teamID string) (team, []game, error) {
 	url := fmt.Sprintf("%s/%s/teams/%s/schedule", espnBase, leaguePath[league], teamID)
 	return c.decodeSchedule(ctx, url, teamID)
 }
 
-func (c *espnClient) decodeSchedule(ctx context.Context, url, teamID string) ([]game, error) {
+func (c *espnClient) decodeSchedule(ctx context.Context, url, teamID string) (team, []game, error) {
 	var payload struct {
+		Team   espnTeam `json:"team"`
 		Events []struct {
 			ID           string `json:"id"`
 			Date         string `json:"date"`
@@ -236,7 +242,7 @@ func (c *espnClient) decodeSchedule(ctx context.Context, url, teamID string) ([]
 		} `json:"events"`
 	}
 	if err := c.getJSON(ctx, url, &payload); err != nil {
-		return nil, err
+		return team{}, nil, err
 	}
 
 	out := make([]game, 0, len(payload.Events))
@@ -274,7 +280,7 @@ func (c *espnClient) decodeSchedule(ctx context.Context, url, teamID string) ([]
 		}
 		out = append(out, g)
 	}
-	return out, nil
+	return payload.Team.normalize(), out, nil
 }
 
 // scoreboard returns today's league-wide events; fresher than the schedule

@@ -11,6 +11,7 @@ export const TOPICS = {
   weather: "weather",
   guestbook: "guestbook",
   mealplan: "mealplan",
+  sports: "sports",
   views: "views",
   profiles: "profiles",
   night: "night",

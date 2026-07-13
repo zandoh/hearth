@@ -28,6 +28,7 @@ import (
 	"github.com/zandoh/hearth/internal/widgets/guestbook"
 	"github.com/zandoh/hearth/internal/widgets/mealplan"
 	"github.com/zandoh/hearth/internal/widgets/meds"
+	"github.com/zandoh/hearth/internal/widgets/sports"
 	"github.com/zandoh/hearth/internal/widgets/weather"
 	"github.com/zandoh/hearth/web"
 )
@@ -103,6 +104,7 @@ func run(addr, dbPath string) error {
 	reg.Register(weather.New(st, hub))
 	reg.Register(guestbook.New(st, hub))
 	reg.Register(mealplan.New(st, hub))
+	reg.Register(sports.New(hub))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

@@ -24,6 +24,8 @@ const teamsFixture = `{
 // One final game (object scores) and one future game (null scores), as the
 // schedule endpoint sends them. Team 2 (BOS) is the tracked team.
 const scheduleFixture = `{
+  "team": {"id": "2", "displayName": "Boston Red Sox", "abbreviation": "BOS",
+    "logo": "https://a.espncdn.com/i/teamlogos/mlb/500/bos.png", "recordSummary": "52-39"},
   "events": [
     {"id": "401814689", "date": "2026-03-26T20:10Z", "competitions": [{
       "date": "2026-03-26T20:10Z",
@@ -96,12 +98,24 @@ func TestDecodeTeams(t *testing.T) {
 	}
 }
 
+type scheduleResult struct {
+	team  team
+	games []game
+}
+
 func TestDecodeScheduleNormalizesPerspective(t *testing.T) {
-	games := serveFixture(t, scheduleFixture, func(c *espnClient, url string) ([]game, error) {
-		return c.decodeSchedule(context.Background(), url, "2")
+	res := serveFixture(t, scheduleFixture, func(c *espnClient, url string) (scheduleResult, error) {
+		tm, games, err := c.decodeSchedule(context.Background(), url, "2")
+		return scheduleResult{team: tm, games: games}, err
 	})
+	games := res.games
 	if len(games) != 2 {
 		t.Fatalf("games = %d, want 2", len(games))
+	}
+
+	if res.team.Name != "Boston Red Sox" || res.team.Record != "52-39" ||
+		res.team.Logo != "https://a.espncdn.com/i/teamlogos/mlb/500/bos.png" {
+		t.Errorf("schedule team = %+v (singular logo + recordSummary shape)", res.team)
 	}
 
 	final := games[0]
@@ -135,11 +149,12 @@ func TestDecodeScheduleNormalizesPerspective(t *testing.T) {
 }
 
 func TestDecodeScheduleSkipsEventsWithoutTrackedTeam(t *testing.T) {
-	games := serveFixture(t, scheduleFixture, func(c *espnClient, url string) ([]game, error) {
-		return c.decodeSchedule(context.Background(), url, "999")
+	res := serveFixture(t, scheduleFixture, func(c *espnClient, url string) (scheduleResult, error) {
+		tm, games, err := c.decodeSchedule(context.Background(), url, "999")
+		return scheduleResult{team: tm, games: games}, err
 	})
-	if len(games) != 0 {
-		t.Errorf("games = %d, want 0 when the tracked team is in no event", len(games))
+	if len(res.games) != 0 {
+		t.Errorf("games = %d, want 0 when the tracked team is in no event", len(res.games))
 	}
 }
 
