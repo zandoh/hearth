@@ -10,6 +10,14 @@ export const LEAGUES = [
   { value: "nba", label: "NBA" },
 ];
 
+// Sport-at-a-glance icons, emoji like the weather widget's conditions.
+export const LEAGUE_ICONS: Record<string, string> = {
+  nfl: "🏈",
+  nhl: "🏒",
+  mlb: "⚾",
+  nba: "🏀",
+};
+
 export const DEFAULT_COUNT = 3;
 export const MAX_COUNT = 5; // the backend caches this many upcoming games
 
@@ -19,6 +27,7 @@ export interface SportsConfig {
   // Denormalized at save time so the card header renders before data lands.
   teamName: string;
   abbrev: string;
+  logo: string;
   count: number;
 }
 
@@ -31,6 +40,7 @@ export function parseSportsConfig(config: Record<string, unknown>): SportsConfig
     teamId: str(config.teamId),
     teamName: str(config.teamName),
     abbrev: str(config.abbrev),
+    logo: str(config.logo),
     count: Math.min(MAX_COUNT, Math.max(1, count)),
   };
 }

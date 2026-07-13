@@ -5,10 +5,14 @@ import { getLayout, makeStepper, newPage, seedView } from "../helpers.mjs";
 // settings flow persisting per-instance config. ESPN is never contacted:
 // the browser↔backend calls are stubbed with page.route.
 
+// A 1×1 png so the logo renders without touching ESPN's CDN.
+const logoDataURI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
 const gamesStub = {
   games: {
     league: "nfl",
-    team: { id: "2", name: "Buffalo Bills", abbrev: "BUF", record: "8-2" },
+    team: { id: "2", name: "Buffalo Bills", abbrev: "BUF", record: "8-2", logo: logoDataURI },
     fetchedAt: "2026-07-12T12:00:00Z",
     previous: {
       id: "prev",
@@ -105,6 +109,11 @@ export default async function sports({ browser, base }) {
     "card shows team and record",
     (await cardPage.locator("text=Buffalo Bills").count()) === 1 &&
       (await cardPage.locator("text=8-2").count()) === 1,
+  );
+  step(
+    "logo and league icon render",
+    (await cardPage.locator(".sports-logo").count()) === 1 &&
+      (await cardPage.locator(".sports-league-icon").count()) === 1,
   );
   step(
     "live block shows badge, score, and clock",

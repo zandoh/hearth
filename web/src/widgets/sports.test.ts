@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_COUNT, opponentLabel, parseSportsConfig, resultLabel } from "./sports";
+import {
+  DEFAULT_COUNT,
+  LEAGUE_ICONS,
+  LEAGUES,
+  opponentLabel,
+  parseSportsConfig,
+  resultLabel,
+} from "./sports";
 
 describe("parseSportsConfig", () => {
   test("empty config yields unconfigured defaults", () => {
@@ -15,6 +22,7 @@ describe("parseSportsConfig", () => {
       teamId: "2",
       teamName: "Buffalo Bills",
       abbrev: "BUF",
+      logo: "https://a.espncdn.com/i/teamlogos/nfl/500/buf.png",
       count: 5,
     });
     expect(cfg).toEqual({
@@ -22,6 +30,7 @@ describe("parseSportsConfig", () => {
       teamId: "2",
       teamName: "Buffalo Bills",
       abbrev: "BUF",
+      logo: "https://a.espncdn.com/i/teamlogos/nfl/500/buf.png",
       count: 5,
     });
   });
@@ -35,10 +44,19 @@ describe("parseSportsConfig", () => {
   });
 
   test("tolerates junk types", () => {
-    const cfg = parseSportsConfig({ league: 7, teamId: null, teamName: ["x"] });
+    const cfg = parseSportsConfig({ league: 7, teamId: null, teamName: ["x"], logo: 1 });
     expect(cfg.league).toBe("");
     expect(cfg.teamId).toBe("");
     expect(cfg.teamName).toBe("");
+    expect(cfg.logo).toBe("");
+  });
+});
+
+describe("LEAGUE_ICONS", () => {
+  test("every selectable league has an icon", () => {
+    for (const { value } of LEAGUES) {
+      expect(LEAGUE_ICONS[value]).toBeTruthy();
+    }
   });
 });
 

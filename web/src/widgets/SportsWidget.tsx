@@ -10,7 +10,14 @@ import { TOPICS } from "../topics";
 import { useMutate } from "../useMutate";
 import { useTopicData } from "../useWidgetData";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
-import { LEAGUES, MAX_COUNT, opponentLabel, parseSportsConfig, resultLabel } from "./sports";
+import {
+  LEAGUE_ICONS,
+  LEAGUES,
+  MAX_COUNT,
+  opponentLabel,
+  parseSportsConfig,
+  resultLabel,
+} from "./sports";
 import { type Game, type GamesResponse, type Team, getGames, getTeams } from "./sportsApi";
 
 // One team's pulse: the last result, the live score while a game is on, and
@@ -28,6 +35,16 @@ function SectionLabel({ children }: { children: string }) {
     <Text type="supporting" size="xsm">
       {children}
     </Text>
+  );
+}
+
+// Team logo off ESPN's CDN; hides itself if the kiosk is offline or the
+// URL rots, leaving the name to carry recognition.
+function TeamLogo({ src, name }: { src: string; name: string }) {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) return null;
+  return (
+    <img className="sports-logo" src={src} alt={`${name} logo`} onError={() => setBroken(true)} />
   );
 }
 
@@ -71,6 +88,7 @@ export function SportsWidget({ item }: WidgetProps) {
   return (
     <VStack className="widget-body" gap={3}>
       <HStack gap={2} align="center">
+        <TeamLogo src={games.team.logo || cfg.logo} name={team.name || cfg.teamName} />
         <Text weight="semibold" maxLines={1} className="min-w-0">
           {team.name || cfg.teamName}
         </Text>
@@ -79,6 +97,9 @@ export function SportsWidget({ item }: WidgetProps) {
             {games.team.record}
           </Text>
         )}
+        <span className="sports-league-icon ml-auto" aria-label={cfg.league.toUpperCase()}>
+          {LEAGUE_ICONS[cfg.league]}
+        </span>
       </HStack>
 
       {games.live && (
@@ -185,6 +206,7 @@ export function SportsSettings({ config, save }: WidgetSettingsProps) {
       teamId,
       teamName: team?.name ?? cfg.teamName,
       abbrev: team?.abbrev ?? cfg.abbrev,
+      logo: team?.logo ?? cfg.logo,
       count,
     });
   };
