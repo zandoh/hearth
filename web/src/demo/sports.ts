@@ -18,6 +18,7 @@ const ROSTERS: Record<string, Row[]> = {
     ["kc", "KC", "Kansas City Chiefs"],
     ["ne", "NE", "New England Patriots"],
     ["phi", "PHI", "Philadelphia Eagles"],
+    ["pit", "PIT", "Pittsburgh Steelers"],
     ["sf", "SF", "San Francisco 49ers"],
   ],
   nhl: [
@@ -28,6 +29,7 @@ const ROSTERS: Record<string, Row[]> = {
     ["edm", "EDM", "Edmonton Oilers"],
     ["fla", "FLA", "Florida Panthers"],
     ["nyr", "NYR", "New York Rangers"],
+    ["pit", "PIT", "Pittsburgh Penguins"],
     ["tor", "TOR", "Toronto Maple Leafs"],
   ],
   mlb: [
@@ -38,6 +40,7 @@ const ROSTERS: Record<string, Row[]> = {
     ["lad", "LAD", "Los Angeles Dodgers"],
     ["nyy", "NYY", "New York Yankees"],
     ["phi", "PHI", "Philadelphia Phillies"],
+    ["pit", "PIT", "Pittsburgh Pirates"],
     ["sea", "SEA", "Seattle Mariners"],
   ],
   nba: [
