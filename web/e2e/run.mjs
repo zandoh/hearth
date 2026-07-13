@@ -14,6 +14,7 @@ import guestSpec from "./specs/guest.mjs";
 import guestbookSpec from "./specs/guestbook.mjs";
 import nightSpec from "./specs/night.mjs";
 import onboardingSpec from "./specs/onboarding.mjs";
+import sportsSpec from "./specs/sports.mjs";
 import viewsSpec from "./specs/views.mjs";
 import widgetsSpec from "./specs/widgets.mjs";
 
@@ -43,6 +44,7 @@ const specs = [
   ["views", viewsSpec],
   ["calendar", calendarSpec],
   ["widgets", widgetsSpec],
+  ["sports", sportsSpec],
   ["guestbook", guestbookSpec],
   ["night", nightSpec],
   ["guest", guestSpec],
