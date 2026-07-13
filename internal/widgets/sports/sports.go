@@ -31,9 +31,9 @@ const (
 	// liveGrace bounds the "expected live" window: a game whose start has
 	// passed but never went final (postponed, suspended, or missing from
 	// the scoreboard) stops forcing per-minute polls after this long.
-	liveGrace   = 6 * time.Hour
-	evictAfter  = 2 * time.Hour
-	teamsTTL    = 24 * time.Hour
+	liveGrace  = 6 * time.Hour
+	evictAfter = 2 * time.Hour
+	teamsTTL   = 24 * time.Hour
 	// teamsRetry spaces out re-attempts after a failed team-list fetch so a
 	// long ESPN outage doesn't add four upstream calls to every tick.
 	teamsRetry  = 15 * time.Minute
