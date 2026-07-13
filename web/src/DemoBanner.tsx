@@ -11,7 +11,7 @@ export function DemoBanner() {
     <div className="demo-banner">
       <Text size="xsm">
         Demo — everything you change lives in this browser and resets every 24 hours.{" "}
-        <a href="https://github.com/zandoh/hearth" target="_blank" rel="noreferrer">
+        <a href="https://github.com/zandoh/hearth#self-hosting" target="_blank" rel="noreferrer">
           Self-host the real thing
         </a>
       </Text>

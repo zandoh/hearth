@@ -40,7 +40,7 @@ API. Every route, body shape, and SSE topic is documented in
   system, `react-grid-layout` for the drag-to-arrange grid. Tooling runs on
   **bun**, linted with **oxlint**, formatted with **oxfmt**.
 
-## Quick start
+## Self-hosting
 
 **Docker (recommended for a home server):**
 
