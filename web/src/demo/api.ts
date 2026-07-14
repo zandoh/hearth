@@ -394,18 +394,29 @@ async function weatherForecast(s: DemoState): Promise<Response> {
         `https://air-quality-api.open-meteo.com/v1/air-quality?${q({
           latitude: loc.latitude.toFixed(4),
           longitude: loc.longitude.toFixed(4),
-          current: "us_aqi",
+          current:
+            "us_aqi,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen",
         })}`,
       )
         .then((r) => r.json())
         .catch(() => null),
     ]);
+    // Mirror the backend's species → category grouping (worst species wins);
+    // outside pollen coverage everything is null and the block collapses.
+    const worst = (...vs: (number | null | undefined)[]) =>
+      vs.reduce<number | null>((m, v) => (v != null && (m == null || v > m) ? v : m), null);
+    const pollen = {
+      tree: worst(aq?.current?.alder_pollen, aq?.current?.birch_pollen, aq?.current?.olive_pollen),
+      grass: worst(aq?.current?.grass_pollen),
+      weed: worst(aq?.current?.mugwort_pollen, aq?.current?.ragweed_pollen),
+    };
     const body = {
       configured: true,
       forecast: {
         location: { name: loc.name },
         units,
         usAqi: aq?.current?.us_aqi ?? null,
+        pollen: pollen.tree == null && pollen.grass == null && pollen.weed == null ? null : pollen,
         current: fc.current,
         hourly: fc.hourly,
         daily: fc.daily,

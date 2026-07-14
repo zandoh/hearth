@@ -8,6 +8,7 @@ import { Selector } from "@astryxdesign/core/Selector";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useMutate } from "../useMutate";
 import { useWidgetData } from "../useWidgetData";
+import { pollenSummary } from "./pollen";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
 import {
   type Candidate,
@@ -145,6 +146,11 @@ export function WeatherWidget(_props: WidgetProps) {
             {Math.round(f.current.relative_humidity_2m)}% humidity
           </Text>
           {f.usAqi != null && <HStack>{aqiBadge(Math.round(f.usAqi))}</HStack>}
+          {pollenSummary(f.pollen) && (
+            <Text type="supporting" size="xsm" maxLines={1}>
+              pollen: {pollenSummary(f.pollen)}
+            </Text>
+          )}
         </VStack>
       </HStack>
 

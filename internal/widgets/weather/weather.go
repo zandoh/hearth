@@ -34,8 +34,23 @@ var locationSetting = store.Setting[location]{Key: "weather_location"}
 // adapter; tests substitute a fake.
 type meteoAPI interface {
 	forecast(ctx context.Context, loc location, units string) (forecastData, error)
-	airQuality(ctx context.Context, loc location) (*float64, error)
+	airQuality(ctx context.Context, loc location) (airData, error)
 	geocode(ctx context.Context, query string) ([]geoResult, error)
+}
+
+// airData is the air-quality service's contribution to the forecast: the
+// AQI plus pollen counts where Open-Meteo has them.
+type airData struct {
+	USAQI  *float64
+	Pollen *pollenCounts
+}
+
+// pollenCounts are current counts in grains/m³ by allergy category; a nil
+// field means no data for that category at this location.
+type pollenCounts struct {
+	Tree  *float64 `json:"tree"`
+	Grass *float64 `json:"grass"`
+	Weed  *float64 `json:"weed"`
 }
 
 type location struct {
@@ -52,7 +67,8 @@ type forecast struct {
 	Current   json.RawMessage `json:"current"`
 	Hourly    json.RawMessage `json:"hourly"`
 	Daily     json.RawMessage `json:"daily"`
-	USAQI     *float64        `json:"usAqi"` // nil if the AQI fetch failed
+	USAQI     *float64        `json:"usAqi"`  // nil if the AQI fetch failed
+	Pollen    *pollenCounts   `json:"pollen"` // nil if unavailable here or the fetch failed
 }
 
 type Widget struct {
@@ -113,12 +129,13 @@ func (w *Widget) refresh(ctx context.Context) error {
 		Daily:     fc.Daily,
 	}
 
-	// AQI comes from a separate Open-Meteo service; treat it as optional so
-	// an air-quality outage doesn't take down the whole widget.
-	if aqi, err := w.meteo.airQuality(ctx, loc); err != nil {
+	// AQI and pollen come from a separate Open-Meteo service; treat them as
+	// optional so an air-quality outage doesn't take down the whole widget.
+	if air, err := w.meteo.airQuality(ctx, loc); err != nil {
 		slog.Warn("weather: air quality fetch failed", "err", err)
 	} else {
-		next.USAQI = aqi
+		next.USAQI = air.USAQI
+		next.Pollen = air.Pollen
 	}
 
 	w.mu.Lock()

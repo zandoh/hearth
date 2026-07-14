@@ -21,7 +21,7 @@ import (
 type fakeMeteo struct {
 	fc      forecastData
 	fcErr   error
-	aqi     *float64
+	air     airData
 	aqiErr  error
 	results []geoResult
 }
@@ -29,8 +29,8 @@ type fakeMeteo struct {
 func (f *fakeMeteo) forecast(ctx context.Context, loc location, units string) (forecastData, error) {
 	return f.fc, f.fcErr
 }
-func (f *fakeMeteo) airQuality(ctx context.Context, loc location) (*float64, error) {
-	return f.aqi, f.aqiErr
+func (f *fakeMeteo) airQuality(ctx context.Context, loc location) (airData, error) {
+	return f.air, f.aqiErr
 }
 func (f *fakeMeteo) geocode(ctx context.Context, query string) ([]geoResult, error) {
 	return f.results, nil
@@ -44,10 +44,10 @@ func newTestWidget(t *testing.T) (*Widget, *fakeMeteo, *store.Store) {
 	}
 	t.Cleanup(func() { st.Close() })
 	w := New(st, sse.NewHub())
-	aqi := 42.0
+	aqi, grass := 42.0, 12.0
 	fake := &fakeMeteo{
 		fc:  forecastData{Current: json.RawMessage(`{"temperature_2m":71}`)},
-		aqi: &aqi,
+		air: airData{USAQI: &aqi, Pollen: &pollenCounts{Grass: &grass}},
 	}
 	w.meteo = fake
 	return w, fake, st
@@ -125,6 +125,9 @@ func TestRefreshPopulatesCacheAndPublishes(t *testing.T) {
 	if cached.USAQI == nil || *cached.USAQI != 42.0 {
 		t.Errorf("USAQI = %v, want 42", cached.USAQI)
 	}
+	if cached.Pollen == nil || cached.Pollen.Grass == nil || *cached.Pollen.Grass != 12.0 {
+		t.Errorf("Pollen = %+v, want grass 12", cached.Pollen)
+	}
 
 	rec := get(t, w, "/api/widgets/weather/forecast")
 	var res struct {
@@ -160,8 +163,8 @@ func TestRefreshServesForecastWhenAQIFails(t *testing.T) {
 	w.mu.RLock()
 	cached := w.cached
 	w.mu.RUnlock()
-	if cached == nil || cached.USAQI != nil {
-		t.Fatalf("cached = %+v, want forecast with nil USAQI", cached)
+	if cached == nil || cached.USAQI != nil || cached.Pollen != nil {
+		t.Fatalf("cached = %+v, want forecast with nil USAQI and pollen", cached)
 	}
 	if rec := get(t, w, "/api/widgets/weather/forecast"); rec.Code != http.StatusOK {
 		t.Errorf("forecast after AQI failure: %d", rec.Code)

@@ -3,10 +3,19 @@
 
 import { apiFetch } from "../api";
 
+// Current counts in grains/m³; null per category (or as a whole) where
+// Open-Meteo has no pollen data.
+export interface PollenCounts {
+  tree: number | null;
+  grass: number | null;
+  weed: number | null;
+}
+
 export interface Forecast {
   location: { name: string };
   units: "imperial" | "metric";
   usAqi: number | null;
+  pollen: PollenCounts | null;
   current: {
     temperature_2m: number;
     apparent_temperature: number;

@@ -247,8 +247,12 @@ data updates; each widget instance re-fetches its own team.
 
 ### weather
 
-Current conditions and forecast from Open-Meteo (no API key). Served from an
-in-memory cache refreshed by a background job.
+Current conditions, forecast, air quality, and pollen from Open-Meteo (no
+API key). Served from an in-memory cache refreshed by a background job.
+Inside `forecast`, `usAqi` is the current US AQI (null if the air-quality
+fetch failed) and `pollen` is `{tree, grass, weed}` current counts in
+grains/m³ — null per category, or as a whole, where Open-Meteo has no pollen
+data (coverage is regional; Europe today).
 
 | Method | Path | Body | Success | Publishes |
 |---|---|---|---|---|

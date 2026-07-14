@@ -90,20 +90,56 @@ func (c *openMeteoClient) forecast(ctx context.Context, loc location, units stri
 	return forecastData{Current: fc.Current, Hourly: fc.Hourly, Daily: fc.Daily}, err
 }
 
-func (c *openMeteoClient) airQuality(ctx context.Context, loc location) (*float64, error) {
+func (c *openMeteoClient) airQuality(ctx context.Context, loc location) (airData, error) {
 	var aq struct {
 		Current struct {
-			USAQI *float64 `json:"us_aqi"`
+			USAQI   *float64 `json:"us_aqi"`
+			Alder   *float64 `json:"alder_pollen"`
+			Birch   *float64 `json:"birch_pollen"`
+			Grass   *float64 `json:"grass_pollen"`
+			Mugwort *float64 `json:"mugwort_pollen"`
+			Olive   *float64 `json:"olive_pollen"`
+			Ragweed *float64 `json:"ragweed_pollen"`
 		} `json:"current"`
 	}
 	if err := c.getJSON(ctx, airQualityAPI, url.Values{
 		"latitude":  {coord(loc.Latitude)},
 		"longitude": {coord(loc.Longitude)},
-		"current":   {"us_aqi"},
+		"current":   {"us_aqi,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen"},
 	}, &aq); err != nil {
-		return nil, err
+		return airData{}, err
 	}
-	return aq.Current.USAQI, nil
+	cur := aq.Current
+	return airData{
+		USAQI: cur.USAQI,
+		Pollen: groupPollen(
+			[]*float64{cur.Alder, cur.Birch, cur.Olive},
+			[]*float64{cur.Grass},
+			[]*float64{cur.Mugwort, cur.Ragweed},
+		),
+	}, nil
+}
+
+// groupPollen folds Open-Meteo's per-species counts (grains/m³) into the
+// tree/grass/weed categories allergy scales use, taking each category's
+// worst species. Pollen coverage is regional (Europe today); everywhere
+// else every species is null and the whole block collapses to nil.
+func groupPollen(tree, grass, weed []*float64) *pollenCounts {
+	p := pollenCounts{Tree: maxPtr(tree), Grass: maxPtr(grass), Weed: maxPtr(weed)}
+	if p.Tree == nil && p.Grass == nil && p.Weed == nil {
+		return nil
+	}
+	return &p
+}
+
+func maxPtr(vs []*float64) *float64 {
+	var m *float64
+	for _, v := range vs {
+		if v != nil && (m == nil || *v > *m) {
+			m = v
+		}
+	}
+	return m
 }
 
 func (c *openMeteoClient) geocode(ctx context.Context, query string) ([]geoResult, error) {
