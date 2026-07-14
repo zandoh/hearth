@@ -18,6 +18,7 @@ import onboardingSpec from "./specs/onboarding.mjs";
 import sportsSpec from "./specs/sports.mjs";
 import viewsSpec from "./specs/views.mjs";
 import widgetsSpec from "./specs/widgets.mjs";
+import wifiSpec from "./specs/wifi.mjs";
 import wordSpec from "./specs/word.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,7 @@ const specs = [
   ["sports", sportsSpec],
   ["news", newsSpec],
   ["word", wordSpec],
+  ["wifi", wifiSpec],
   ["guestbook", guestbookSpec],
   ["night", nightSpec],
   ["guest", guestSpec],

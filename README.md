@@ -16,8 +16,8 @@
 A self-hosted home hub for an always-on touchscreen: a widget grid the whole
 household shares — calendar (with Google sync), chores, groceries, weather,
 medications, meal plan, sports scores, news headlines, word of the day,
-guest book, and countdowns — with drag-to-arrange layouts saved as named
-views.
+guest Wi-Fi QR, guest book, and countdowns — with drag-to-arrange layouts
+saved as named views.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
@@ -211,13 +211,14 @@ straight to Google.
 
 ## Features
 
-- **Thirteen widgets**: clock, calendar (Google sync, month/week/work-week/day
+- **Fourteen widgets**: clock, calendar (Google sync, month/week/work-week/day
   time-grid views), agenda, chores (recurring + one-offs, assignees),
   groceries, medications (AM/PM/daily/weekly dose tracking), weather
   (Open-Meteo forecast, air quality, and pollen — no API key), sports
   (live scores and schedule for your NFL/NHL/MLB/NBA teams), news
-  headlines (Google News topics), word of the day (offline pack), weekly
-  meal plan, guest book (drag-anywhere sticky notes), and countdowns.
+  headlines (Google News topics), word of the day (offline pack), guest
+  Wi-Fi (a QR phones scan to join), weekly meal plan, guest book
+  (drag-anywhere sticky notes), and countdowns.
 - **Views**: drag-to-arrange layouts saved as named views — reorderable,
   hideable, schedulable (a Morning view from 6 to 9, back to the default
   after), with starter templates on first boot.

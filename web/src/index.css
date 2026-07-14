@@ -519,6 +519,20 @@ dialog[open]:has(.osk-settled) {
   flex-shrink: 0;
 }
 
+/* --- wifi --- */
+
+/* The QR must stay square and crisp; it shrinks with the card but never
+   below scannable-across-the-counter size. White fill lives in the SVG
+   itself so night dimming and dark themes can't cost it contrast. */
+.wifi-qr {
+  width: clamp(96px, 60%, 220px);
+  aspect-ratio: 1;
+  flex-shrink: 1;
+  min-height: 0;
+  shape-rendering: crispEdges;
+  border-radius: var(--radius-inner);
+}
+
 /* Resize handles exist only in edit mode — RGL renders them even when
    resizing is disabled, and invisible strips would swallow edge clicks. */
 .grid-container:not(.editing) .react-resizable-handle {
