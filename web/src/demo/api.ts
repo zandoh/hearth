@@ -1,4 +1,5 @@
 import { publishDemo } from "./bus";
+import { demoHeadlines } from "./news";
 import { demoGames, demoTeams } from "./sports";
 import { type DemoState, demoState, persist, ymd } from "./state";
 
@@ -614,6 +615,13 @@ export async function demoFetch(path: string, init?: RequestInit): Promise<Respo
         if (sub === "games" && method === "GET") {
           const games = demoGames(league, url.searchParams.get("team") ?? "");
           return games ? json(games) : bad("unknown league or team");
+        }
+        return bad("not found", 404);
+      }
+      case "news": {
+        if (sub === "headlines" && method === "GET") {
+          const headlines = demoHeadlines(url.searchParams.get("topic") ?? "");
+          return headlines ? json(headlines) : bad("unknown topic");
         }
         return bad("not found", 404);
       }

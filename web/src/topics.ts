@@ -12,6 +12,7 @@ export const TOPICS = {
   guestbook: "guestbook",
   mealplan: "mealplan",
   sports: "sports",
+  news: "news",
   views: "views",
   profiles: "profiles",
   night: "night",

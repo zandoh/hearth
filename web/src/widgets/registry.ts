@@ -9,6 +9,7 @@ import { GroceryWidget } from "./GroceryWidget";
 import { GuestbookWidget } from "./GuestbookWidget";
 import { MealPlanWidget } from "./MealPlanWidget";
 import { MedsWidget } from "./MedsWidget";
+import { NewsSettings, NewsWidget } from "./NewsWidget";
 import { SportsSettings, SportsWidget } from "./SportsWidget";
 import { WeatherSettings, WeatherWidget } from "./WeatherWidget";
 
@@ -90,6 +91,12 @@ export const widgetRegistry: Record<string, WidgetDef> = {
     component: SportsWidget,
     defaultSize: { w: 4, h: 5 },
     settings: SportsSettings,
+  },
+  news: {
+    title: "News",
+    component: NewsWidget,
+    defaultSize: { w: 4, h: 5 },
+    settings: NewsSettings,
   },
   guestbook: {
     title: "Guest book",

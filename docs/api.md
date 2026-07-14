@@ -63,7 +63,7 @@ payloads, e.g. the clock's tick, but a client can treat any event on a topic as
 
 | Kind | Topics |
 |---|---|
-| Widget (each equals the widget's id) | `clock`, `calendar`, `chores`, `grocery`, `meds`, `weather`, `guestbook`, `mealplan`, `sports` |
+| Widget (each equals the widget's id) | `clock`, `calendar`, `chores`, `grocery`, `meds`, `weather`, `guestbook`, `mealplan`, `sports`, `news` |
 | Platform | `views`, `profiles`, `night`, `guest` |
 
 The contract lives in `internal/topics` and is mirrored by
@@ -224,6 +224,19 @@ when an operation needs a Google connection that isn't present.
 | POST | `/api/widgets/meds` | `{name, person, profileId, times[]}` — each time is `AM`, `PM`, `daily`, `weekly`, or `HH:MM` | `201` — the created medication | `meds` |
 | DELETE | `/api/widgets/meds/{id}` | — | `204` | `meds` |
 | POST | `/api/widgets/meds/{id}/toggle` | `{slot}` — one of the medication's dose slots | `200` `{"taken": bool}` | `meds` |
+
+### news
+
+Headlines for one Google News topic per widget instance, from the keyless
+RSS feeds. Like sports, the topic lives in each widget instance's layout
+config: a topic's first request registers it and answers `{pending:true}`,
+the background fetch completes and publishes `changed` on `news`, and the
+refresh job keeps requested topics fresh (topics idle for two hours stop
+being polled).
+
+| Method | Path | Body | Success | Publishes |
+|---|---|---|---|---|
+| GET | `/api/widgets/news/headlines` | — | `200` `{pending:true}` until the first fetch lands, then `{headlines: {topic, fetchedAt, items: [{title, source, publishedAt}]}}`; requires `?topic=` (`top`, `world`, `nation`, `business`, `technology`, `entertainment`, `science`, `sports`, `health`) | — |
 
 ### sports
 
