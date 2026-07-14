@@ -40,6 +40,48 @@ function views(s: DemoState, method: string, path: string, body: Record<string, 
     [...s.views]
       .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
       .map(({ sortOrder, ...v }) => v);
+  // Layout transfer, sandbox edition — mirrors internal/server/transfer.go
+  // so a demo-built layout can move to a real server and back.
+  if (path === "export" && method === "GET") {
+    return json({
+      hearthViews: 1,
+      exportedAt: new Date().toISOString(),
+      views: ordered().map((v) => ({
+        name: v.name,
+        layout: v.layout,
+        hidden: v.hidden || undefined,
+        scheduleStart: v.scheduleStart,
+        scheduleEnd: v.scheduleEnd,
+      })),
+    });
+  }
+  if (path === "import" && method === "POST") {
+    if (body.hearthViews !== 1) return bad("unsupported export version");
+    const incoming = (body.views as Record<string, unknown>[]) ?? [];
+    if (incoming.length === 0) return bad("the document contains no views");
+    const taken = new Set(s.views.map((v) => v.name));
+    const dedupe = (name: string) => {
+      if (!taken.has(name)) return name;
+      for (let i = 2; ; i++) if (!taken.has(`${name} ${i}`)) return `${name} ${i}`;
+    };
+    const nextOrder = Math.max(0, ...s.views.map((x) => x.sortOrder)) + 1;
+    const imported = incoming.map((v, idx) => {
+      const name = dedupe(String(v.name ?? "").trim() || "Imported");
+      taken.add(name);
+      return {
+        id: nextId(s),
+        name,
+        layout: (v.layout as DemoState["views"][0]["layout"]) ?? [],
+        isDefault: false,
+        hidden: v.hidden === true,
+        scheduleStart: typeof v.scheduleStart === "string" ? v.scheduleStart : undefined,
+        scheduleEnd: typeof v.scheduleEnd === "string" ? v.scheduleEnd : undefined,
+        sortOrder: nextOrder + idx,
+      };
+    });
+    s.views.push(...imported);
+    return done("views", { imported: imported.map(({ sortOrder, ...v }) => v) }, 201);
+  }
   if (method === "GET") return json(ordered());
   if (method === "POST" && path === "") {
     const view = {

@@ -154,6 +154,65 @@ func (s *Store) DeleteView(id int64) error {
 	return tx.Commit()
 }
 
+// ImportedView is one view from a transfer document: a View minus the
+// instance-specific fields (id, isDefault) that must not travel.
+type ImportedView struct {
+	Name          string
+	Layout        []LayoutItem
+	Hidden        bool
+	ScheduleStart string
+	ScheduleEnd   string
+}
+
+// ImportViews appends the given views after the existing ones, in one
+// transaction — an import either lands whole or not at all. Callers own
+// name de-duplication and validation; ids and default status stay with
+// the receiving instance.
+func (s *Store) ImportViews(vs []ImportedView) ([]View, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	ids := make([]int64, 0, len(vs))
+	for _, v := range vs {
+		b, err := json.Marshal(v.Layout)
+		if err != nil {
+			return nil, err
+		}
+		var schedStart, schedEnd any
+		if v.ScheduleStart != "" && v.ScheduleEnd != "" {
+			schedStart, schedEnd = v.ScheduleStart, v.ScheduleEnd
+		}
+		res, err := tx.Exec(
+			"INSERT INTO views (name, layout, hidden, schedule_start, schedule_end, sort_order) "+
+				"VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM views))",
+			v.Name, string(b), v.Hidden, schedStart, schedEnd)
+		if err != nil {
+			return nil, err
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	out := make([]View, 0, len(ids))
+	for _, id := range ids {
+		v, err := s.GetView(id)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
 // SetDefaultView makes the given view the one the kiosk falls back to.
 func (s *Store) SetDefaultView(id int64) error {
 	tx, err := s.db.Begin()

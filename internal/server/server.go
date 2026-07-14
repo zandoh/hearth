@@ -106,6 +106,8 @@ func New(st *store.Store, hub *sse.Hub, reg *widget.Registry, dist fs.FS) *Serve
 	s.mux.HandleFunc("PUT /api/views/{id}/schedule", s.handleSetViewSchedule)
 	s.mux.HandleFunc("PUT /api/views/order", s.handleReorderViews)
 	s.mux.HandleFunc("PUT /api/views/{id}/hidden", s.handleSetViewHidden)
+	s.mux.HandleFunc("GET /api/views/export", s.handleExportViews)
+	s.mux.HandleFunc("POST /api/views/import", s.handleImportViews)
 
 	s.mux.HandleFunc("GET /api/guest", s.handleGuestConfig)
 	s.mux.HandleFunc("POST /api/guest/pin", s.handleSetGuestPin)

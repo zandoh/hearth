@@ -16,8 +16,11 @@ import { TimeInput, type ISOTimeString } from "@astryxdesign/core/TimeInput";
 import { VStack } from "@astryxdesign/core/VStack";
 import { useEffect } from "react";
 import {
+  type ViewsExport,
   createView,
   deleteView,
+  exportViews,
+  importViews,
   reorderViews,
   setDefaultView,
   setViewHidden,
@@ -394,6 +397,13 @@ export function ViewManager({
           />
         )}
 
+        <Heading level={3}>Transfer layouts</Heading>
+        <Text type="supporting">
+          Export saves every view's layout as a JSON file; import adds a file's views alongside the
+          existing ones (nothing is overwritten). Handy for moving layouts between Hearth instances.
+        </Text>
+        <TransferSection act={act} />
+
         {!isDemo && (
           <>
             <Heading level={3}>Backups</Heading>
@@ -421,6 +431,69 @@ export function ViewManager({
         {confirmDialog}
       </VStack>
     </Dialog>
+  );
+}
+
+// Export downloads the transfer document as a file; import reads one back
+// through a hidden file input. Both go through apiFetch, so the demo's
+// in-browser backend supports them too — a demo-built layout can be
+// exported and imported into a real server.
+function TransferSection({ act }: { act: (fn: () => Promise<unknown>) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importedCount, setImportedCount] = useState<number | null>(null);
+
+  const download = () =>
+    act(async () => {
+      const doc = await exportViews();
+      const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `hearth-views-${doc.exportedAt.slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+  const upload = (file: File) =>
+    act(async () => {
+      setImportedCount(null);
+      let doc: ViewsExport;
+      try {
+        doc = JSON.parse(await file.text()) as ViewsExport;
+      } catch {
+        throw new Error(`${file.name} is not a Hearth views export`);
+      }
+      const res = await importViews(doc);
+      setImportedCount(res.imported.length);
+    });
+
+  return (
+    <HStack gap={2} align="center" wrap="wrap">
+      <Button size="sm" variant="secondary" label="Export views" onClick={download} />
+      <Button
+        size="sm"
+        variant="secondary"
+        label="Import views…"
+        onClick={() => fileRef.current?.click()}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        aria-label="Views export file"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = ""; // re-selecting the same file must re-fire
+          if (file) upload(file);
+        }}
+      />
+      {importedCount !== null && (
+        <Text type="supporting" size="xsm">
+          Imported {importedCount} view{importedCount === 1 ? "" : "s"}.
+        </Text>
+      )}
+    </HStack>
   );
 }
 

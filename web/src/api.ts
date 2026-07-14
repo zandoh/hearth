@@ -57,3 +57,27 @@ export const setViewSchedule = (id: number, start: string, end: string) =>
 
 export const setDefaultView = (id: number) =>
   apiFetch<void>(`/api/views/${id}/default`, { method: "POST" });
+
+// The layout transfer document (internal/server/transfer.go is the source
+// of truth): views minus the fields that don't travel (id, isDefault).
+export interface TransferView {
+  name: string;
+  layout: LayoutItem[];
+  hidden?: boolean;
+  scheduleStart?: string;
+  scheduleEnd?: string;
+}
+
+export interface ViewsExport {
+  hearthViews: number;
+  exportedAt: string;
+  views: TransferView[];
+}
+
+export const exportViews = () => apiFetch<ViewsExport>("/api/views/export");
+
+export const importViews = (doc: ViewsExport) =>
+  apiFetch<{ imported: View[] }>("/api/views/import", {
+    method: "POST",
+    body: JSON.stringify(doc),
+  });

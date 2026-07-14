@@ -100,6 +100,8 @@ A **View** is a named grid layout. `layout` is an array of placement items
 | PUT | `/api/views/{id}/schedule` | `{start, end}` — both `HH:MM`, or both `""` to clear | `204` | `views` |
 | PUT | `/api/views/order` | `{ids: [int]}` | `204` | `views` |
 | PUT | `/api/views/{id}/hidden` | `{hidden: bool}` | `204` | `views` |
+| GET | `/api/views/export` | — | `200` — transfer document `{hearthViews: 1, exportedAt, views: [{name, layout, [hidden], [scheduleStart], [scheduleEnd]}]}`, served as an attachment | — |
+| POST | `/api/views/import` | a transfer document (see export) | `201` `{imported: [view]}` — additive: appends after existing views, de-dupes colliding names with a numeric suffix, never touches default/guest status | `views` |
 
 ### Guest mode
 
