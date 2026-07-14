@@ -63,7 +63,7 @@ payloads, e.g. the clock's tick, but a client can treat any event on a topic as
 
 | Kind | Topics |
 |---|---|
-| Widget (each equals the widget's id) | `clock`, `calendar`, `chores`, `grocery`, `meds`, `weather`, `guestbook`, `mealplan`, `sports`, `news` |
+| Widget (each equals the widget's id) | `clock`, `calendar`, `chores`, `grocery`, `meds`, `weather`, `guestbook`, `mealplan`, `sports`, `news`, `word` |
 | Platform | `views`, `profiles`, `night`, `guest` |
 
 The contract lives in `internal/topics` and is mirrored by
@@ -273,6 +273,17 @@ data (coverage is regional; Europe today).
 | GET | `/api/widgets/weather/geocode` | — | `200` — array of `{name, latitude, longitude}`; requires `?q=` | — |
 | PUT | `/api/widgets/weather/location` | `{name, latitude, longitude}` | `200` — the saved location | `weather` (via the immediate refresh) |
 | PUT | `/api/widgets/weather/units` | `{units}` — `imperial` or `metric` | `200` `{units}` | `weather` (via the immediate refresh) |
+
+### word
+
+A word of the day from a pack embedded in the binary — no upstream API and
+no configuration. The word is a pure function of the server's local date;
+an hourly job publishes `changed` on `word` when the date flips so open
+boards re-fetch at midnight.
+
+| Method | Path | Body | Success | Publishes |
+|---|---|---|---|---|
+| GET | `/api/widgets/word/today` | — | `200` `{day, word, pos, definition, example}` | — |
 
 ## Keeping this current
 

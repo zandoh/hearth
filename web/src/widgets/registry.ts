@@ -12,6 +12,7 @@ import { MedsWidget } from "./MedsWidget";
 import { NewsSettings, NewsWidget } from "./NewsWidget";
 import { SportsSettings, SportsWidget } from "./SportsWidget";
 import { WeatherSettings, WeatherWidget } from "./WeatherWidget";
+import { WordWidget } from "./WordWidget";
 
 // Client half of the widget contract. Every backend widget slug maps to a
 // component here; the grid renders a placeholder for anything unknown.
@@ -97,6 +98,11 @@ export const widgetRegistry: Record<string, WidgetDef> = {
     component: NewsWidget,
     defaultSize: { w: 4, h: 5 },
     settings: NewsSettings,
+  },
+  word: {
+    title: "Word of the day",
+    component: WordWidget,
+    defaultSize: { w: 3, h: 4 },
   },
   guestbook: {
     title: "Guest book",

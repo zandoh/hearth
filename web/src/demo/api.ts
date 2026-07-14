@@ -2,6 +2,7 @@ import { publishDemo } from "./bus";
 import { demoHeadlines } from "./news";
 import { demoGames, demoTeams } from "./sports";
 import { type DemoState, demoState, persist, ymd } from "./state";
+import { demoWord } from "./word";
 
 // Demo mode's backend: the API surface the frontend actually calls,
 // implemented over the sandbox state. Semantics mirror internal/server
@@ -623,6 +624,10 @@ export async function demoFetch(path: string, init?: RequestInit): Promise<Respo
           const headlines = demoHeadlines(url.searchParams.get("topic") ?? "");
           return headlines ? json(headlines) : bad("unknown topic");
         }
+        return bad("not found", 404);
+      }
+      case "word": {
+        if (sub === "today" && method === "GET") return json(demoWord(new Date()));
         return bad("not found", 404);
       }
     }

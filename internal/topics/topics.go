@@ -17,6 +17,7 @@ const (
 	MealPlan  = "mealplan"
 	Sports    = "sports"
 	News      = "news"
+	Word      = "word"
 )
 
 // Platform topics — concepts owned by the server, not any single widget.

@@ -13,6 +13,7 @@ export const TOPICS = {
   mealplan: "mealplan",
   sports: "sports",
   news: "news",
+  word: "word",
   views: "views",
   profiles: "profiles",
   night: "night",

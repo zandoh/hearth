@@ -18,6 +18,7 @@ import onboardingSpec from "./specs/onboarding.mjs";
 import sportsSpec from "./specs/sports.mjs";
 import viewsSpec from "./specs/views.mjs";
 import widgetsSpec from "./specs/widgets.mjs";
+import wordSpec from "./specs/word.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const BIN = process.env.HEARTH_BIN ?? join(here, "..", "..", "bin", "hearth");
@@ -47,6 +48,7 @@ const specs = [
   ["widgets", widgetsSpec],
   ["sports", sportsSpec],
   ["news", newsSpec],
+  ["word", wordSpec],
   ["guestbook", guestbookSpec],
   ["night", nightSpec],
   ["guest", guestSpec],
