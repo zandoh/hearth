@@ -188,6 +188,36 @@ body {
   color: var(--color-text-secondary);
 }
 
+/* --- widget zoom --- */
+/* View-mode double tap blows a widget up to a temporary fullscreen card;
+   double-tapping again (or the ✕) puts it back. Sits below the screensaver
+   and night shade so kiosk housekeeping still wins. */
+.widget-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  padding: var(--spacing-8);
+  background: rgb(0 0 0 / 0.55);
+}
+
+.widget-zoom-card {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The chrome bar here is a plain title bar, not a drag grip. */
+.widget-zoom .widget-chrome {
+  cursor: default;
+  touch-action: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .widget-zoom {
+    animation: card-in 200ms ease-out;
+  }
+}
+
 /* Drop/drag preview: accent ghost instead of RGL's default red */
 .react-grid-placeholder {
   background: var(--color-accent) !important;

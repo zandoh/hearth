@@ -21,6 +21,7 @@ import viewsSpec from "./specs/views.mjs";
 import widgetsSpec from "./specs/widgets.mjs";
 import wifiSpec from "./specs/wifi.mjs";
 import wordSpec from "./specs/word.mjs";
+import zoomSpec from "./specs/zoom.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const BIN = process.env.HEARTH_BIN ?? join(here, "..", "..", "bin", "hearth");
@@ -45,6 +46,7 @@ async function waitForHealthy() {
 const specs = [
   ["onboarding", onboardingSpec],
   ["board", boardSpec],
+  ["zoom", zoomSpec],
   ["views", viewsSpec],
   ["transfer", transferSpec],
   ["calendar", calendarSpec],

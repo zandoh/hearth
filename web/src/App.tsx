@@ -25,6 +25,7 @@ import {
 } from "./guestMode";
 import { DemoBanner } from "./DemoBanner";
 import { NightShade } from "./NightShade";
+import { useDoubleTap } from "./useDoubleTap";
 import { useIdleTimer } from "./useIdleTimer";
 import { Onboarding } from "./Onboarding";
 import { Screensaver } from "./Screensaver";
@@ -114,6 +115,18 @@ export default function App() {
   const [showOffline, setShowOffline] = useState(false);
   // Widget instance whose settings dialog is open.
   const [configFor, setConfigFor] = useState<string | null>(null);
+  // Widget instance blown up to temporary fullscreen (view-mode double tap).
+  const [zoomId, setZoomId] = useState<string | null>(null);
+  const tap = useDoubleTap();
+
+  // Escape closes the zoom (desktop convenience; kiosk taps use the ✕ or
+  // the backdrop).
+  useEffect(() => {
+    if (!zoomId) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setZoomId(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomId]);
 
   const loadViews = useCallback(() => {
     getViews().then(setViews).catch(console.error);
@@ -167,6 +180,7 @@ export default function App() {
     setActiveId(null); // null falls back to the scheduled/default view
     setManagingViews(false);
     setConfigFor(null);
+    setZoomId(null);
   });
 
   const guestView = useMemo(
@@ -499,7 +513,11 @@ export default function App() {
               const def = widgetRegistry[item.widget];
               const title = def?.title ?? item.widget;
               return (
-                <div key={item.i} className="widget-card">
+                <div
+                  key={item.i}
+                  className="widget-card"
+                  {...(editing ? {} : tap(item.i, () => setZoomId(item.i)))}
+                >
                   {editing && (
                     <div className="widget-chrome" title="Drag to move">
                       <Text type="supporting" size="xsm" className="widget-chrome-title">
@@ -538,6 +556,39 @@ export default function App() {
           </GridLayout>
         )}
       </main>
+      {zoomId &&
+        !editing &&
+        (() => {
+          const item = items.find((it) => it.i === zoomId);
+          const def = item ? widgetRegistry[item.widget] : undefined;
+          if (!item || !def) return null;
+          return (
+            <div
+              className="widget-zoom"
+              {...tap("zoom-overlay", () => setZoomId(null))}
+              // A single tap on the backdrop ring (not the card) also closes.
+              onClick={(e) => e.target === e.currentTarget && setZoomId(null)}
+            >
+              <div className="widget-card widget-zoom-card">
+                <div className="widget-chrome">
+                  <Text type="supporting" size="xsm" className="widget-chrome-title">
+                    {def.title}
+                  </Text>
+                  <IconButton
+                    size="sm"
+                    variant="ghost"
+                    label={`Close ${def.title}`}
+                    icon={<Icon icon="close" size="sm" />}
+                    onClick={() => setZoomId(null)}
+                  />
+                </div>
+                <div className="widget-content">
+                  <def.component item={item} saveConfig={(cfg) => persistConfig(item.i, cfg)} />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       {managingViews && (
         <Suspense fallback={null}>
           <ViewManager
