@@ -11,7 +11,8 @@ const MAX_TRAVEL_PX = 24;
 // caret placement). Everything else — buttons and other clickable content
 // included — still counts toward the double tap, otherwise widgets whose
 // surface is mostly interactive could never be zoomed.
-const TEXT_ENTRY = "input:not([type='checkbox']):not([type='radio']), textarea, select, [contenteditable='true']";
+const TEXT_ENTRY =
+  "input:not([type='checkbox']):not([type='radio']), textarea, select, [contenteditable='true']";
 
 /**
  * Detects a double tap/click from raw pointer events. Returns a factory:
