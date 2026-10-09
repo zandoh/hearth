@@ -25,12 +25,12 @@ saved as named views.
 </picture>
 
 **[Try the live demo](https://zandoh.github.io/hearth/)** — the full app with
-the backend running in your browser; your sandbox resets daily.
+the backend running in your browser. Your sandbox resets daily.
 
 Ships as a **single Go binary** with the web app embedded. The web UI is the
-first client of an API-first backend; a future mobile app talks to the same
-API. Every route, body shape, and SSE topic is documented in
-[docs/api.md](docs/api.md).
+first client of an API-first backend, and a future mobile app talks to the
+same API. [docs/api.md](docs/api.md) documents every route, body shape, and
+SSE topic.
 
 ## Stack
 
@@ -51,7 +51,7 @@ curl -O https://raw.githubusercontent.com/zandoh/hearth/main/compose.yml
 docker compose up -d     # board on http://localhost:8080
 ```
 
-State lives in `./data/` (SQLite + optional `.env`); back it up by copying
+State lives in `./data/` (SQLite + optional `.env`). Back it up by copying
 the folder. Images are multi-arch (amd64 + arm64) at `ghcr.io/zandoh/hearth`.
 
 Hearth also snapshots its own database nightly into `backups/` beside the
@@ -67,7 +67,7 @@ docker compose run --rm hearth /hearth -restore /data/backups/hearth-2026-07-01.
 docker compose start hearth
 ```
 
-The current database is kept beside the restored one as
+The restore keeps the current database beside the restored one as
 `hearth.db.pre-restore-<stamp>`, so a restore never destroys anything.
 
 **Prebuilt binary:** grab your platform's tarball from
@@ -99,22 +99,22 @@ docker compose exec hearth /hearth -reset-guest-pin -db /data/hearth.db
 
 It writes straight to the database, so it works while the server is
 running. A device locked in guest mode unlocks on its next exit attempt
-with any PIN; set a fresh PIN afterwards in Views → Guest mode.
+with any PIN. Set a fresh PIN afterwards in Views → Guest mode.
 
 ### Hosting at a friendly name (e.g. hearth.local)
 
 Hearth binds any hostname — point DNS/mDNS at the box and it works. On a
 Mac mini host the easiest route is System Settings → General → Sharing →
 Local hostname → "hearth", which advertises `hearth.local` over Bonjour
-(Apple devices and most modern platforms resolve it; some Android versions
+(Apple devices and most modern platforms resolve it, but some Android versions
 don't — a hostname entry in your router's DNS covers everything).
 
 One caveat: Google's OAuth console only accepts plain-http redirect URIs
 for `localhost`. If `HEARTH_BASE_URL` is `http://hearth.local:8080`, do the
 one-time Google connect through a localhost tunnel instead:
 `ssh -L 8080:localhost:8080 you@hearth.local`, then connect at
-`http://localhost:8080` with `HEARTH_BASE_URL` unset. Day-to-day use at
-`hearth.local` is unaffected — only the consent redirect cares.
+`http://localhost:8080` with `HEARTH_BASE_URL` unset. This does not change
+day-to-day use at `hearth.local` — only the consent redirect cares.
 
 If you front Hearth with a reverse proxy that presents a public hostname
 (Tailscale, nginx, and the like), set `HEARTH_ALLOWED_HOSTS` to that
@@ -131,8 +131,8 @@ make dev-web   # Vite dev server on :5173 with HMR, proxies /api to :8080
 ```
 
 React edits hot-swap in place (state preserved). Go edits trigger a rebuild
-and restart in about a second (`fswatch` required: `brew install fswatch`;
-without it, `make dev-api` falls back to a plain run and you restart by hand).
+and restart in about a second (`fswatch` required: `brew install fswatch`.
+Without it, `make dev-api` falls back to a plain run and you restart by hand).
 App state survives restarts because it lives in SQLite, not the process — and
 the browser's SSE connection reconnects automatically. `make dev-api-once`
 runs the server without the watcher.
@@ -157,13 +157,13 @@ places:
 - **Client** (`web/src/widgets/`): a React component registered in
   `web/src/widgets/registry.ts` under the same slug.
 
-Widgets publish realtime updates through the SSE hub (`internal/sse`); the
+Widgets publish realtime updates through the SSE hub (`internal/sse`), and the
 frontend holds one `EventSource` on `/api/stream` and components subscribe to
 topics with `useTopic`.
 
-**Views** are named grid layouts (`views` table): a JSON array of
+Each **view** is a named grid layout (`views` table): a JSON array of
 `{i, widget, x, y, w, h, config}`. The Edit button on the kiosk toggles
-drag/resize; Save writes the layout back via `PUT /api/views/{id}`.
+drag/resize, and Save writes the layout back via `PUT /api/views/{id}`.
 
 The clock widget (`internal/widgets/clock`, `web/src/widgets/ClockWidget.tsx`)
 is the reference implementation of the whole contract.
@@ -193,10 +193,10 @@ OAuth credentials — they stay on your server and are **never committed**:
    accounts as test users — no verification needed for personal use).
 3. Create an **OAuth client ID** of type **Web application** with redirect URI
    `http://localhost:8080/api/widgets/calendar/google/callback`
-   (replace host/port with wherever Hearth runs; set `HEARTH_BASE_URL` to match).
+   (replace host/port with wherever Hearth runs, and set `HEARTH_BASE_URL` to match).
 4. Copy `.env.example` to `.env` next to the binary and fill in the
    credentials — Hearth loads it on start (real environment variables
-   override the file, and `.env` is gitignored):
+   override the file, and git ignores `.env`):
 
 ```sh
 cp .env.example .env
@@ -206,7 +206,7 @@ cp .env.example .env
 
 Then open the calendar widget's ⚙ settings → **Connect Google account**, and
 add whichever calendars the household wants on the board. Events sync every
-5 minutes (plus instantly on "Sync now"); events added in Hearth are written
+5 minutes (plus instantly on "Sync now"). Events you add in Hearth go
 straight to Google.
 
 ## Features
@@ -231,7 +231,7 @@ straight to Google.
   banner, nightly self-reload, idle return-to-rest, DVD-bounce screensaver,
   night dimming on a quiet-hours schedule, and an on-screen touch keyboard.
 - **Guest mode**: lock the wall to one view (or the screensaver) behind a
-  PIN; admin recovery via `-reset-guest-pin`.
+  PIN, with admin recovery via `-reset-guest-pin`.
 - **Backups**: nightly SQLite snapshots (keep 7), one-click download,
   `-restore` to swap one back in.
 
