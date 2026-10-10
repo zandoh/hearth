@@ -38,8 +38,8 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-// Team logo off ESPN's CDN; hides itself if the kiosk is offline or the
-// URL rots, leaving the name to carry recognition.
+// Team logo from ESPN's CDN. It hides itself if the kiosk is offline or the URL breaks,
+// and the name carries recognition.
 function TeamLogo({ src, name }: { src: string; name: string }) {
   const [broken, setBroken] = useState(false);
   if (!src || broken) return null;
@@ -164,9 +164,9 @@ export function SportsSettings({ config, save }: WidgetSettingsProps) {
   const [teamsByLeague, setTeamsByLeague] = useState<Record<string, Team[]>>({});
   const { mutate, error } = useMutate();
 
-  // Prefetch every league on open (the backend keeps the lists warm, so
-  // these are LAN-local) — by the time a league is picked, its teams are
-  // already here and the dropdown appears without a loading swap.
+  // Prefetch every league on open (the backend keeps the lists warm, so these stay on
+  // the LAN). By the time a league is picked, its teams are here, and the dropdown shows
+  // without a loading swap.
   useEffect(() => {
     let stale = false;
     for (const { value } of LEAGUES) {

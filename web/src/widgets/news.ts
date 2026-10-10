@@ -32,9 +32,9 @@ export function parseNewsConfig(config: Record<string, unknown>): NewsConfig {
   return { topic, count: Math.min(MAX_COUNT, Math.max(1, count)) };
 }
 
-// "now", "35m", "4h", "2d" — a headline's age at kiosk-glance size. Clock
-// skew between feed and kiosk can put publishedAt slightly in the future;
-// clamp to "now" rather than showing negative ages.
+// "now", "35m", "4h", "2d": a headline's age at kiosk-glance size. Clock skew between
+// the feed and the kiosk can put publishedAt slightly in the future, so clamp to "now",
+// never a negative age.
 export function timeAgo(iso: string, now: Date): string {
   const ms = now.getTime() - new Date(iso).getTime();
   if (!Number.isFinite(ms)) return "";

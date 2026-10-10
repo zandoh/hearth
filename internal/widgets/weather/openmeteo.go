@@ -26,7 +26,7 @@ type forecastData struct {
 	Daily   json.RawMessage
 }
 
-// geoResult is one geocoder candidate; the widget assembles the display name.
+// geoResult is one geocoder candidate. The widget builds the display name.
 type geoResult struct {
 	Name        string
 	Admin1      string
@@ -64,8 +64,8 @@ func (c *openMeteoClient) getJSON(ctx context.Context, endpoint string, q url.Va
 	return json.NewDecoder(res.Body).Decode(out)
 }
 
-// coord formats a latitude/longitude for the query string; four decimals is
-// ~10m, plenty for a weather grid.
+// coord formats a latitude or longitude for the query string. Four decimals is about
+// 10 m, enough for a weather grid.
 func coord(v float64) string { return fmt.Sprintf("%.4f", v) }
 
 func (c *openMeteoClient) forecast(ctx context.Context, loc location, units string) (forecastData, error) {
@@ -120,10 +120,10 @@ func (c *openMeteoClient) airQuality(ctx context.Context, loc location) (airData
 	}, nil
 }
 
-// groupPollen folds Open-Meteo's per-species counts (grains/m³) into the
-// tree/grass/weed categories allergy scales use, taking each category's
-// worst species. Pollen coverage is regional (Europe today); everywhere
-// else every species is null and the whole block collapses to nil.
+// groupPollen folds Open-Meteo's per-species counts (grains/m³) into the tree, grass,
+// and weed categories that allergy scales use, taking each category's worst species.
+// Pollen coverage is regional (Europe today). Elsewhere every species is null, and the
+// block becomes nil.
 func groupPollen(tree, grass, weed []*float64) *pollenCounts {
 	p := pollenCounts{Tree: maxPtr(tree), Grass: maxPtr(grass), Weed: maxPtr(weed)}
 	if p.Tree == nil && p.Grass == nil && p.Weed == nil {

@@ -1,10 +1,8 @@
-// Package news: headlines for one Google News topic per widget instance,
-// from the keyless RSS feeds. Topic choice lives in each widget instance's
-// layout config, so like sports there is no global setting: the backend
-// caches per topic on demand. A topic's first request registers it and
-// answers {pending:true}; the refresh job keeps requested topics fresh and
-// stops polling topics nobody has asked about for a while. The kiosk is
-// always served from memory.
+// Package news: headlines for one Google News topic per widget instance, from the
+// keyless RSS feeds. Each instance's layout config holds its topic, so (like sports)
+// there is no global setting: the backend caches per topic on demand. A topic's first
+// request registers it and gets {pending:true}. The refresh job keeps requested topics
+// fresh and stops polling idle ones. The kiosk always reads from memory.
 package news
 
 import (
@@ -27,9 +25,8 @@ const (
 	evictAfter   = 2 * time.Hour
 )
 
-// entry is one tracked topic's cached state. Its items slice is treated as
-// immutable: updates swap in a fresh slice, so handlers can encode a
-// snapshot safely.
+// entry is one tracked topic's cached state. Its items slice never changes: updates
+// swap in a new slice, so handlers can encode a snapshot safely.
 type entry struct {
 	lastRequested time.Time
 	fetchedAt     time.Time // zero until the first fetch lands
@@ -74,10 +71,10 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/widgets/news/headlines", w.handleHeadlines)
 }
 
-// handleHeadlines serves one topic's headlines from cache. A first request
-// for an unknown topic registers it, answers {pending:true}, and fetches in
-// the background; the completed fetch announces itself over SSE and the
-// widget re-requests. Every request bumps the topic's keep-alive.
+// handleHeadlines serves one topic's headlines from cache. A first request for an
+// unknown topic registers it, answers {pending:true}, and fetches in the background.
+// The finished fetch announces itself over SSE, and the widget requests again. Every
+// request extends the topic's keep-alive.
 func (w *Widget) handleHeadlines(rw http.ResponseWriter, r *http.Request) {
 	topic := r.URL.Query().Get("topic")
 	if _, ok := sections[topic]; !ok {
@@ -152,8 +149,8 @@ func (w *Widget) fetchAndPublish(topic string) {
 	w.Publish("changed")
 }
 
-// fetchTopic refreshes one topic. On failure the entry keeps its last good
-// items; the error is logged by the caller or job runner.
+// fetchTopic refreshes one topic. On failure the entry keeps its last good items. The
+// caller or the job runner logs the error.
 func (w *Widget) fetchTopic(ctx context.Context, topic string) error {
 	items, err := w.api.headlines(ctx, topic)
 	w.mu.Lock()

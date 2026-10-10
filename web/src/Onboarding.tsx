@@ -8,9 +8,9 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { apiFetch } from "./api";
 import { useMutate } from "./useMutate";
 
-// First-boot template picker. Shows once per install (the server decides:
-// pristine seed view and no prior answer), writes a starter layout into the
-// Home view, and never asks again — including on other screens.
+// First-boot template picker. Shows once per install (the server decides: pristine
+// seed view, no prior answer), writes a starter layout into the Home view, and never
+// asks again, on any screen.
 
 const TEMPLATES = [
   {

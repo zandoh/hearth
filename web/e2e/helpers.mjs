@@ -16,10 +16,9 @@ export async function seedView(base, layout) {
     body: JSON.stringify({ name: "Home", layout }),
   });
   if (!res.ok) throw new Error(`seed failed: ${res.status}`);
-  // A seeded single-clock layout is byte-identical to the pristine
-  // migration seed, so the onboarding picker would cover the board and
-  // block every click. Seeded specs are by definition not first-boot:
-  // answer onboarding away (idempotent).
+  // A seeded single-clock layout matches the pristine migration seed, so the onboarding
+  // picker would cover the board and block every click. Seeded specs are never first
+  // boot: answer onboarding (idempotent).
   await fetch(`${base}/api/onboarding`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

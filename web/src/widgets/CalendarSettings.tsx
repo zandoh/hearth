@@ -58,8 +58,8 @@ export function CalendarSettings({
   const google = googleData?.status ?? null;
   const available = googleData?.available ?? null;
 
-  // Refresh this dialog and the widget behind it directly — SSE only covers
-  // other screens, not our own action.
+  // Refresh this dialog and the widget behind it directly. SSE covers only other
+  // screens, not our own action.
   const refresh = useCallback(() => {
     reloadCalendars();
     reloadGoogle();

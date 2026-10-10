@@ -42,9 +42,8 @@ const SHADE_OPTIONS = [
   { value: "0.75", label: "Deep" },
 ];
 
-// Manage saved views: rename, set the kiosk's default, delete, create.
-// Mutations publish on the "views" SSE topic, so the list refreshes through
-// the app's normal reload path.
+// Manage saved views: rename, set the kiosk's default, delete, create. Mutations
+// publish on the "views" topic, so the list refreshes through the app's reload path.
 export function ViewManager({
   views,
   onSwitch,
@@ -64,9 +63,9 @@ export function ViewManager({
   const [schedStart, setSchedStart] = useState("07:00" as ISOTimeString);
   const [schedEnd, setSchedEnd] = useState("09:00" as ISOTimeString);
   const { confirm, confirmDialog } = useConfirm();
-  // No reload here: the views list lives in App, which refreshes it over the
-  // "views" SSE topic (see the component comment above). Sections that own
-  // their data (profiles, guest, night) refresh inside their own actions.
+  // No reload here: the views list lives in App, which refreshes it over the "views"
+  // topic. Sections that own their data (profiles, guest, night) refresh in their own
+  // actions.
   const { mutate: act, error } = useMutate();
 
   useEffect(() => {
@@ -80,23 +79,22 @@ export function ViewManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [views]);
 
-  // Drag-to-reorder: the grip captures the pointer, rows re-slot live in a
-  // local order overlay, and release persists the whole order. The overlay
-  // stays up until the refreshed views arrive so the list never snaps back.
+  // Drag to reorder: the grip captures the pointer, rows re-slot live in a local order
+  // overlay, and release saves the whole order. The overlay stays until the refreshed
+  // views arrive, so the list never snaps back.
   const [dragOrder, setDragOrder] = useState<number[] | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  // Pointer handlers can fire before React re-renders them (touch bursts);
-  // the ref always carries the live order for the release handler.
+  // Pointer handlers can fire before React re-renders them (touch bursts). The ref always
+  // holds the live order for the release handler.
   const dragOrderRef = useRef<number[] | null>(null);
 
   const orderedViews = dragOrder
     ? dragOrder.map((id) => views.find((v) => v.id === id)).filter((v): v is View => !!v)
     : views;
 
-  // Domain half of the reorder drag: midpoint re-slotting over the live
-  // order; transport (window listeners, ref-carried gesture) is
-  // usePointerDrag's.
+  // Domain half of the reorder drag: midpoint re-slotting over the live order. The
+  // transport (window listeners, ref-carried gesture) is usePointerDrag's.
   const drag = usePointerDrag<number>({
     onMove: (e, id) => {
       const list = listRef.current;
@@ -434,10 +432,9 @@ export function ViewManager({
   );
 }
 
-// Export downloads the transfer document as a file; import reads one back
-// through a hidden file input. Both go through apiFetch, so the demo's
-// in-browser backend supports them too — a demo-built layout can be
-// exported and imported into a real server.
+// Export downloads the transfer document as a file. Import reads one through a hidden
+// file input. Both use apiFetch, so the demo's in-browser backend supports them too,
+// and a demo-built layout can move to a real server.
 function TransferSection({ act }: { act: (fn: () => Promise<unknown>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [importedCount, setImportedCount] = useState<number | null>(null);
@@ -601,7 +598,7 @@ function HouseholdSection({
   );
 }
 
-// Night dimming controls; every change saves immediately.
+// Night dimming controls. Each change saves at once.
 function NightControls({ night, save }: { night: NightConfig; save: (next: NightConfig) => void }) {
   const shadeValue = SHADE_OPTIONS.find((o) => Number(o.value) === night.level)?.value ?? "0.6";
   return (

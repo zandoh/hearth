@@ -1,10 +1,8 @@
 import { useEffect, useRef } from "react";
 
-// The kiosk's idle primitive: after `ms` with no touch (pointer, key,
-// wheel, touch), fire onIdle — then re-arm, so continued silence fires
-// again each `ms`. One definition of "a touch" for every idle-driven
-// behaviour; previously each consumer duplicated the listener and
-// interval bookkeeping.
+// The kiosk's idle primitive: after `ms` with no touch (pointer, key, wheel, touch),
+// fire onIdle, then re-arm, so more silence fires again each `ms`. One definition of
+// "a touch" for every idle-driven behavior.
 export function useIdleTimer(ms: number, onIdle: () => void) {
   const cb = useRef(onIdle);
   cb.current = onIdle;

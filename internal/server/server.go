@@ -29,11 +29,10 @@ type Server struct {
 	allowed map[string]bool
 }
 
-// allowedHosts returns the set of extra hostnames permitted beyond the
-// built-in localhost / private-IP / .local defaults: the host of
-// HEARTH_BASE_URL plus any comma-separated HEARTH_ALLOWED_HOSTS. This is the
-// reverse-proxy escape hatch — a proxy that presents a public hostname must
-// list it here.
+// allowedHosts returns the extra hostnames allowed beyond the built-in localhost,
+// private-IP, and .local defaults: the host of HEARTH_BASE_URL and any
+// comma-separated HEARTH_ALLOWED_HOSTS. A reverse proxy with a public hostname must
+// be listed here.
 func allowedHosts() map[string]bool {
 	set := map[string]bool{}
 	add := func(h string) {
@@ -53,10 +52,9 @@ func allowedHosts() map[string]bool {
 	return set
 }
 
-// hostAllowed defends against DNS rebinding: the browser sends the ORIGINAL
-// attacker hostname in Host even after rebinding to our LAN IP, so a Host
-// that isn't a local name, a private/loopback IP literal, or an explicitly
-// configured name is rejected.
+// hostAllowed defends against DNS rebinding: after rebinding to our LAN IP, the
+// browser still sends the attacker's hostname in Host. So it rejects a Host that is
+// not a local name, a private or loopback IP literal, or a configured name.
 func hostAllowed(host string, extra map[string]bool) bool {
 	h := host
 	if hostOnly, _, err := net.SplitHostPort(host); err == nil {
@@ -147,10 +145,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-// changed is the platform counterpart of widget.Base.Changed: it publishes
-// "changed" on the given topic, then writes the response. Every mutating
-// platform handler ends here so publish-on-write can't be forgotten. A nil
-// v writes only the status (for 204 No Content).
+// changed is the platform counterpart of widget.Base.Changed: it publishes "changed"
+// on the topic, then writes the response. Every mutating platform handler ends here,
+// so publish-on-write cannot be forgotten. A nil v writes only the status (204).
 func (s *Server) changed(w http.ResponseWriter, topic string, status int, v any) {
 	s.hub.Publish(topic, "changed")
 	if v == nil {
@@ -293,9 +290,9 @@ func (s *Server) handleReorderViews(w http.ResponseWriter, r *http.Request) {
 	s.changed(w, topics.Views, http.StatusNoContent, nil)
 }
 
-// handleSetViewSchedule claims (or clears, with both fields empty) a view's
-// daily window. Guest-mode precedence is client-side: a scheduled window
-// firing during guest mode must never switch the board off the guest view.
+// handleSetViewSchedule sets (or, with both fields empty, clears) a view's daily
+// window. The client applies guest-mode precedence: a scheduled window must never move
+// the board off the guest view.
 func (s *Server) handleSetViewSchedule(w http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.ID(w, r)
 	if !ok {
@@ -320,14 +317,12 @@ func (s *Server) handleSetViewSchedule(w http.ResponseWriter, r *http.Request) {
 	s.changed(w, topics.Views, http.StatusNoContent, nil)
 }
 
-// spaHandler serves the embedded frontend build, falling back to index.html
-// for client-side routes. If the frontend hasn't been built into the binary
-// it says so instead of returning a bare 404.
+// spaHandler serves the embedded frontend, with index.html for client-side routes. If
+// the binary has no frontend build, it says so instead of a bare 404.
 //
-// Cache policy matters here: embedded files have no modtime, so without
-// explicit headers browsers cache index.html heuristically and can serve a
-// stale app for days after a rebuild. Hashed assets are immutable; the HTML
-// shell must always revalidate.
+// Embedded files have no modtime, so without explicit headers browsers cache
+// index.html by heuristic and can serve a stale app for days. Hashed assets are
+// immutable. The HTML shell always revalidates.
 func spaHandler(dist fs.FS) http.Handler {
 	fileServer := http.FileServerFS(dist)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -370,11 +365,10 @@ func spaHandler(dist fs.FS) http.Handler {
 	})
 }
 
-// serveCompressed writes the precompressed sibling (path.br / path.gz) that
-// the frontend build emits next to text assets, when the client accepts
-// that encoding. Returns false — caller serves the plain file — when no
-// acceptable variant exists. The whole dist FS is embedded in the binary,
-// so ReadFile is a memory copy, not disk I/O.
+// serveCompressed writes the precompressed sibling (path.br or path.gz) that the build
+// emits next to text assets, if the client accepts that encoding. Returns false (the
+// caller serves the plain file) when there is none. The dist FS is embedded, so
+// ReadFile is a memory copy.
 func serveCompressed(w http.ResponseWriter, r *http.Request, dist fs.FS, path string) bool {
 	accept := r.Header.Get("Accept-Encoding")
 	for _, enc := range [...]struct{ coding, ext string }{{"br", ".br"}, {"gzip", ".gz"}} {

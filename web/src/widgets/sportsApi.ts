@@ -34,8 +34,8 @@ export interface TeamGames {
   upcoming: Game[];
 }
 
-// {pending:true} until the backend's first fetch for this team lands; the
-// completed fetch announces itself on the sports SSE topic.
+// {pending:true} until the backend's first fetch for this team lands. The finished
+// fetch announces itself on the sports topic.
 export interface GamesResponse {
   pending?: boolean;
   games?: TeamGames;

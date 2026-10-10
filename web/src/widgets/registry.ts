@@ -15,8 +15,8 @@ import { WeatherSettings, WeatherWidget } from "./WeatherWidget";
 import { WifiSettings, WifiWidget } from "./WifiWidget";
 import { WordWidget } from "./WordWidget";
 
-// Client half of the widget contract. Every backend widget slug maps to a
-// component here; the grid renders a placeholder for anything unknown.
+// Client half of the widget contract. Every backend widget slug maps to a component
+// here. The grid renders a placeholder for anything unknown.
 
 export interface WidgetProps {
   item: LayoutItem;
@@ -25,10 +25,9 @@ export interface WidgetProps {
   saveConfig?: (config: Record<string, unknown>) => void;
 }
 
-// Per-instance settings form, opened from the gear in the widget's chrome
-// bar (edit mode). It renders its fields plus its own Save action, calling
-// `save` with the new config — the platform persists it into the layout
-// item and closes the dialog.
+// Per-instance settings form, opened from the gear in the widget's chrome bar (edit
+// mode). It renders its fields and its own Save action, calling `save` with the new
+// config. The platform saves it into the layout item and closes the dialog.
 export interface WidgetSettingsProps {
   config: Record<string, unknown>;
   save: (config: Record<string, unknown>) => void;

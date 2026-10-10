@@ -48,8 +48,7 @@ export function MealPlanWidget(_props: WidgetProps) {
 
   const save = () => {
     if (!editing) return;
-    // The dialog closes only on success; a failure keeps it open with the
-    // server's message.
+    // The dialog closes only on success. A failure keeps it open with the server's message.
     mutate(
       () => saveEntry(editing),
       () => setEditing(null),

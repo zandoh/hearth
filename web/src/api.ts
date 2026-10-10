@@ -3,13 +3,12 @@ import { demoFetch } from "./demo/api";
 import type { LayoutItem, View } from "./types";
 
 /**
- * The one fetch convention for the whole app: JSON in/out, and on failure
- * the server's {"error": "..."} body becomes the Error message so callers
- * can show it instead of a bare status code.
+ * The one fetch convention for the app: JSON in and out. On failure, the server's
+ * {"error": "..."} body becomes the Error message, so callers can show it instead of a
+ * bare status code.
  */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  // Demo builds route every call to the in-browser backend; there is no
-  // server behind GitHub Pages.
+  // Demo builds send every call to the in-browser backend. GitHub Pages has no server.
   const res = isDemo
     ? await demoFetch(path, init)
     : await fetch(path, {
@@ -22,7 +21,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       const body = (await res.json()) as { error?: string };
       if (body.error) message = body.error;
     } catch {
-      // non-JSON error body; keep the status line
+      // Non-JSON error body: keep the status line.
     }
     throw new Error(message);
   }

@@ -1,7 +1,6 @@
-// Geometry for the calendar's time-grid views (week / work week / day):
-// which hours to show, where each event sits vertically, and how
-// overlapping events share a column. Pure math, unit-tested; the widget
-// only renders the results.
+// Geometry for the calendar's time-grid views (week, work week, day): which hours to
+// show, where each event sits, and how overlapping events share a column. Pure math
+// with unit tests. The widget only renders the results.
 
 export interface GridEvent {
   id: number;
@@ -15,7 +14,7 @@ export interface HourRange {
   endHour: number; // exclusive; endHour - startHour = rows
 }
 
-// The waking-day default; events outside it stretch the range.
+// The waking-day default. Events outside it stretch the range.
 const DEFAULT_START = 7;
 const DEFAULT_END = 21;
 

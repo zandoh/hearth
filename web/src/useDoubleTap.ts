@@ -1,23 +1,21 @@
 import { useCallback, useRef } from "react";
 import type { PointerEvent } from "react";
 
-// Hand-rolled instead of the native dblclick event: double-tap on touch
-// panels doesn't reliably fire dblclick (and can trigger browser zoom),
-// while pointer events cover mouse and touch with one code path.
+// Hand-rolled, not the native dblclick: touch panels don't fire dblclick reliably (and
+// a double tap can zoom the page). Pointer events cover mouse and touch with one path.
 const MAX_GAP_MS = 350;
 const MAX_TRAVEL_PX = 24;
 
-// Text-entry controls keep native double-click semantics (word select,
-// caret placement). Everything else — buttons and other clickable content
-// included — still counts toward the double tap, otherwise widgets whose
-// surface is mostly interactive could never be zoomed.
+// Text-entry controls keep native double-click behavior (word select, caret). Every
+// other target, buttons included, counts toward the double tap. Otherwise widgets with
+// mostly interactive surfaces could never zoom.
 const TEXT_ENTRY =
   "input:not([type='checkbox']):not([type='radio']), textarea, select, [contenteditable='true']";
 
 /**
- * Detects a double tap/click from raw pointer events. Returns a factory:
- * spread `tap(key, onDoubleTap)` onto an element; `key` scopes the pair so
- * two quick taps on different elements never count as a double.
+ * Detects a double tap or click from raw pointer events. Returns a factory: spread
+ * `tap(key, onDoubleTap)` onto an element. `key` scopes the pair, so quick taps on two
+ * elements never count as a double.
  */
 export function useDoubleTap() {
   const down = useRef<{ x: number; y: number } | null>(null);

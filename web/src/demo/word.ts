@@ -1,6 +1,5 @@
-// The word widget's backend, sandbox edition: a small pack with the same
-// deterministic day-index scheme as internal/widgets/word, so the demo
-// flips its word at the visitor's midnight just like the real thing.
+// The word widget's backend, sandbox edition: a small pack with the same day-index
+// scheme as internal/widgets/word, so the demo word flips at the visitor's midnight.
 
 import type { WordOfTheDay } from "../widgets/wordApi";
 

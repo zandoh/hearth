@@ -13,12 +13,12 @@ import (
 	"github.com/zandoh/hearth/internal/topics"
 )
 
-// Guest mode: the kiosk can be locked to one designated view for visitors.
-// Entering is a tap; leaving requires the household PIN. The PIN and the
-// guest view id live in settings; activation itself is per-device (client).
+// Guest mode locks the kiosk to one view for visitors. Entering is a tap. Leaving
+// needs the household PIN. The PIN and the guest view id live in settings.
+// Activation is per device (client).
 
-// Both values are stored raw (hex digest / decimal id), predating the typed
-// store.Setting; they must keep that shape for existing databases.
+// Both values are raw (hex digest, decimal id), older than store.Setting, and keep
+// that shape for existing databases (docs/adr/0001).
 const (
 	guestPinSetting  = "guest_pin_hash"
 	guestViewSetting = "guest_view_id"

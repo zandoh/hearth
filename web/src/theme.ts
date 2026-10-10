@@ -16,11 +16,10 @@ const theme = defineTheme({
     code: { family: "IBM Plex Mono", fallbacks: "ui-monospace, monospace" },
   },
   tokens: {
-    // (light, dark). Dark mode is OLED near-black: a bottomless neutral
-    // body with clearly lifted neutral cards — chosen over warm Char after
-    // on-board comparison; ember reads hotter against the void, and warmth
-    // stays where the brand wants it: in ember alone. Light mode keeps the
-    // Paper/Char doc palette.
+    // (light, dark). Dark mode is OLED near-black: a deep neutral body with clearly
+    // lifted neutral cards, chosen over warm Char after an on-board comparison. Ember
+    // reads hotter against the black, and warmth stays in ember alone. Light mode keeps
+    // the Paper/Char palette.
     "--color-background-body": ["#F4F1EB", "#0C0C0C"], // Paper / near-black
     "--color-background-surface": ["#FFFFFF", "#1B1B1B"],
     "--color-background-card": ["#FFFFFF", "#1B1B1B"],
@@ -48,6 +47,6 @@ const theme = defineTheme({
   },
 });
 
-// Source of truth for `bun run theme:build`, which generates theme.css and
-// hearth.js — the app imports the generated pair, never this file directly.
+// Source of truth for `bun run theme:build`, which generates theme.css and hearth.js.
+// The app imports the generated pair, never this file.
 export const hearthTheme = theme;

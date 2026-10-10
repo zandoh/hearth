@@ -38,17 +38,17 @@ export function GuestbookWidget(_props: WidgetProps) {
   const { confirm, confirmDialog } = useConfirm();
   const { mutate, error } = useMutate(reload);
 
-  // Free-form corkboard drag: local overrides win over server positions
-  // while a move is in flight, and are dropped once fresh data arrives.
+  // Free-form corkboard drag: local overrides win over server positions while a move is
+  // in flight, and drop when fresh data arrives.
   const wallRef = useRef<HTMLDivElement>(null);
   const [moved, setMoved] = useState<Record<number, { x: number; y: number }>>({});
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
   const activeIdRef = useRef<number | null>(null);
 
-  // Domain half of the corkboard drag: clamp the note inside the wall in
-  // fractional coordinates. Transport (window listeners, ref-carried
-  // gesture payload) is usePointerDrag's.
+  // Domain half of the corkboard drag: clamp the note inside the wall, in fractional
+  // coordinates. The transport (window listeners, ref-carried payload) is
+  // usePointerDrag's.
   const drag = usePointerDrag<{ id: number; dx: number; dy: number; w: number; h: number }>({
     onMove: (e, g) => {
       const wall = wallRef.current;
@@ -67,8 +67,8 @@ export function GuestbookWidget(_props: WidgetProps) {
       const pos = lastPos.current;
       lastPos.current = null;
       if (!pos) return;
-      // The optimistic local position stays put; a successful reload
-      // confirms it and a failure snaps the note back to server truth.
+      // The optimistic local position stays. A successful reload confirms it, and a failure
+      // snaps the note back to the server position.
       mutate(() => moveNote(g.id, pos));
     },
   });

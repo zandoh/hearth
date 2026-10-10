@@ -128,12 +128,11 @@ export function eventTimeLabel(e: CalEvent): string {
 }
 
 /**
- * The dates for an edited event. Editing must not reshape the event: an
- * all-day event keeps its exact span (a week-long event edited for a typo
- * stays week-long — this earned a production bug), a timed event keeps its
- * date and duration with only the time-of-day applied. Toggling the
- * all-day flag falls back to the create-style defaults, since the old
- * duration stops meaning anything.
+ * The dates for an edited event. Editing must not reshape the event: an all-day event
+ * keeps its exact span (a week-long event edited for a typo stays week-long; this was a
+ * production bug), and a timed event keeps its date and duration, with only the time
+ * of day applied. Toggling all-day falls back to the create defaults, because the old
+ * duration no longer means anything.
  */
 export function editedDates(
   e: Pick<CalEvent, "startsAt" | "endsAt" | "allDay">,

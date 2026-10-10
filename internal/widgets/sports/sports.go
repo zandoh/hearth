@@ -1,12 +1,11 @@
-// Package sports: previous game, upcoming games, and live scores for one
-// NFL/NHL/MLB/NBA team per widget instance, from ESPN's keyless public API.
-// Team choice lives in each widget instance's layout config, so unlike
-// weather there is no global setting to poll: the backend caches per
-// (league, team) on demand. A widget's first request registers its key and
-// the refresh job keeps in-use keys fresh — every minute while a game is
-// live or imminent (via the league scoreboard, shared across teams), every
-// 30 minutes otherwise (via the team schedule). Keys nobody has requested
-// for two hours stop being polled. The kiosk is always served from memory.
+// Package sports: the previous game, upcoming games, and live scores for one
+// NFL/NHL/MLB/NBA team per widget instance, from ESPN's keyless public API. Each
+// instance's layout config holds its team, so (unlike weather) there is no global
+// setting: the backend caches per (league, team) on demand. A first request registers
+// the key. The refresh job keeps used keys fresh: every minute while a game is live or
+// near (through the league scoreboard, shared across teams), every 30 minutes
+// otherwise (through the team schedule). It stops polling keys idle for two hours. The
+// kiosk always reads from memory.
 package sports
 
 import (
@@ -28,9 +27,9 @@ const (
 	tickEvery  = time.Minute
 	idleEvery  = 30 * time.Minute
 	soonWindow = 30 * time.Minute
-	// liveGrace bounds the "expected live" window: a game whose start has
-	// passed but never went final (postponed, suspended, or missing from
-	// the scoreboard) stops forcing per-minute polls after this long.
+	// liveGrace limits the "expected live" window: a started game that never went final
+	// (postponed, suspended, or not on the scoreboard) stops forcing per-minute polls after
+	// this long.
 	liveGrace  = 6 * time.Hour
 	evictAfter = 2 * time.Hour
 	teamsTTL   = 24 * time.Hour
@@ -45,9 +44,8 @@ type teamKey struct {
 	TeamID string
 }
 
-// entry is one tracked team's cached state. Its events slice is treated as
-// immutable: updates swap in a fresh slice, never mutate in place, so
-// handlers can JSON-encode a snapshot after releasing the lock.
+// entry is one tracked team's cached state. Its events slice never changes in place:
+// updates swap in a new slice, so handlers can encode a snapshot after unlocking.
 type entry struct {
 	lastRequested time.Time
 	fetchedAt     time.Time // zero until the first schedule fetch lands
@@ -105,10 +103,10 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/widgets/sports/games", w.handleGames)
 }
 
-// handleGames serves one team's split schedule from cache. A first request
-// for an unknown team registers it, answers {pending:true}, and fetches in
-// the background; the completed fetch announces itself over SSE and the
-// widget re-requests. Every request bumps the key's keep-alive.
+// handleGames serves one team's split schedule from cache. A first request for an
+// unknown team registers it, answers {pending:true}, and fetches in the background. The
+// finished fetch announces itself over SSE, and the widget requests again. Every
+// request extends the key's keep-alive.
 func (w *Widget) handleGames(rw http.ResponseWriter, r *http.Request) {
 	league := r.URL.Query().Get("league")
 	teamID := r.URL.Query().Get("team")
@@ -154,9 +152,9 @@ func (w *Widget) handleGames(rw http.ResponseWriter, r *http.Request) {
 	httpx.JSON(rw, http.StatusOK, map[string]any{"games": games})
 }
 
-// handleTeams serves a league's team list for the settings dialog, cached a
-// day so the browser never talks to ESPN. Fetched synchronously (like
-// weather's geocode) — it only runs while someone is in settings.
+// handleTeams serves a league's team list for the settings dialog, cached for a day,
+// so the browser never calls ESPN. Synchronous (like weather's geocode): it runs only
+// while someone is in settings.
 func (w *Widget) handleTeams(rw http.ResponseWriter, r *http.Request) {
 	league := r.URL.Query().Get("league")
 	if _, ok := leaguePath[league]; !ok {
@@ -186,9 +184,9 @@ func (w *Widget) handleTeams(rw http.ResponseWriter, r *http.Request) {
 	httpx.JSON(rw, http.StatusOK, teams)
 }
 
-// warmTeamLists keeps every league's team list in memory — fetched at
-// startup, refreshed daily — so opening the settings dialog never waits on
-// an ESPN round-trip. Failed fetches back off for teamsRetry.
+// warmTeamLists keeps every league's team list in memory (loaded at startup,
+// refreshed daily), so the settings dialog never waits on ESPN. Failed loads back off
+// for teamsRetry.
 func (w *Widget) warmTeamLists(ctx context.Context) []error {
 	now := w.now()
 	var stale []string
@@ -218,10 +216,9 @@ func (w *Widget) warmTeamLists(ctx context.Context) []error {
 	return errs
 }
 
-// refresh is the per-minute tick. Most ticks do nothing: it evicts keys
-// nobody is requesting, refetches schedules older than idleEvery, and — only
-// while some team has a game live or imminent — pulls that league's
-// scoreboard (once per league, shared by its teams) for live scores.
+// refresh is the per-minute tick. Most ticks do nothing. It evicts keys nobody
+// requests, refetches schedules older than idleEvery, and, only while a team has a
+// game live or near, pulls that league's scoreboard (once per league) for live scores.
 func (w *Widget) refresh(ctx context.Context) error {
 	now := w.now()
 	errs := w.warmTeamLists(ctx)
@@ -307,8 +304,8 @@ func (w *Widget) fetchAndPublish(key teamKey) {
 	w.Publish("changed")
 }
 
-// fetchSchedule refreshes one team's schedule. On failure the entry keeps
-// its last good data; the error is logged by the caller or job runner.
+// fetchSchedule refreshes one team's schedule. On failure the entry keeps its last
+// good data. The caller or the job runner logs the error.
 func (w *Widget) fetchSchedule(ctx context.Context, key teamKey) error {
 	tm, games, err := w.api.schedule(ctx, key.League, key.TeamID)
 	w.mu.Lock()
@@ -327,9 +324,9 @@ func (w *Widget) fetchSchedule(ctx context.Context, key teamKey) error {
 	return nil
 }
 
-// overlayLive merges a league scoreboard into one team's cached events,
-// swapping in a fresh slice (entries are immutable in place). It reports
-// whether anything visible changed and whether a game just went final.
+// overlayLive merges a league scoreboard into one team's cached events, swapping in a
+// new slice (entries never change in place). It reports whether anything visible
+// changed and whether a game just went final.
 func (w *Widget) overlayLive(key teamKey, board []liveEvent) (changed, wentFinal bool) {
 	byID := make(map[string]liveEvent, len(board))
 	for _, le := range board {
@@ -415,10 +412,9 @@ func anyLiveRelevant(events []game, now time.Time) bool {
 	return false
 }
 
-// liveRelevant reports whether a game should force per-minute scoreboard
-// polls: it is in progress, or it is scheduled to start within soonWindow
-// (or to have started up to liveGrace ago — the schedule may still say
-// "pre" for a game the scoreboard already shows in progress).
+// liveRelevant reports whether a game should force per-minute scoreboard polls: it is
+// in progress, or starts within soonWindow (or started up to liveGrace ago, since the
+// schedule may still say "pre" for a game the scoreboard shows in progress).
 func liveRelevant(g game, now time.Time) bool {
 	switch g.Status {
 	case statusLive:

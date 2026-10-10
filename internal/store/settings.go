@@ -1,11 +1,9 @@
 package store
 
-// The settings table is Hearth's tiny KV store: one row per key, shared by
-// widgets and platform code alike. Raw string access (GetSetting et al.)
-// exists for values whose on-disk representation predates Setting — the
-// guest PIN hash, the guest view id, the weather units string — and must
-// not change shape under existing databases. Everything else goes through
-// the typed Setting.
+// The settings table is Hearth's small KV store: one row per key, for widgets and
+// platform code. Raw string access (GetSetting et al.) is for values older than
+// Setting (the guest PIN hash, the guest view id, the weather units), which must keep
+// their on-disk shape. Everything else uses the typed Setting.
 
 import (
 	"database/sql"
@@ -36,16 +34,15 @@ func (s *Store) DeleteSetting(key string) error {
 	return err
 }
 
-// Setting is a typed settings entry: declare one per key
-// (`var nightSetting = store.Setting[nightConfig]{Key: "night_dim"}`) and
-// the codec has exactly one home — values are stored as JSON, and an unset
-// key comes back as ok=false rather than an error, so callers never touch
-// ErrNotFound or json themselves.
+// Setting is a typed settings entry. Declare one per key
+// (`var nightSetting = store.Setting[nightConfig]{Key: "night_dim"}`). The codec has
+// one home: values are JSON, and an unset key returns ok=false, not an error, so
+// callers never handle ErrNotFound or json.
 type Setting[T any] struct {
 	Key string
 }
 
-// Get returns the stored value; ok is false when the key is unset.
+// Get returns the stored value. ok is false when the key is unset.
 func (s Setting[T]) Get(st *Store) (v T, ok bool, err error) {
 	raw, err := st.GetSetting(s.Key)
 	if errors.Is(err, ErrNotFound) {

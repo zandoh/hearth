@@ -1,12 +1,11 @@
 import { useCallback, useState } from "react";
 
 /**
- * The one mutate-then-refresh discipline for widget writes: run the request;
- * on success reload the data this screen shows (SSE only covers OTHER
- * screens, never our own action) and then run `onSuccess` — so forms clear
- * only AFTER the server said yes; on failure surface the server's message
- * (apiFetch unwraps the {"error"} body) in `error` for a
- * <Text className="form-error"> — failures never vanish into the console.
+ * The one mutate-then-refresh flow for widget writes: run the request. On success,
+ * reload the data this screen shows (SSE covers other screens, never our own action),
+ * then run `onSuccess`, so forms clear only after the server agrees. On failure, put
+ * the server's message (apiFetch unwraps the {"error"} body) in `error` for a
+ * <Text className="form-error">. Failures never vanish into the console.
  *
  * `busy` is true while a request is in flight, for disabling submit buttons.
  */

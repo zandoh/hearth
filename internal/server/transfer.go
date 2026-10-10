@@ -1,9 +1,8 @@
 package server
 
-// Layout transfer: export the household's views as a portable JSON document
-// and import one produced elsewhere — the dev-board ↔ home-server path.
-// Only layout-shaped data travels: ids and default status stay with each
-// instance, and widget data (events, lists, chores) is never part of it.
+// Layout transfer: export the household's views as portable JSON, and import one from
+// elsewhere (dev board ↔ home server). Only layout data travels. Ids and default
+// status stay with each instance. Widget data (events, lists, chores) never travels.
 
 import (
 	"fmt"
@@ -55,9 +54,9 @@ func (s *Server) handleExportViews(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, doc)
 }
 
-// handleImportViews appends a document's views to the board. Additive on
-// purpose: an import never deletes or overwrites — colliding names get a
-// numeric suffix and the household prunes by hand.
+// handleImportViews appends a document's views to the board. Additive on purpose: an
+// import never deletes or overwrites. Colliding names get a numeric suffix, and the
+// household prunes by hand.
 func (s *Server) handleImportViews(w http.ResponseWriter, r *http.Request) {
 	var doc transferDoc
 	if !httpx.Decode(w, r, &doc) {

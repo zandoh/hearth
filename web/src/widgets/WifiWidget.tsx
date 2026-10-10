@@ -11,15 +11,13 @@ import { VStack } from "@astryxdesign/core/VStack";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
 import { type WifiAuth, parseWifiConfig, wifiPayload } from "./wifi";
 
-// The guest Wi-Fi card: a QR phones scan to join, with the network name and
-// password readable beside it for devices that can't. Everything lives in
-// the instance's layout config — no backend, no secrets beyond what the
-// card deliberately displays (Hearth is LAN-trust; the kiosk showing the
-// wifi password to people already in the house is the feature).
+// The guest Wi-Fi card: a QR phones scan to join, with the network name and password
+// readable beside it for devices that can't. Everything is in the instance's layout
+// config: no backend, and no secrets beyond what the card shows on purpose (Hearth is
+// LAN-trust, and showing the Wi-Fi password to people in the house is the feature).
 
-// One black square-run path per QR; uqr's matrix includes the quiet zone,
-// and the fill stays black-on-white in both themes — scanners want contrast,
-// not theming.
+// One black path of square runs per QR. uqr's matrix includes the quiet zone, and the
+// fill stays black on white in both themes: scanners want contrast, not theming.
 function WifiQR({ payload }: { payload: string }) {
   const { size, path } = useMemo(() => {
     const qr = encode(payload);

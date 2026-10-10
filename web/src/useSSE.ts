@@ -2,11 +2,10 @@ import { useEffect, useSyncExternalStore } from "react";
 import { isDemo } from "./demo";
 import { onDemoTopic } from "./demo/bus";
 
-// One shared EventSource for the whole app; widgets subscribe to topics.
-// EventSource reconnects automatically, which is exactly what an always-on
-// kiosk needs. On top of that this module tracks connection health for the
-// offline banner, and replays a synthetic "changed" to every subscriber
-// after a reconnect so widgets refetch whatever they missed while offline.
+// One shared EventSource for the app. Widgets subscribe to topics. EventSource
+// reconnects by itself, which an always-on kiosk needs. This module also tracks
+// connection health for the offline banner, and after a reconnect sends a synthetic
+// "changed" to every subscriber, so widgets re-fetch what they missed.
 
 type Handler = (data: unknown) => void;
 
@@ -29,8 +28,8 @@ let demoBridged = false;
 
 function ensureSource() {
   if (isDemo) {
-    // No stream on GitHub Pages: bridge the demo bus into the same
-    // handler map, once. Connection is by definition healthy.
+    // No stream on GitHub Pages: bridge the demo bus into the same handler map, once. The
+    // connection is always healthy.
     if (!demoBridged) {
       demoBridged = true;
       onDemoTopic((topic) => handlers.get(topic)?.forEach((h) => h("changed")));
@@ -52,8 +51,8 @@ function ensureSource() {
   source.onerror = () => {
     hadDrop = true;
     setConnectionState("reconnecting");
-    // EventSource gives up for good in some failure modes (readyState
-    // CLOSED); recreate it so the kiosk always finds its way back.
+    // EventSource gives up in some failure modes (readyState CLOSED). Recreate it, so the
+    // kiosk always reconnects.
     if (source?.readyState === EventSource.CLOSED) {
       source = null;
       setTimeout(ensureSource, 5000);

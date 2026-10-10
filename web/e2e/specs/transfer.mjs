@@ -3,9 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeStepper, newPage, seedView } from "../helpers.mjs";
 
-// Layout transfer: export → import must round-trip a layout intact
-// (dev board → home server is the use case), colliding names get a
-// numeric suffix, and the Views dialog drives both ends.
+// Layout transfer: export → import must round-trip a layout (dev board → home
+// server), colliding names get a numeric suffix, and the Views dialog drives both.
 
 export default async function transfer({ browser, base }) {
   const { step, failures } = makeStepper();

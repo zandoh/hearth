@@ -27,8 +27,8 @@ const (
 	googleTokenEndpoint = "https://oauth2.googleapis.com/token"
 	googleCalendarAPI   = "https://www.googleapis.com/calendar/v3"
 
-	// calendar.readonly lets us list the account's calendars; calendar.events
-	// lets us read and write events on them.
+	// calendar.readonly lists the account's calendars. calendar.events reads and writes
+	// their events.
 	oauthScopes = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events"
 )
 
@@ -129,9 +129,8 @@ func (g *googleClient) exchange(ctx context.Context, code string) error {
 	return g.saveToken(tok)
 }
 
-// emailFromIDToken pulls the email claim out of a JWT without verifying the
-// signature — fine here because the token came straight from Google over TLS
-// and is used only as a display label.
+// emailFromIDToken reads the email claim from a JWT without checking the signature.
+// Safe here: the token came straight from Google over TLS and is only a display label.
 func emailFromIDToken(idToken string) string {
 	parts := strings.Split(idToken, ".")
 	if len(parts) != 3 {
@@ -318,10 +317,9 @@ func (g *googleClient) updateEvent(ctx context.Context, calendarID, eventID stri
 func (g *googleClient) deleteEvent(ctx context.Context, calendarID, eventID string) error {
 	path := "/calendars/" + url.PathEscape(calendarID) + "/events/" + url.PathEscape(eventID)
 	err := g.apiCall(ctx, http.MethodDelete, path, nil, nil, nil)
-	// 404/410 mean the event is already gone remotely — which is the goal
-	// state of a delete. Treating them as failure wedges the local copy:
-	// it can never be deleted again (seen live after an interrupted first
-	// attempt that had in fact succeeded on Google).
+	// 404 and 410 mean the event is already gone remotely, which is the goal of a
+	// delete. As failures they would stop the local copy from ever being deleted (seen
+	// live after an interrupted first attempt that had succeeded on Google).
 	var se *apiStatusError
 	if errors.As(err, &se) && (se.Code == http.StatusNotFound || se.Code == http.StatusGone) {
 		return nil

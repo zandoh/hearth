@@ -4,12 +4,11 @@ import { demoGames, demoTeams } from "./sports";
 import { type DemoState, demoState, persist, ymd } from "./state";
 import { demoWord } from "./word";
 
-// Demo mode's backend: the API surface the frontend actually calls,
-// implemented over the sandbox state. Semantics mirror internal/server
-// and internal/store closely enough that every widget behaves; mutations
-// end with publishDemo — publish-on-write, sandbox edition. Weather is
-// the one live integration: Open-Meteo allows CORS, so the demo shows
-// the visitor's real forecast.
+// Demo mode's backend: the API the frontend calls, implemented over the sandbox state.
+// It mirrors internal/server and internal/store closely enough that every widget
+// works. Mutations end with publishDemo (publish-on-write, sandbox edition). Weather is
+// the one live integration: Open-Meteo allows CORS, so the demo shows the visitor's
+// real forecast.
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -445,8 +444,8 @@ async function weatherForecast(s: DemoState): Promise<Response> {
         .then((r) => r.json())
         .catch(() => null),
     ]);
-    // Mirror the backend's species → category grouping (worst species wins);
-    // outside pollen coverage everything is null and the block collapses.
+    // Mirror the backend's species → category grouping (worst species wins). Outside
+    // pollen coverage everything is null, and the block becomes null.
     const worst = (...vs: (number | null | undefined)[]) =>
       vs.reduce<number | null>((m, v) => (v != null && (m == null || v > m) ? v : m), null);
     const pollen = {

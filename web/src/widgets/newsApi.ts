@@ -15,8 +15,8 @@ export interface TopicHeadlines {
   items: Headline[];
 }
 
-// {pending:true} until the backend's first fetch for this topic lands; the
-// completed fetch announces itself on the news SSE topic.
+// {pending:true} until the backend's first fetch for this topic lands. The finished
+// fetch announces itself on the news topic.
 export interface HeadlinesResponse {
   pending?: boolean;
   headlines?: TopicHeadlines;

@@ -26,7 +26,7 @@ func (s *Store) MealEntriesBetween(start, end string) ([]MealEntry, error) {
 	return entries, rows.Err()
 }
 
-// SetMealEntry upserts a day/slot entry; empty text deletes it.
+// SetMealEntry upserts a day/slot entry. Empty text deletes it.
 func (s *Store) SetMealEntry(day, slot, text string) error {
 	if text == "" {
 		_, err := s.db.Exec("DELETE FROM meal_entries WHERE day = ? AND slot = ?", day, slot)

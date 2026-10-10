@@ -1,10 +1,10 @@
-// Hashtag tags on calendar events: put #countdown, #travel, #meal … in an
-// event's description (the tidy place) or its title, wherever the event is
-// managed — Google Calendar included, since descriptions sync into notes.
+// Hashtags on calendar events: put #countdown, #travel, #meal … in an event's
+// description (the tidy place) or title, wherever you manage it. Google Calendar works
+// too, because descriptions sync into notes.
 //
-// This module is the shared contract for every widget that reacts to
-// tagged events; the countdown widget is the first consumer. Keep it free
-// of widget specifics so the next tag-driven widget only writes a filter.
+// This module is the shared contract for widgets that react to tagged events (the
+// countdown widget is the first). Keep widget specifics out, so the next tag-driven
+// widget only writes a filter.
 
 const TAG_RE = /#([a-z0-9][a-z0-9_-]*)/gi;
 
@@ -55,16 +55,15 @@ export const parseTagList = (raw: unknown): string[] =>
 // Tags the system watches when a widget hasn't configured its own list.
 export const DEFAULT_TAGS = ["countdown", "travel", "trip"];
 
-// Widget types that react to event tags; an instance with no configured
-// list watches DEFAULT_TAGS.
+// Widget types that react to event tags. An instance with no configured list watches
+// DEFAULT_TAGS.
 const TAG_DRIVEN_WIDGETS = new Set(["countdown"]);
 
 /**
- * Every tag the system is currently watching — the union of what each
- * tag-driven widget instance effectively watches (its configured list, or
- * the defaults when it has none). Empty when nothing watches tags: a pill
- * for a tag no widget reacts to would be a lie. Any widget with a
- * config.tags list contributes, so future tag-driven widgets join for free.
+ * Every tag the system watches: the union of what each tag-driven widget instance
+ * watches (its configured list, or the defaults). Empty when nothing watches tags,
+ * because a pill for a tag no widget uses would mislead. Any widget with a config.tags
+ * list contributes, so future tag-driven widgets join automatically.
  */
 export function knownTags(views: { layout: { widget?: string; config?: unknown }[] }[]): string[] {
   const tags = new Set<string>();

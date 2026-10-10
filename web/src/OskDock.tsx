@@ -1,10 +1,9 @@
 import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
 
-// The heavy half of the on-screen keyboard, split out so react-simple-
-// keyboard and its stylesheet load lazily: every board visitor pays for
-// the focus-tracking logic in OnScreenKeyboard, but only a focused text
-// field with the OSK enabled ever needs the key grid itself.
+// The heavy half of the on-screen keyboard, split out so react-simple-keyboard and its
+// stylesheet load lazily. Every visitor runs the focus tracking in OnScreenKeyboard.
+// Only a focused text field with the OSK on needs the key grid.
 
 export default function OskDock({
   shift,

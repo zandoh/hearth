@@ -197,9 +197,9 @@ func (s *Store) DeleteEvent(id int64) error {
 	return nil
 }
 
-// ReplaceGoogleEvents atomically swaps a Google calendar's synced events for
-// the freshly fetched set. Full-window replace keeps sync logic trivial; a
-// household calendar has hundreds of events, not millions.
+// ReplaceGoogleEvents swaps a Google calendar's synced events for the new set in one
+// transaction. Replacing the whole window keeps sync simple. A household calendar has
+// hundreds of events, not millions.
 func (s *Store) ReplaceGoogleEvents(calendarID int64, events []Event) error {
 	tx, err := s.db.Begin()
 	if err != nil {

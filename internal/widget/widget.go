@@ -28,14 +28,13 @@ type Widget interface {
 	// Routes registers the widget's API handlers. Handlers must be
 	// registered under /api/widgets/{id}/.
 	Routes(mux *http.ServeMux)
-	// Jobs returns recurring background tasks; may be empty.
+	// Jobs returns recurring background tasks. It may be empty.
 	Jobs() []Job
 }
 
-// Base carries the wiring every widget shares and owns the SSE topic
-// convention: a widget publishes on its own ID, so the topic string has
-// exactly one source. Embed it and override Jobs when the widget has
-// background work.
+// Base carries the wiring every widget shares and owns the topic convention: a widget
+// publishes on its own ID, so the topic string has one source. Embed it, and override
+// Jobs for background work.
 type Base struct {
 	Hub  *sse.Hub
 	Slug string
@@ -47,10 +46,9 @@ func (b Base) Jobs() []Job { return nil }
 // Publish sends data to the widget's SSE topic (its ID).
 func (b Base) Publish(data any) { b.Hub.Publish(b.Slug, data) }
 
-// Changed is the canonical end of every mutating widget handler: it
-// publishes "changed" on the widget's own topic, then writes the JSON
-// response. Ending handlers with Changed makes publish-on-write
-// unforgettable. A nil v writes only the status (for 204 No Content).
+// Changed ends every mutating widget handler: it publishes "changed" on the widget's
+// topic, then writes the JSON response, so publish-on-write cannot be forgotten. A nil
+// v writes only the status (204).
 func (b Base) Changed(rw http.ResponseWriter, status int, v any) {
 	b.Publish("changed")
 	if v == nil {

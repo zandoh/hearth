@@ -1,8 +1,7 @@
-// The sports widget's backend, sandbox edition: fixed rosters per league
-// and schedules synthesized from a hash of the team, so every visitor sees
-// plausible games that stay stable across renders — no ESPN calls. Logos
-// come off ESPN's CDN like the real backend's; TeamLogo hides them if the
-// kiosk (here, the visitor's browser) can't load them.
+// The sports widget's backend, sandbox edition: fixed rosters per league and schedules
+// derived from a hash of the team, so each visitor sees plausible games that stay the
+// same across renders, with no ESPN calls. Logos come from ESPN's CDN like the real
+// backend's. TeamLogo hides them if the browser cannot load them.
 
 import type { Game, GamesResponse, Team } from "../widgets/sportsApi";
 
@@ -90,8 +89,8 @@ function pick(seed: number, n: number, range: number): number {
   return ((x ^ (x >>> 13)) >>> 0) % range;
 }
 
-// Local wall-clock time `days` from today, as the UTC instant the real
-// backend would send; the widget renders it back in the device's zone.
+// Local wall-clock time `days` from today, as the UTC instant the real backend sends.
+// The widget renders it in the device's zone.
 function gameStart(days: number, hour: number, minute: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -123,8 +122,8 @@ export function demoGames(league: string, teamId: string): GamesResponse | null 
     oppScore,
   };
 
-  // Every ~3 days with a little jitter; offsets never collide, so the list
-  // stays in ascending order. Five games — MAX_COUNT's worth.
+  // Every ~3 days with some jitter. Offsets never collide, so the list stays ascending.
+  // Five games: MAX_COUNT's worth.
   const upcoming: Game[] = Array.from({ length: 5 }, (_, i) => ({
     id: `${teamId}-up-${i}`,
     start: gameStart(

@@ -39,9 +39,9 @@ type choreView struct {
 	OneOff    bool   `json:"oneOff"` // every_days = 0: done once, then gone
 }
 
-// dueView computes a chore's due state as of now: never-done chores are due
-// today; otherwise due lastDone + everyDays, with dueIn counted in whole
-// days and clamped to 0 when the due date is today.
+// dueView computes a chore's due state as of now. A never-done chore is due today.
+// Otherwise it is due lastDone + everyDays, with dueIn in whole days, clamped to 0 on
+// the due date.
 func dueView(c store.Chore, now time.Time) choreView {
 	v := choreView{Chore: c, OneOff: c.EveryDays == 0}
 	today := now.Format("2006-01-02")
@@ -50,9 +50,9 @@ func dueView(c store.Chore, now time.Time) choreView {
 		v.NeverDone = true
 		return v
 	}
-	// Parse in now's location so the due date and now share a zone; a
-	// UTC-parsed date subtracted from a local now truncates dueIn to the
-	// wrong day for part of every day in non-UTC deployments.
+	// Parse in now's location, so the due date and now share a zone. A date parsed in
+	// UTC, subtracted from a local now, gives the wrong dueIn for part of each day outside
+	// UTC.
 	last, err := time.ParseInLocation("2006-01-02", c.LastDone, now.Location())
 	if err != nil {
 		last = now

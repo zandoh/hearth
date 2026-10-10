@@ -1,7 +1,6 @@
-// Package weather: current conditions, hourly and daily forecast, and air
-// quality from Open-Meteo (free, no API key). The forecast refreshes on a
-// background job and is served from memory; the kiosk never waits on an
-// upstream API.
+// Package weather: current conditions, hourly and daily forecast, and air quality from
+// Open-Meteo (free, no API key). A background job refreshes the forecast, and handlers
+// serve it from memory. The kiosk never waits on an upstream API.
 package weather
 
 import (
@@ -21,17 +20,16 @@ import (
 )
 
 const (
-	// unitsSetting is stored raw ("imperial"/"metric"), predating the typed
-	// Setting; it must keep that shape for existing databases.
+	// unitsSetting is raw ("imperial" or "metric"), older than the typed Setting, and
+	// keeps that shape for existing databases.
 	unitsSetting = "weather_units"
 	refreshEvery = 15 * time.Minute
 )
 
 var locationSetting = store.Setting[location]{Key: "weather_location"}
 
-// meteoAPI is the seam between the widget and Open-Meteo: the forecast,
-// air-quality, and geocoding fetches. openMeteoClient is the production
-// adapter; tests substitute a fake.
+// meteoAPI is the seam to Open-Meteo: the forecast, air-quality, and geocoding
+// fetches. openMeteoClient is the production adapter. Tests use a fake.
 type meteoAPI interface {
 	forecast(ctx context.Context, loc location, units string) (forecastData, error)
 	airQuality(ctx context.Context, loc location) (airData, error)
@@ -45,8 +43,8 @@ type airData struct {
 	Pollen *pollenCounts
 }
 
-// pollenCounts are current counts in grains/m³ by allergy category; a nil
-// field means no data for that category at this location.
+// pollenCounts are current counts in grains/m³ per allergy category. A nil field
+// means no data for that category here.
 type pollenCounts struct {
 	Tree  *float64 `json:"tree"`
 	Grass *float64 `json:"grass"`
@@ -129,8 +127,8 @@ func (w *Widget) refresh(ctx context.Context) error {
 		Daily:     fc.Daily,
 	}
 
-	// AQI and pollen come from a separate Open-Meteo service; treat them as
-	// optional so an air-quality outage doesn't take down the whole widget.
+	// AQI and pollen come from a separate Open-Meteo service. They are optional, so an
+	// air-quality outage doesn't break the widget.
 	if air, err := w.meteo.airQuality(ctx, loc); err != nil {
 		slog.Warn("weather: air quality fetch failed", "err", err)
 	} else {

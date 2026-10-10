@@ -17,8 +17,8 @@ import { useWidgetData } from "../useWidgetData";
 import type { WidgetProps } from "./registry";
 import { type Med, addMed, deleteMed, toggleDose } from "./medsApi";
 
-// Semantic schedules; each maps to the slot list stored on the medication.
-// Daily-style slots reset at midnight, weekly at the start of the week.
+// Semantic schedules, each mapped to the slot list stored on the medication. Daily
+// slots reset at midnight, weekly ones at the start of the week.
 const SCHEDULES: { value: string; label: string; slots: string[] }[] = [
   { value: "am", label: "Morning (AM)", slots: ["AM"] },
   { value: "pm", label: "Evening (PM)", slots: ["PM"] },
@@ -34,7 +34,7 @@ const SLOT_LABELS: Record<string, string> = {
   weekly: "This week",
 };
 
-// Legacy meds stored HH:MM times; show them as-is.
+// Legacy meds stored HH:MM times. Show them as they are.
 const slotLabel = (slot: string) => SLOT_LABELS[slot] ?? slot;
 
 export function MedsWidget(_props: WidgetProps) {

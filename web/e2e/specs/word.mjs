@@ -1,8 +1,8 @@
 import { makeStepper, newPage, seedView } from "../helpers.mjs";
 
-// Word of the day: fully offline (the pack is embedded in the binary), so
-// this spec runs against the real endpoint — no stubs. It checks the card
-// renders the same word the API serves, complete with its definition.
+// Word of the day: fully offline (the pack is in the binary), so this spec uses the
+// real endpoint with no stubs. The card must show the word the API serves, with its
+// definition.
 
 export default async function word({ browser, base }) {
   const { step, failures } = makeStepper();

@@ -36,8 +36,7 @@ import (
 )
 
 func main() {
-	// Local secrets convenience; real env vars always win. Must happen
-	// before flag parsing side effects read any configuration.
+	// Local secrets. Real env vars always win. Runs before anything reads configuration.
 	loadDotEnv(".env")
 
 	addr := flag.String("addr", ":8080", "listen address")
@@ -71,10 +70,9 @@ func main() {
 	}
 }
 
-// doResetGuestPin is the offline admin path for a forgotten guest PIN: it
-// writes straight to the database, so it works whether or not the server
-// is running. The running server reads settings per request and needs no
-// restart to notice.
+// doResetGuestPin is the offline admin path for a forgotten guest PIN. It writes
+// straight to the database, so it works with the server running or stopped. The
+// server reads settings per request, so it needs no restart.
 func doResetGuestPin(dbPath string) error {
 	st, err := store.Open(dbPath)
 	if err != nil {
@@ -114,9 +112,8 @@ func run(addr, dbPath string) error {
 	defer stop()
 	reg.StartJobs(ctx)
 
-	// Automatic backups: one snapshot per day into <db dir>/backups, keep
-	// the newest 7. Checked hourly so it self-heals regardless of when the
-	// server (re)starts.
+	// Automatic backups: one snapshot a day into <db dir>/backups, keeping the newest 7.
+	// The hourly check makes it independent of when the server starts.
 	go func() {
 		tick := time.NewTicker(time.Hour)
 		defer tick.Stop()

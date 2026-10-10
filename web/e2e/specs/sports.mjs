@@ -1,9 +1,8 @@
 import { getLayout, makeStepper, newPage, seedView } from "../helpers.mjs";
 
-// Sports widget: unconfigured empty state, card rendering from games data
-// (with SSE dead — rendering must not depend on the stream), and the
-// settings flow persisting per-instance config. ESPN is never contacted:
-// the browser↔backend calls are stubbed with page.route.
+// Sports widget: the unconfigured state, rendering from game data with SSE dead
+// (rendering must not need the stream), and the settings flow saving per-instance
+// config. page.route stubs the browser↔backend calls, so ESPN is never contacted.
 
 // A 1×1 png so the logo renders without touching ESPN's CDN.
 const logoDataURI =

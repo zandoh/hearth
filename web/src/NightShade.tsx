@@ -4,11 +4,10 @@ import { type NightConfig, getNightConfig } from "./night";
 import { TOPICS } from "./topics";
 import { useTopic } from "./useSSE";
 
-// The night shade: a full-screen scrim that eases in during the household's
-// quiet window. It sits above everything (screensaver included) so the whole
-// panel dims. While dim it swallows the first tap as "wake" — a 2 AM touch
-// shouldn't also toggle whatever was under the finger — then stays bright
-// for a grace period before easing back.
+// The night shade: a full-screen scrim that eases in during the quiet window. It sits
+// above everything (screensaver included), so the whole panel dims. While dim, it
+// takes the first tap as "wake" (a 2 AM touch must not also press what is under the
+// finger), then stays bright for a grace period before easing back.
 export function NightShade() {
   const [cfg, setCfg] = useState<NightConfig | null>(null);
   const [awake, setAwake] = useState(false);

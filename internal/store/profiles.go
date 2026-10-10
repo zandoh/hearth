@@ -47,8 +47,8 @@ func (s *Store) UpdateProfile(p Profile) error {
 	return nil
 }
 
-// DeleteProfile removes the person; their chores and meds stay, unassigned
-// (the FKs are ON DELETE SET NULL).
+// DeleteProfile removes the person. Their chores and meds stay, unassigned (the FKs
+// are ON DELETE SET NULL).
 func (s *Store) DeleteProfile(id int64) error {
 	res, err := s.db.Exec("DELETE FROM profiles WHERE id = ?", id)
 	if err != nil {

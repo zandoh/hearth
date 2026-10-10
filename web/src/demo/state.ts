@@ -1,9 +1,8 @@
 import type { LayoutItem } from "../types";
 
-// The demo sandbox: the whole "database" as one JSON object in
-// localStorage, seeded with the same household the README screenshots
-// show. Every visitor gets their own copy; a seed older than RESET_MS
-// re-seeds on load, so the demo always comes back to a good state.
+// The demo sandbox: the whole "database" as one JSON object in localStorage, seeded
+// with the household from the README screenshots. Each visitor gets a copy. A seed
+// older than RESET_MS re-seeds on load, so the demo always returns to a good state.
 
 export const RESET_MS = 24 * 60 * 60 * 1000;
 const KEY = "hearth-demo-state";
@@ -229,7 +228,7 @@ export function demoState(): DemoState {
       }
     }
   } catch {
-    // corrupted sandbox: fall through to a fresh seed
+    // Corrupted sandbox: fall through to a fresh seed.
   }
   state = seed();
   persist();

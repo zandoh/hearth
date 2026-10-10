@@ -1,9 +1,8 @@
 import { getLayout, makeStepper, newPage, seedView } from "../helpers.mjs";
 
-// News widget: card rendering from headlines data (with SSE dead — rendering
-// must not depend on the stream) and the settings flow persisting the
-// per-instance topic. Google News is never contacted: the browser↔backend
-// calls are stubbed with page.route.
+// News widget: rendering from headline data with SSE dead (rendering must not need the
+// stream), and the settings flow saving the per-instance topic. page.route stubs the
+// browser↔backend calls, so Google News is never contacted.
 
 const headlinesStub = {
   headlines: {

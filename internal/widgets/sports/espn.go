@@ -1,11 +1,10 @@
 package sports
 
-// ESPN site API adapter, standard library only. The endpoints are ESPN's
-// public keyless JSON API (the one espn.com itself uses): team lists, a
-// team's season schedule, and the league scoreboard for live detail. The
-// responses are huge and league-shaped, so this adapter normalizes them to
-// the compact structs the widget caches and serves; raw ESPN JSON never
-// leaves this file.
+// ESPN site API adapter, standard library only. It uses ESPN's public keyless JSON
+// API (the one espn.com uses): team lists, a team's season schedule, and the league
+// scoreboard for live detail. The responses are large and league-shaped, so this file
+// normalizes them to the compact structs the widget caches. Raw ESPN JSON never leaves
+// this file.
 
 import (
 	"context"
@@ -27,8 +26,8 @@ var leaguePath = map[string]string{
 	"nba": "basketball/nba",
 }
 
-// sportsAPI is the seam between the widget and ESPN. espnClient is the
-// production adapter; tests substitute a fake.
+// sportsAPI is the seam to ESPN. espnClient is the production adapter. Tests use a
+// fake.
 type sportsAPI interface {
 	teams(ctx context.Context, league string) ([]team, error)
 	schedule(ctx context.Context, league, teamID string) (team, []game, error)
@@ -66,8 +65,8 @@ type game struct {
 	Broadcast string `json:"broadcast,omitempty"`
 }
 
-// liveEvent is one scoreboard entry, league-wide and perspective-free; the
-// widget resolves "us vs them" when it overlays these onto a team's games.
+// liveEvent is one scoreboard entry, league-wide and without perspective. The widget
+// works out "us vs them" when it overlays these onto a team's games.
 type liveEvent struct {
 	ID     string
 	Status gameStatus
@@ -75,9 +74,9 @@ type liveEvent struct {
 	Scores map[string]*int // team ID → score
 }
 
-// espnScore tolerates ESPN's two score encodings: the schedule endpoint
-// sends {value, displayValue} objects (null before a game starts), the
-// scoreboard sends plain strings.
+// espnScore accepts ESPN's two score encodings: the schedule endpoint sends
+// {value, displayValue} objects (null before a game starts), and the scoreboard sends
+// plain strings.
 type espnScore struct {
 	val *int
 }
@@ -147,8 +146,8 @@ type espnTeam struct {
 	ID           string `json:"id"`
 	DisplayName  string `json:"displayName"`
 	Abbreviation string `json:"abbreviation"`
-	// The teams and schedule-competitor shapes carry a logos array; the
-	// schedule's top-level team carries a singular logo URL instead.
+	// The teams and schedule-competitor shapes have a logos array. The schedule's
+	// top-level team has a single logo URL.
 	Logos []struct {
 		Href string `json:"href"`
 	} `json:"logos"`
@@ -283,8 +282,8 @@ func (c *espnClient) decodeSchedule(ctx context.Context, url, teamID string) (te
 	return payload.Team.normalize(), out, nil
 }
 
-// scoreboard returns today's league-wide events; fresher than the schedule
-// while games are in progress (running clock, period, live scores).
+// scoreboard returns today's league-wide events. Fresher than the schedule while games
+// run (clock, period, live scores).
 func (c *espnClient) scoreboard(ctx context.Context, league string) ([]liveEvent, error) {
 	return c.decodeScoreboard(ctx, fmt.Sprintf("%s/%s/scoreboard", espnBase, leaguePath[league]))
 }

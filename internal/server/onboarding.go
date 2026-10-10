@@ -9,11 +9,9 @@ import (
 	"github.com/zandoh/hearth/internal/topics"
 )
 
-// First-boot onboarding: a pristine install (the untouched seed view and no
-// prior choice) offers starter templates; picking one writes a real layout
-// into the Home view so a new household starts from something, not a blank
-// grid. Applying — or explicitly skipping — is remembered server-side, so
-// every screen agrees the question was answered.
+// First-boot onboarding: a pristine install (the untouched seed view, no prior
+// choice) offers starter templates. A pick writes a real layout into the Home view.
+// The server remembers an apply or a skip, so every screen agrees it is answered.
 
 var onboardedSetting = store.Setting[bool]{Key: "onboarded"}
 
@@ -29,7 +27,7 @@ var templates = map[string][]store.LayoutItem{
 		{I: "meds-1", Widget: "meds", X: 4, Y: 8, W: 4, H: 4, Config: json.RawMessage(`{}`)},
 		{I: "countdown-1", Widget: "countdown", X: 8, Y: 8, W: 4, H: 4, Config: json.RawMessage(`{}`)},
 	},
-	// Meal planning and groceries lead; for the screen by the fridge.
+	// Meal planning and groceries first: for the screen by the fridge.
 	"kitchen": {
 		{I: "mealplan-1", Widget: "mealplan", X: 0, Y: 0, W: 6, H: 6, Config: json.RawMessage(`{}`)},
 		{I: "grocery-1", Widget: "grocery", X: 6, Y: 0, W: 3, H: 6, Config: json.RawMessage(`{}`)},
@@ -44,7 +42,7 @@ var templates = map[string][]store.LayoutItem{
 		{I: "weather-1", Widget: "weather", X: 4, Y: 0, W: 4, H: 4, Config: json.RawMessage(`{}`)},
 		{I: "agenda-1", Widget: "agenda", X: 8, Y: 0, W: 4, H: 6, Config: json.RawMessage(`{}`)},
 	},
-	// Keep the blank board; just stop asking.
+	// Keep the blank board. Stop asking.
 	"scratch": nil,
 }
 

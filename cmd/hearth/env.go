@@ -7,13 +7,12 @@ import (
 	"strings"
 )
 
-// loadDotEnv reads KEY=VALUE pairs from the given file into the process
-// environment. Variables already set in the environment win, so exported
-// values and systemd/docker-provided config always override the file.
-// Missing file is fine — .env is optional local convenience.
+// loadDotEnv reads KEY=VALUE pairs from the file into the process environment.
+// Variables already set win, so exported, systemd, and docker config override the
+// file. A missing file is fine: .env is optional.
 //
-// Supported syntax: blank lines, # comments, optional "export " prefix,
-// and single- or double-quoted values.
+// Syntax: blank lines, # comments, an optional "export " prefix, and single- or
+// double-quoted values.
 func loadDotEnv(path string) {
 	f, err := os.Open(path)
 	if err != nil {

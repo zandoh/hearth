@@ -22,11 +22,10 @@ import {
 } from "./countdown";
 import { parseTagList } from "./eventTags";
 
-// The big days the household is waiting for — weddings, trips, birthdays —
-// as "N days" cards, soonest first. Past dates simply stop showing. Manual
-// entries live in the widget config; calendar events join automatically
-// when tagged #countdown / #travel / … in their description or title
-// (see eventTags.ts — the tag convention is shared, not countdown-only).
+// The big days the household is waiting for (weddings, trips, birthdays) as "N days"
+// cards, soonest first. Past dates stop showing. Manual entries live in the widget
+// config. Calendar events join when tagged #countdown, #travel, … in their description
+// or title (eventTags.ts: the tag convention is shared, not countdown-only).
 
 const addDays = (d: Date, n: number) => {
   const x = new Date(d);

@@ -454,9 +454,9 @@ function DayDialog({
   );
 }
 
-// The shared time-grid for week / work week / day: an hour gutter, events
-// placed by their times (overlaps share the column via lanes), an all-day
-// band, and a live now-line. All geometry comes from timeGrid.ts.
+// The shared time grid for week, work week, and day: an hour gutter, events placed by
+// time (overlaps share the column in lanes), an all-day band, and a live now-line. All
+// geometry comes from timeGrid.ts.
 function TimeGrid({
   days,
   events,
@@ -470,7 +470,7 @@ function TimeGrid({
   colorOf: (id: number) => string;
   onPickDay: (day: string, time?: string) => void;
 }) {
-  // The now-line creeps; re-render once a minute.
+  // The now-line moves. Re-render once a minute.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -540,8 +540,8 @@ function TimeGrid({
               className={`cal-tg-col no-drag${d === today ? " today" : ""}`}
               style={{ "--tg-rows": hours.length } as React.CSSProperties}
               onClick={(e) => {
-                // Clicking an event opens the day plainly; clicking an empty
-                // slot seeds the add form with that slot's time.
+                // Clicking an event opens the day. Clicking an empty slot seeds the add form with that
+                // slot's time.
                 if ((e.target as HTMLElement).closest(".cal-tg-event")) {
                   onPickDay(d);
                   return;

@@ -5,9 +5,9 @@ export default async function guest({ browser, base }) {
   await seedView(base, [{ i: "clock-1", widget: "clock", x: 0, y: 0, w: 4, h: 3, config: {} }]);
 
   // --- guest mode round-trip must not disturb the board ---
-  // Regression: the no-guest-view screensaver used to unmount the grid, which
-  // zeroed react-grid-layout's container width for good — after the PIN exit
-  // every widget rendered collapsed into the left edge.
+  // Regression: the no-guest-view screensaver unmounted the grid, which set
+  // react-grid-layout's container width to zero for good. After the PIN exit, every
+  // widget collapsed into the left edge.
   await fetch(`${base}/api/guest/pin`, { method: "POST", body: JSON.stringify({ pin: "4242" }) });
   const guestCtx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const gPage = await guestCtx.newPage();

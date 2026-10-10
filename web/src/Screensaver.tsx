@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 
-// DVD-style bouncing mark on pure black: burn-in protection after long
-// inactivity, and the default guest experience when no guest view exists.
-// Tapping wakes it — or, in persistent guest mode, reveals the exit action.
+// DVD-style bouncing mark on black: burn-in protection after long inactivity, and the
+// default guest experience when there is no guest view. A tap wakes it, or in
+// persistent guest mode shows the exit action.
 
 const EMBER = "#D97742";
 const RING_COLORS = ["#F4F1EB", EMBER, "#C9C3B8", "#E8A87C"];

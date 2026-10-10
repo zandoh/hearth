@@ -78,8 +78,8 @@ func (s *Store) DeleteMedication(id int64) error {
 	return nil
 }
 
-// TakenDosesBetween returns doses logged in [start, end] (inclusive days).
-// Daily slots look at a single day; weekly slots at the current week.
+// TakenDosesBetween returns doses logged in [start, end] (inclusive days). Daily
+// slots look at one day, weekly slots at the current week.
 func (s *Store) TakenDosesBetween(start, end string) ([]DoseKey, error) {
 	rows, err := s.db.Query(
 		"SELECT medication_id, slot FROM medication_logs WHERE day >= ? AND day <= ?",
@@ -99,10 +99,9 @@ func (s *Store) TakenDosesBetween(start, end string) ([]DoseKey, error) {
 	return doses, rows.Err()
 }
 
-// ToggleDose marks a dose taken (logged on `day`), or un-marks it if already
-// logged anywhere in [windowStart, windowEnd] — the reset window: one day
-// for daily slots, the current week for weekly ones. Returns true if the
-// dose is now marked taken.
+// ToggleDose marks a dose taken (logged on `day`), or unmarks it if it is logged
+// anywhere in [windowStart, windowEnd], the reset window: one day for daily slots, the
+// current week for weekly ones. Returns true if the dose is now taken.
 func (s *Store) ToggleDose(medicationID int64, slot, day, windowStart, windowEnd string) (bool, error) {
 	res, err := s.db.Exec(
 		"DELETE FROM medication_logs WHERE medication_id = ? AND slot = ? AND day >= ? AND day <= ?",

@@ -1,12 +1,11 @@
 import type { Compactor, Layout, LayoutItem } from "react-grid-layout";
 
-// Free placement: gaps stay where you put them (no gravity), but collisions
-// PUSH — Datadog-style. The key to "shift just enough": pushes are computed
-// against a SNAPSHOT of the layout taken when the gesture started, not
-// against wherever the last drag-tick shoved things. Every displaced widget
-// keeps trying to return to its home spot and only sits as far down as the
-// intruder actually forces it, so displacement never accumulates along the
-// drag path and widgets spring back when the intruder moves away.
+// Free placement: gaps stay where you put them (no gravity), but collisions push
+// (Datadog-style). To shift only as much as needed, pushes are computed against a
+// snapshot of the layout from the gesture start, not against the last drag tick. Each
+// displaced widget tries to return home and sits only as low as the intruder forces
+// it, so displacement never builds up along the drag path, and widgets spring back
+// when the intruder leaves.
 
 const collide = (a: LayoutItem, b: LayoutItem) =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -29,9 +28,9 @@ export interface FreePlacementCompactor {
   /** True while a gesture snapshot is active. */
   inGesture(): boolean;
   /**
-   * Final placement is strict: drop the hysteresis so a widget that was only
-   * sticky-pushed springs home, settle the layout one last time, and clear
-   * all gesture state. Returns the settled layout to persist.
+   * Final placement is strict: drop the hysteresis so a sticky-pushed widget springs
+   * home, settle the layout one last time, and clear all gesture state. Returns the
+   * settled layout to save.
    */
   endGesture(layout: Layout, cols: number): Layout;
   /** Drop all gesture state without settling (e.g. after a tray drop). */
@@ -45,9 +44,9 @@ export interface FreePlacementCompactor {
 export function createCompactor(): FreePlacementCompactor {
   const gestureHomes = new Map<string, { x: number; y: number }>();
   let gestureItemId: string | null = null;
-  // Hysteresis: widgets pushed on the previous tick stay pushed until the
-  // intruder clears them by a full cell. Without this, cursor jitter at a
-  // cell boundary makes neighbours oscillate home/pushed — the "jiggle".
+  // Hysteresis: a widget pushed on the last tick stays pushed until the intruder clears
+  // it by a full cell. Without this, cursor jitter at a cell edge makes neighbours
+  // flip between home and pushed (the "jiggle").
   const pushedLastTick = new Set<string>();
 
   const compactor: Compactor = {
@@ -67,8 +66,8 @@ export function createCompactor(): FreePlacementCompactor {
           placed.push(it);
         }
       }
-      // Everyone else starts from their gesture-start home (falling back to
-      // their current spot) and slides down only as far as needed.
+      // Everyone else starts from their gesture-start home (or their current spot) and
+      // slides down only as far as needed.
       const rest = layout
         .filter((it) => !isIntruder(it))
         .map((it) => {
@@ -80,11 +79,11 @@ export function createCompactor(): FreePlacementCompactor {
       for (const it of rest) {
         const mustPush =
           placed.some((p) => collide(p, it)) ||
-          // sticky: was pushed and the intruder is still within one cell
+          // Sticky: pushed last tick, and the intruder is still within one cell.
           (pushedLastTick.has(it.i) && intruders.some((p) => nearby(p, it)));
         if (mustPush) {
           while (placed.some((p) => collide(p, it))) it.y += 1;
-          // re-settle upward toward home so a sticky push sits snug, not deep
+          // Settle back up toward home, so a sticky push sits close, not deep.
           while (it.y > (gestureHomes.get(it.i)?.y ?? it.y)) {
             const up = { ...it, y: it.y - 1 };
             if (placed.some((p) => collide(p, up))) break;

@@ -9,9 +9,9 @@ import (
 	"github.com/zandoh/hearth/internal/topics"
 )
 
-// Night dimming: during a household-configured quiet window the kiosk pulls
-// a dark shade over the board. The window lives in settings so every device
-// on the wall dims together; the shade itself is client-side.
+// Night dimming: in a household-set quiet window, the kiosk shows a dark shade over
+// the board. The window is in settings, so every device dims together. The shade is
+// client-side.
 
 type nightConfig struct {
 	Enabled bool    `json:"enabled"`

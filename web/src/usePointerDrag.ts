@@ -1,19 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
-// Pointer-drag transport, hardened by two production lessons that were
-// each learned separately before this module existed:
+// Pointer-drag transport, built on two production lessons:
 //
-// 1. Listeners live on the WINDOW for the whole gesture. Moving a DOM
-//    node mid-drag (a list row re-slotting) silently releases element
-//    pointer capture and eats the pointerup — the order never saved.
-// 2. The gesture payload rides in a ref. Touch event bursts outrun React
-//    re-renders, so end handlers must never read drag state from a
-//    closure.
+// 1. Listeners live on the window for the whole gesture. Moving a DOM node mid-drag
+//    (a list row re-slotting) releases element pointer capture and loses the
+//    pointerup, and the order never saved.
+// 2. The gesture payload is in a ref. Touch event bursts outrun React re-renders, so
+//    end handlers must never read drag state from a closure.
 //
-// This module owns only the transport: what a move MEANS (wall clamping,
-// midpoint re-slotting, collision push) stays with the caller. The
-// Compactor keeps its own closure — its gesture state is board geometry,
-// not pointer plumbing.
+// This module owns only the transport. What a move means (wall clamping, midpoint
+// re-slotting, collision push) stays with the caller. The Compactor keeps its own
+// closure: its gesture state is board geometry, not pointer plumbing.
 export function usePointerDrag<T>(handlers: {
   onMove: (e: PointerEvent, drag: T) => void;
   onEnd: (drag: T) => void;

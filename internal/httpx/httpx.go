@@ -33,10 +33,9 @@ func BadRequest(w http.ResponseWriter, msg string) {
 	Error(w, http.StatusBadRequest, msg)
 }
 
-// Fail reports a handler error: store.ErrNotFound becomes a 404; anything
-// else is logged server-side and answered with a generic 500. Handlers with
-// a domain-specific mapping (e.g. calendar's "not connected" → 409) check
-// for it first and fall through to Fail.
+// Fail reports a handler error: store.ErrNotFound becomes a 404. Anything else is
+// logged and answered with a generic 500. Handlers with a domain mapping (e.g.
+// calendar's "not connected" → 409) check for it first, then call Fail.
 func Fail(w http.ResponseWriter, err error) {
 	if errors.Is(err, store.ErrNotFound) {
 		Error(w, http.StatusNotFound, "not found")
@@ -57,9 +56,8 @@ func ID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return id, true
 }
 
-// Decode reads the JSON request body into v, answering the 400 itself when
-// the body doesn't parse. Field validation stays with the handler; only the
-// decode+400 step is shared.
+// Decode reads the JSON body into v and answers the 400 itself if it doesn't parse.
+// Field validation stays with the handler.
 func Decode(w http.ResponseWriter, r *http.Request, v any) bool {
 	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
 		BadRequest(w, "invalid request body")

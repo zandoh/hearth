@@ -1,5 +1,5 @@
-// Board mechanics: the hard-won grid behaviors. Every one of these caught a
-// real bug during development — do not trim without reading the git history.
+// Board mechanics: the hard-won grid behaviors. Each one caught a real bug. Read the
+// git history before you remove one.
 import { dragBy, getLayout, makeStepper, newPage, seedView } from "../helpers.mjs";
 
 export default async function board({ browser, base }) {

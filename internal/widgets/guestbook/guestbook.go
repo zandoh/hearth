@@ -33,9 +33,9 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/widgets/guestbook/{id}/position", w.handleMove)
 }
 
-// handleMove pins a note somewhere on the wall. Coordinates are fractions
-// of the wall (top-left of the note), clamped server-side so a buggy or
-// hostile client can't park notes off-canvas for everyone.
+// handleMove pins a note on the wall. Coordinates are fractions of the wall (the
+// note's top-left), clamped by the server, so a buggy or hostile client cannot move
+// notes off-canvas for everyone.
 func (w *Widget) handleMove(rw http.ResponseWriter, r *http.Request) {
 	id, ok := httpx.ID(rw, r)
 	if !ok {

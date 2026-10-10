@@ -18,10 +18,9 @@ interface CalendarEventLike {
 }
 
 /**
- * Tagged calendar events as countdown items: match any wanted tag, count
- * down to the start date, display the tag-stripped title. Recurring events
- * sync as one row per instance, so equal labels collapse to the soonest
- * upcoming one.
+ * Tagged calendar events as countdown items: match any wanted tag, count down to the
+ * start date, and show the title without tags. Recurring events sync as one row per
+ * instance, so equal labels collapse to the soonest one.
  */
 export function fromCalendar(
   events: CalendarEventLike[],

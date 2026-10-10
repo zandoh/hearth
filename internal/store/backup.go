@@ -13,9 +13,8 @@ import (
 
 const backupKeep = 7
 
-// BackupTo snapshots the database to path. Fails if path already exists,
-// which the callers use: one backup per day, unique temp names for
-// downloads.
+// BackupTo snapshots the database to path. It fails if path exists, which callers
+// rely on: one backup per day, unique temp names for downloads.
 func (s *Store) BackupTo(path string) error {
 	_, err := s.db.Exec("VACUUM INTO ?", path)
 	return err

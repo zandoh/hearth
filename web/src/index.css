@@ -1,6 +1,6 @@
-/* Layered setup from @astryxdesign/core/tailwind-theme.css docs: Astryx
-   tokens feed Tailwind v4 utilities (text-primary, bg-surface, ...) and
-   theme/dark-mode switching flows through automatically. */
+/* Layered setup from the @astryxdesign/core/tailwind-theme.css docs: Astryx tokens
+   feed Tailwind v4 utilities (text-primary, bg-surface, ...), and theme and dark-mode
+   switching follow automatically. */
 @layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
 
 @import "tailwindcss/theme.css" layer(theme);
@@ -11,16 +11,16 @@
 @import "@astryxdesign/core/tailwind-theme.css";
 @import "tailwindcss/utilities.css" layer(utilities);
 
-/* Custom CSS below is limited to what Astryx components can't express:
-   the RGL board chrome, the calendar month grid, and native form controls.
-   All values are Astryx tokens — no raw hex/px. */
+/* Custom CSS is only for what Astryx components can't express: the RGL board chrome,
+   the calendar month grid, and native form controls. Every value is an Astryx token,
+   never raw hex or px. */
 
 body {
   margin: 0;
 }
 
-/* Page chrome lives INSIDE the Theme scope: the built theme CSS defines
-   tokens on the theme root, so anything reading tokens must sit within. */
+/* Page chrome lives inside the Theme scope: the built theme CSS defines tokens on the
+   theme root, so anything that reads tokens must be within it. */
 .app {
   min-height: 100vh;
   display: flex;
@@ -40,10 +40,10 @@ body {
 
 /* --- board / edit mode --- */
 
-/* react-grid-layout sizes itself from its rows, so an empty board is a
-   ~10px strip — external drags over the visibly empty space never hit it
-   and drops went nowhere. Flex-stretch it to fill the container
-   (min-height: 100% can't resolve against a flex-grown parent). */
+/* react-grid-layout sizes itself from its rows, so an empty board is a ~10px strip.
+   Drags over the visibly empty space never hit it, and drops went nowhere. Flex-stretch
+   it to fill the container (min-height: 100% cannot resolve against a flex-grown
+   parent). */
 .grid-container {
   position: relative;
   flex: 1;
@@ -56,8 +56,8 @@ body {
   flex: 1 0 auto;
 }
 
-/* While editing, gestures sweep across widget text — never select it.
-   View mode keeps normal selection. */
+/* While editing, gestures sweep across widget text: never select it. View mode keeps
+   normal selection. */
 .grid-container.editing {
   -webkit-user-select: none;
   user-select: none;
@@ -66,7 +66,7 @@ body {
 .widget-palette {
   padding: var(--spacing-2) var(--spacing-5);
   border-bottom: var(--border-width) dashed var(--color-border-emphasized);
-  /* the tray only exists in edit mode; nothing in it should be selectable */
+  /* The tray exists only in edit mode. Nothing in it should be selectable. */
   -webkit-user-select: none;
   user-select: none;
 }
@@ -112,10 +112,9 @@ body {
   background: var(--color-background-card);
 }
 
-/* Widgets ease in on mount (view switches, drops, first load) instead of
-   snapping. The card fades only — its grid position is an inline transform
-   react-grid-layout owns, so keyframes must never touch transform here.
-   The inner content carries the gentle rise instead. */
+/* Widgets ease in on mount (view switches, drops, first load), not snap. The card only
+   fades: its grid position is an inline transform that react-grid-layout owns, so
+   keyframes must never touch transform here. The inner content does the gentle rise. */
 @media (prefers-reduced-motion: no-preference) {
   .widget-card {
     animation: card-in 260ms ease-out;
@@ -189,9 +188,9 @@ body {
 }
 
 /* --- widget zoom --- */
-/* View-mode double tap blows a widget up to a temporary fullscreen card;
-   double-tapping again (or the ✕) puts it back. Sits below the screensaver
-   and night shade so kiosk housekeeping still wins. */
+/* A view-mode double tap opens a widget as a temporary fullscreen card. Another double
+   tap (or the ✕) closes it. It sits below the screensaver and night shade, so kiosk
+   housekeeping still wins. */
 .widget-zoom {
   position: fixed;
   inset: 0;
@@ -440,21 +439,20 @@ input[type="color"] {
   color: var(--color-text-secondary);
 }
 
-/* Astryx's dialog content wrapper is a flex column with overflow hidden —
-   tall content just clips. Making the body the scroller (min-height: 0 so
-   flex lets it shrink) restores scrolling in every dialog. */
+/* Astryx's dialog content wrapper is a flex column with overflow hidden, so tall
+   content clips. Making the body the scroller (min-height: 0, so flex lets it shrink)
+   restores scrolling in every dialog. */
 .cal-dialog-body {
   padding: var(--spacing-1);
   overflow-y: auto;
   min-height: 0;
 }
 
-/* With the touch keyboard docked inside a modal, hand the dialog only the
-   space above the keys: hug the top and cap the height so the focused
-   field can always be scrolled into view instead of hiding under the
-   keyboard. Keyed on .osk-settled (added ~150ms after the dock mounts):
-   resizing during the focusing tap moves the content mid-tap and the
-   pointerup hits the backdrop, which dismisses the dialog. */
+/* With the touch keyboard docked in a modal, give the dialog only the space above the
+   keys: hug the top and cap the height, so the focused field can always scroll into
+   view. Keyed on .osk-settled (added ~150ms after the dock mounts): a resize during the
+   focusing tap moves content mid-tap, and the pointerup hits the backdrop, which
+   closes the dialog. */
 dialog[open]:has(.osk-settled) {
   margin-top: var(--spacing-4);
   margin-bottom: auto;
@@ -512,9 +510,9 @@ dialog[open]:has(.osk-settled) {
   min-height: 1em;
 }
 
-/* Narrow widget (2 grid columns): the header reflows instead of clipping —
-   icon and temperature stay on the first line, the conditions block drops
-   to its own full-width row so nothing truncates or escapes the card. */
+/* Narrow widget (2 grid columns): the header reflows, not clips. Icon and temperature
+   stay on the first line, and the conditions block moves to its own full-width row,
+   so nothing truncates or overflows the card. */
 @container (max-width: 380px) {
   .weather-head {
     flex-wrap: wrap;
@@ -551,9 +549,9 @@ dialog[open]:has(.osk-settled) {
 
 /* --- wifi --- */
 
-/* The QR must stay square and crisp; it shrinks with the card but never
-   below scannable-across-the-counter size. White fill lives in the SVG
-   itself so night dimming and dark themes can't cost it contrast. */
+/* The QR must stay square and crisp. It shrinks with the card, but never below a size
+   that scans across the counter. The white fill is in the SVG, so night dimming and
+   dark themes cannot cost it contrast. */
 .wifi-qr {
   width: clamp(96px, 60%, 220px);
   aspect-ratio: 1;
@@ -563,15 +561,14 @@ dialog[open]:has(.osk-settled) {
   border-radius: var(--radius-inner);
 }
 
-/* Resize handles exist only in edit mode — RGL renders them even when
-   resizing is disabled, and invisible strips would swallow edge clicks. */
+/* Resize handles exist only in edit mode. RGL renders them even with resizing off, and
+   invisible strips would catch edge clicks. */
 .grid-container:not(.editing) .react-resizable-handle {
   display: none;
 }
 
-/* Resize handles: revealed on hover while editing (Datadog-style).
-   Side and bottom handles are full-length strips so the whole edge is
-   grabbable; corners keep the default arrow look. */
+/* Resize handles show on hover while editing (Datadog-style). Side and bottom handles
+   are full-length strips, so the whole edge works. Corners keep the default arrow. */
 .react-grid-item > .react-resizable-handle {
   z-index: 20;
   touch-action: none;
@@ -603,7 +600,7 @@ dialog[open]:has(.osk-settled) {
   background: none;
 }
 
-/* centered grip pills so the edges advertise themselves on hover */
+/* Centered grip pills, so the edges show themselves on hover. */
 .react-grid-item > .react-resizable-handle.react-resizable-handle-e::after,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-w::after {
   content: "";
@@ -638,9 +635,8 @@ dialog[open]:has(.osk-settled) {
 
 /* --- premium drag feel --- */
 
-/* Neighbours glide with a damped ease-out instead of the default linear-ish
-   hop; the actively dragged card tracks the cursor 1:1 (no transition) and
-   lifts with a shadow. */
+/* Neighbours glide with a damped ease-out, not the default near-linear hop. The dragged
+   card follows the cursor 1:1 (no transition) and lifts with a shadow. */
 .react-grid-item.cssTransforms {
   transition:
     transform 240ms cubic-bezier(0.25, 0.8, 0.25, 1),
@@ -665,10 +661,9 @@ dialog[open]:has(.osk-settled) {
 
 /* --- on-screen keyboard (kiosk) --- */
 
-/* The dock portals into the topmost open <dialog> when a modal is up (the
-   top layer beats any z-index, and everything outside it is inert), else
-   into <body>. Fixed positioning keeps it at the viewport bottom either
-   way. */
+/* The dock portals into the topmost open <dialog> when a modal is up (the top layer
+   beats any z-index, and everything outside is inert), else into <body>. Fixed
+   positioning keeps it at the viewport bottom either way. */
 .osk-dock {
   position: fixed;
   inset: auto 0 0 0;
@@ -897,9 +892,8 @@ dialog[open]:has(.osk-settled) {
 }
 
 /* --- night shade --- */
-/* Above everything, dialogs and screensaver included: quiet hours dim the
-   whole panel. Input passes through except while dim, when the shade itself
-   catches the wake tap. */
+/* Above everything, dialogs and screensaver included: quiet hours dim the whole panel.
+   Input passes through, except while dim, when the shade catches the wake tap. */
 .night-shade {
   position: fixed;
   inset: 0;
@@ -989,9 +983,9 @@ dialog[open]:has(.osk-settled) {
   opacity: 0.4;
 }
 
-/* Notes are light paper in both themes, so the ink is always Char. The
-   explicit selectors beat the design system's themed <p>/button colors
-   (Paper in dark mode — unreadable on yellow). */
+/* Notes are light paper in both themes, so the ink is always Char. The explicit
+   selectors beat the design system's themed <p> and button colors (Paper in dark mode,
+   unreadable on yellow). */
 .sticky-note .sticky-message,
 .sticky-note .sticky-author,
 .sticky-note button,

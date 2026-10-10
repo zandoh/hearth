@@ -1,10 +1,10 @@
 // Renders both share images from social-card.html:
 //   docs/social-preview.png  1280x640 @2x — GitHub's social preview spec
-//   web/public/og.png        1200x630 @2x — 1.91:1 for og:image unfurls,
-//                            with a call-to-action (validators flag both
-//                            the 2:1 ratio and CTA-less images)
-// Re-run after re-shooting the heroes; GitHub's image needs a manual
-// re-upload in Settings, og.png deploys with the demo automatically.
+//   web/public/og.png        1200x630 @2x — 1.91:1 for og:image unfurls, with a
+//                            call-to-action (validators flag a 2:1 ratio and images
+//                            without one)
+// Re-run after re-shooting the heroes. Upload GitHub's image by hand in Settings.
+// og.png deploys with the demo.
 //
 //   bun e2e/social.mjs
 import { dirname, join } from "node:path";
@@ -26,7 +26,7 @@ async function shoot(width, height, bodyClass, out, opts = {}) {
 }
 
 await shoot(1280, 640, null, join(here, "..", "..", "docs", "social-preview.png"));
-// scale: "css" renders at DPR 2 but emits exactly 1200x630 — validators
-// want the canonical size, and the downscale keeps text crisp.
+// scale: "css" renders at DPR 2 but emits exactly 1200x630. Validators want that
+// size, and the downscale keeps text crisp.
 await shoot(1200, 630, "og", join(here, "..", "public", "og.png"), { scale: "css" });
 await browser.close();

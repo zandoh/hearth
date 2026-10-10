@@ -1,14 +1,13 @@
-// Precompress dist/ for the embedded server. The Go binary serves whatever
-// vite emits with no runtime compression (std-lib http has none), so the
-// build writes .br/.gz siblings next to every compressible asset and the
-// server content-negotiates between them. Runs from the Makefile `web`
-// target only — the GitHub Pages demo is compressed by Pages itself.
+// Precompresses dist/ for the embedded server. The Go std-lib server has no runtime
+// compression, so the build writes .br/.gz siblings next to each compressible asset,
+// and the server picks one per request. Only the Makefile `web` target runs this.
+// GitHub Pages compresses the demo itself.
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-// Text-based formats only: fonts (woff/woff2) and images are already
-// internally compressed and re-compressing them wastes binary size.
+// Text formats only. Fonts (woff, woff2) and images are already compressed, and
+// compressing again wastes binary size.
 const COMPRESSIBLE = /\.(js|css|html|svg|json|txt|xml|webmanifest)$/;
 const MIN_BYTES = 1024; // below this the headers outweigh the savings
 
@@ -35,7 +34,7 @@ for (const path of walk(dist)) {
       [constants.BROTLI_PARAM_SIZE_HINT]: data.length,
     },
   });
-  // A variant that fails to shrink is dead weight in the binary; skip it.
+  // A variant that doesn't shrink is dead weight in the binary. Skip it.
   if (gz.length < data.length) writeFileSync(path + ".gz", gz);
   if (bro.length < data.length) writeFileSync(path + ".br", bro);
   files++;

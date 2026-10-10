@@ -9,9 +9,9 @@ import { TOPICS } from "../topics";
 import { useTopic } from "../useSSE";
 import type { WidgetProps, WidgetSettingsProps } from "./registry";
 
-// Reference widget: fetches server time once, ticks locally, and resyncs
-// whenever the backend's clock job publishes on the "clock" topic. Also the
-// reference for per-instance config: 24-hour time and a seconds display.
+// Reference widget: fetches server time once, ticks locally, and resyncs when the
+// backend's clock job publishes on the "clock" topic. Also the reference for
+// per-instance config: 24-hour time and seconds.
 
 interface ClockPayload {
   now: string;

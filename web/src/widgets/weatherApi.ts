@@ -3,7 +3,7 @@
 
 import { apiFetch } from "../api";
 
-// Current counts in grains/m³; null per category (or as a whole) where
+// Current counts in grains/m³. null per category (or for the whole block) where
 // Open-Meteo has no pollen data.
 export interface PollenCounts {
   tree: number | null;

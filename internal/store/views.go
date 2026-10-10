@@ -26,14 +26,14 @@ type View struct {
 	Layout    []LayoutItem `json:"layout"`
 	IsDefault bool         `json:"isDefault"`
 	Hidden    bool         `json:"hidden"`
-	// Daily window (HH:MM local, may cross midnight) during which the kiosk
-	// shows this view automatically; both empty = unscheduled.
+	// Daily window (HH:MM local, may cross midnight) when the kiosk shows this view
+	// automatically. Both empty means unscheduled.
 	ScheduleStart string `json:"scheduleStart,omitempty"`
 	ScheduleEnd   string `json:"scheduleEnd,omitempty"`
 }
 
-// viewCols is the one authoritative column list; scanView is its one
-// decode point — Scan order and this list must move together.
+// viewCols is the one column list, and scanView its one decode point. Change both
+// together.
 const viewCols = "id, name, layout, is_default, hidden, schedule_start, schedule_end"
 
 func scanView(row interface{ Scan(...any) error }) (View, error) {
@@ -164,10 +164,9 @@ type ImportedView struct {
 	ScheduleEnd   string
 }
 
-// ImportViews appends the given views after the existing ones, in one
-// transaction — an import either lands whole or not at all. Callers own
-// name de-duplication and validation; ids and default status stay with
-// the receiving instance.
+// ImportViews appends the views after the existing ones in one transaction, so an
+// import lands whole or not at all. Callers own name dedupe and validation. Ids and
+// default status stay with the receiving instance.
 func (s *Store) ImportViews(vs []ImportedView) ([]View, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -233,8 +232,8 @@ func (s *Store) SetDefaultView(id int64) error {
 	return tx.Commit()
 }
 
-// SetViewSchedule claims (or with empty strings clears) a view's daily
-// window. Validation of the HH:MM shape is the caller's job.
+// SetViewSchedule sets (or, with empty strings, clears) a view's daily window. The
+// caller validates the HH:MM shape.
 func (s *Store) SetViewSchedule(id int64, start, end string) error {
 	var st, en any
 	if start != "" && end != "" {
@@ -250,8 +249,8 @@ func (s *Store) SetViewSchedule(id int64, start, end string) error {
 	return nil
 }
 
-// ReorderViews rewrites the switcher order to match ids; views not listed
-// keep their relative place after the listed ones.
+// ReorderViews rewrites the switcher order to match ids. Unlisted views keep their
+// relative order after the listed ones.
 func (s *Store) ReorderViews(ids []int64) error {
 	tx, err := s.db.Begin()
 	if err != nil {

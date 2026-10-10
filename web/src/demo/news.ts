@@ -1,7 +1,6 @@
-// The news widget's backend, sandbox edition: Google News RSS blocks
-// browser CORS, so the demo serves fixed, plainly fictional headlines per
-// topic with ages synthesized from "now" — enough to show exactly how the
-// card reads without impersonating a real news day.
+// The news widget's backend, sandbox edition. Google News RSS blocks browser CORS, so
+// the demo serves fixed, clearly fictional headlines per topic, with ages computed
+// from now: enough to show how the card reads, without imitating a real news day.
 
 import type { Headline, HeadlinesResponse } from "../widgets/newsApi";
 

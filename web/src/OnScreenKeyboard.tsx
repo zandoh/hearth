@@ -1,14 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-// react-simple-keyboard only loads when a text field actually focuses with
-// the OSK enabled — it's dead weight for every plain board view otherwise.
+// react-simple-keyboard loads only when a text field gets focus with the OSK on.
+// Every plain board view skips it.
 const OskDock = lazy(() => import("./OskDock"));
 
-// Touch keyboard for the wall kiosk. Docks to the bottom whenever a text
-// input gains focus and the keyboard is enabled (auto on coarse-pointer
-// screens, toggleable from the header). Keys write into the focused input
-// through the native value setter so React controlled inputs see real
+// Touch keyboard for the wall kiosk. Docks at the bottom when a text input gets focus
+// and the keyboard is on (automatic on coarse-pointer screens, toggled in the header).
+// Keys write through the native value setter, so React controlled inputs get real
 // input events.
 
 const STORAGE_KEY = "hearth-osk";
@@ -52,8 +51,8 @@ export function OnScreenKeyboard() {
     return () => window.removeEventListener("hearth-osk-changed", onChange);
   }, []);
 
-  // Warm the lazy chunk while idle so the first tap on a field never waits
-  // on the network; the asset is immutable-cached after this.
+  // Warm the lazy chunk while idle, so the first tap on a field never waits on the
+  // network. The asset is then cached as immutable.
   useEffect(() => {
     if (!enabled) return;
     const warm = () => void import("./OskDock");
@@ -89,12 +88,11 @@ export function OnScreenKeyboard() {
     };
   }, [enabled]);
 
-  // Focus lands on pointerDOWN, but nothing may change under the finger
-  // before pointerUP: if the dock mounts mid-tap it can cover the field
-  // (and the dialog shrink moves content), so the browser retargets the
-  // synthesized click to the <dialog> element — which Astryx reads as a
-  // backdrop click and dismisses the whole modal. The dock therefore
-  // mounts on the next pointerup (or shortly after, for keyboard focus).
+  // Focus lands on pointerdown, but nothing may change under the finger before
+  // pointerup. If the dock mounts mid-tap, it can cover the field (and the dialog shrink
+  // moves content), so the browser sends the click to the <dialog>. Astryx reads that as
+  // a backdrop click and closes the modal. So the dock mounts on the next pointerup (or
+  // shortly after, for keyboard focus).
   const [show, setShow] = useState(false);
   useEffect(() => {
     if (!target) {
@@ -164,12 +162,11 @@ export function OnScreenKeyboard() {
 
   if (!enabled || !target || !show) return null;
 
-  // Astryx dialogs are native <dialog> shown with showModal(): they live in
-  // the browser's top layer, above any z-index, and make everything outside
-  // inert — the keyboard rendered underneath and untappable. Portaling the
-  // dock INTO the open dialog makes it a dialog descendant: interactive,
-  // painted with the modal, and gone with it when the dialog closes. The
-  // host is resolved per render, and every focus change re-renders.
+  // Astryx dialogs are native <dialog> with showModal(): they sit in the top layer,
+  // above any z-index, and make everything outside inert, so a keyboard underneath could
+  // not be tapped. Portaling the dock into the open dialog makes it a descendant:
+  // interactive, painted with the modal, and gone when it closes. The host is resolved
+  // per render, and every focus change re-renders.
   const dialogs = document.querySelectorAll<HTMLElement>("dialog[open]");
   const host = dialogs[dialogs.length - 1] ?? document.body;
 

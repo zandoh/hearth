@@ -35,18 +35,16 @@ const (
 // The OAuth token persists across restarts in the settings table.
 var tokenSetting = store.Setting[googleToken]{Key: "google_calendar_token"}
 
-// Config carries the Google OAuth credentials and the base URL Hearth is
-// reachable at (for the OAuth redirect). main reads these from the
-// environment; the widget itself never touches os.Getenv.
+// Config holds the Google OAuth credentials and Hearth's base URL (for the OAuth
+// redirect). main reads them from the environment. The widget never calls os.Getenv.
 type Config struct {
 	BaseURL      string // defaults to http://localhost:8080
 	ClientID     string
 	ClientSecret string
 }
 
-// gcalAPI is the seam between the widget and Google Calendar: everything
-// sync, write-through, and the connect flow need. googleClient is the
-// production adapter; tests substitute a fake.
+// gcalAPI is the seam to Google Calendar: what sync, write-through, and the connect
+// flow need. googleClient is the production adapter. Tests use a fake.
 type gcalAPI interface {
 	configured() bool
 	authURL(state string) string
@@ -127,9 +125,8 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 
 // --- helpers ---
 
-// writeErr adds the calendar's one domain mapping on top of the shared
-// policy: a missing Google connection is the caller's situation (409), not
-// a server fault.
+// writeErr adds the calendar's one domain mapping to the shared policy: a missing
+// Google connection is a 409 (the caller's state), not a server fault.
 func writeErr(rw http.ResponseWriter, err error) {
 	if errors.Is(err, errNotConnected) {
 		httpx.Error(rw, http.StatusConflict, "google account not connected")
@@ -222,8 +219,8 @@ func (w *Widget) handleDeleteCalendar(rw http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Deleting a Google calendar here only removes it from Hearth; the
-	// calendar itself is untouched on Google's side.
+	// Deleting a Google calendar here removes it from Hearth only. Google keeps the
+	// calendar.
 	if err := w.store.DeleteCalendar(id); err != nil {
 		writeErr(rw, err)
 		return
@@ -305,10 +302,9 @@ func (req *eventRequest) toGcal() gcalEvent {
 	return ev
 }
 
-// createEvent, updateEvent, and deleteEvent own the write-through rule:
-// Google is the source of truth for its calendars, so writes reach Google
-// first and only then land locally (creates carry back the external id).
-// Local calendars skip the mirror entirely.
+// createEvent, updateEvent, and deleteEvent own the write-through rule: Google is the
+// source of truth for its calendars, so writes reach Google first, then land locally
+// (creates bring back the external id). Local calendars skip Google.
 
 func (w *Widget) createEvent(ctx context.Context, req eventRequest) (store.Event, error) {
 	cal, err := w.store.GetCalendar(req.CalendarID)
@@ -569,7 +565,7 @@ func (w *Widget) handleGoogleCallback(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Publish("changed")
-	// Back to the app; the settings dialog re-checks /google/status.
+	// Back to the app. The settings dialog re-checks /google/status.
 	http.Redirect(rw, r, "/", http.StatusFound)
 }
 

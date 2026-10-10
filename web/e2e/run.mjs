@@ -41,8 +41,8 @@ async function waitForHealthy() {
   throw new Error("server did not become healthy");
 }
 
-// One spec per concern; the runner's fresh binary + throwaway DB per
-// entry IS the isolation — no spec depends on another's leftovers.
+// One spec per concern. The fresh binary and throwaway DB per entry are the isolation:
+// no spec depends on another's leftovers.
 const specs = [
   ["onboarding", onboardingSpec],
   ["board", boardSpec],

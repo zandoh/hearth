@@ -44,9 +44,8 @@ export function nightWakeMs(search: string): number {
 }
 
 /**
- * Whether `now` falls inside the quiet window. Windows are HH:MM local and
- * may cross midnight (22:00–07:00). start === end means no window at all —
- * that shape is ambiguous, so it never dims rather than always dims.
+ * Whether `now` is inside the quiet window. Windows are HH:MM local and may cross
+ * midnight (22:00–07:00). start === end is ambiguous, so it never dims.
  */
 export function inQuietWindow(now: Date, start: string, end: string): boolean {
   const minutes = (hhmm: string) => {
@@ -60,10 +59,9 @@ export function inQuietWindow(now: Date, start: string, end: string): boolean {
   return s < e ? n >= s && n < e : n >= s || n < e;
 }
 
-// A view may claim a daily window (see views.schedule_start/_end); while
-// the board is at rest the kiosk shows the scheduled view, falling back to
-// the default outside any window. Guest mode overrides all of this — the
-// caller resolves guest first, so a window firing mid-guest cannot switch
+// A view may claim a daily window (views.schedule_start/_end). While the board is at
+// rest, the kiosk shows the scheduled view, or the default outside any window. Guest
+// mode overrides all of this: the caller resolves guest first, so a window cannot move
 // the board off the guest view.
 export interface SchedulableView {
   id: number;
@@ -83,13 +81,13 @@ export function scheduledViewID(views: SchedulableView[], now: Date): number | n
 
 /**
  * The one rule for which view the kiosk shows. Precedence, strictly:
- *   1. guest mode -> the guest view, always — a scheduled window firing
- *      mid-guest must never switch the board off it;
- *   2. a manual pick (until idle-return clears it);
- *   3. a scheduled view whose window contains now;
- *   4. the default view;
- *   5. the first view.
- * Pure so every ordering is table-testable; App only supplies state.
+ *   1. Guest mode -> the guest view, always. A scheduled window must never move the
+ *      board off it.
+ *   2. A manual pick (until idle-return clears it).
+ *   3. A scheduled view whose window contains now.
+ *   4. The default view.
+ *   5. The first view.
+ * Pure, so tests cover every ordering. App only supplies state.
  */
 export function resolveActiveView<V extends { id: number; isDefault: boolean }>(
   views: V[],

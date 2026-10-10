@@ -8,14 +8,11 @@ import (
 	"time"
 )
 
-// doRestore replaces the database with a backup file — the recovery half of
-// the nightly snapshots. STOP THE SERVER FIRST: the swap is a file replace,
-// and a live server would keep writing through its old handle.
+// doRestore replaces the database with a backup file. STOP THE SERVER FIRST: the swap
+// is a file replace, and a live server keeps writing through its old handle.
 //
-// Nothing is destroyed: the current database is set aside as
-// <db>.pre-restore-<stamp> before the backup is copied into place, and any
-// stale -wal/-shm sidecars are moved with it so they can't replay old pages
-// over the restored data.
+// Nothing is lost: the current database moves to <db>.pre-restore-<stamp> first, with
+// its -wal/-shm sidecars, so they cannot replay old pages over the restored data.
 func doRestore(backupPath, dbPath string) error {
 	if err := validateBackup(backupPath); err != nil {
 		return fmt.Errorf("%s does not look like a Hearth database: %w", backupPath, err)
@@ -29,8 +26,8 @@ func doRestore(backupPath, dbPath string) error {
 		}
 		fmt.Printf("current database kept at %s\n", aside)
 	}
-	// Sidecars belong to the old database; left behind they would corrupt
-	// the restored one on first open.
+	// The sidecars belong to the old database. Left behind, they corrupt the restored
+	// one on first open.
 	for _, suffix := range []string{"-wal", "-shm"} {
 		side := dbPath + suffix
 		if _, err := os.Stat(side); err == nil {

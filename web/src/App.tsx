@@ -48,12 +48,12 @@ import type { View } from "./types";
 
 const ROW_HEIGHT = 72;
 
-// Edit-mode-only surface, split out of the startup bundle; App warms the
-// chunk the moment edit mode opens so the dialog never visibly waits.
+// Edit-mode-only surface, split from the startup bundle. App warms the chunk when edit
+// mode opens, so the dialog never visibly waits.
 const ViewManager = lazy(() => import("./ViewManager").then((m) => ({ default: m.ViewManager })));
 
-// Stamped at build time (Makefile passes VITE_BUILD_ID); shown in the tab
-// console and on the wordmark so a stale cached bundle is immediately obvious.
+// Set at build time (the Makefile passes VITE_BUILD_ID). Shown in the console and on
+// the wordmark, so a stale cached bundle is obvious.
 const BUILD_ID = import.meta.env.VITE_BUILD_ID ?? "dev";
 console.info(`hearth build ${BUILD_ID}`);
 
@@ -81,22 +81,21 @@ function GridGuides({ rows }: { rows: number }) {
   );
 }
 
-// Two modes. VIEW (default): clean cards, fully interactive content,
-// nothing draggable/resizable/removable. EDIT ("Edit layout"): chrome bars
-// appear as drag grips with a remove ✕, edge handles resize on hover, the
-// tray adds widgets, guides show during gestures, and every change
-// auto-saves on gesture end — "Done" just returns to view mode.
+// Two modes. VIEW (default): clean cards, interactive content, nothing draggable,
+// resizable, or removable. EDIT ("Edit layout"): chrome bars become drag grips with a
+// remove ✕, edge handles resize on hover, the tray adds widgets, guides show during
+// gestures, and each change saves when the gesture ends. "Done" returns to view mode.
 export default function App() {
   const [views, setViews] = useState<View[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
-  // This grid's free-placement compactor; gesture state lives inside it.
+  // This grid's free-placement compactor. Gesture state lives inside it.
   const [freePlacement] = useState(createCompactor);
   const [editing, setEditing] = useState(false);
   const editingRef = useRef(false);
   editingRef.current = editing;
   const [interacting, setInteracting] = useState(false);
-  // Live grid positions accumulate here between gestures; re-rendering per
-  // drag tick would cancel the drag, so this stays out of React state.
+  // Live grid positions collect here between gestures. A re-render per drag tick would
+  // cancel the drag, so this stays out of React state.
   const liveLayoutRef = useRef<Layout | null>(null);
   // Widget slug being dragged from the tray.
   const dragSlugRef = useRef<string | null>(null);
@@ -157,8 +156,8 @@ export default function App() {
     return () => clearTimeout(id);
   }, [connection]);
 
-  // Kiosk housekeeping: nightly reload keeps week-long sessions fresh
-  // (skipped while someone is mid-edit; retried an hour later).
+  // Kiosk housekeeping: a nightly reload keeps week-long sessions fresh (skipped during
+  // an edit, retried an hour later).
   useEffect(() => {
     let id: ReturnType<typeof setTimeout>;
     const schedule = (delay: number) => {
@@ -171,10 +170,9 @@ export default function App() {
     return () => clearTimeout(id);
   }, []);
 
-  // After a stretch with no touches, come back to rest: leave edit mode,
-  // close modals, clear the manual view pick (schedule/default reassert).
-  // Every mode or modal added to App must be reset here or it survives
-  // an idle reset — this cross-concern list is inherently App's.
+  // After a stretch with no touches, return to rest: leave edit mode, close modals, and
+  // clear the manual view pick (the schedule or default takes over again). Reset every
+  // mode or modal you add to App here, or it survives an idle reset.
   useIdleTimer(idleReturnMs(window.location.search), () => {
     setEditing(false);
     setActiveId(null); // null falls back to the scheduled/default view
@@ -188,10 +186,10 @@ export default function App() {
     [views, guestConfig],
   );
 
-  // Scheduled views: while the board is at rest (no manual pick), a view
-  // whose daily window contains now takes over; idle-return clears manual
-  // picks, so the wall drifts back to the schedule. Re-evaluated twice a
-  // minute. Guest mode is resolved before any of this and always wins.
+  // Scheduled views: while the board is at rest (no manual pick), the view whose daily
+  // window contains now takes over. Idle-return clears manual picks, so the wall drifts
+  // back to the schedule. Checked twice a minute. Guest mode is resolved first and
+  // always wins.
   const [scheduledId, setScheduledId] = useState<number | null>(null);
   useEffect(() => {
     const evaluate = () => setScheduledId(scheduledViewID(views, new Date()));
@@ -303,8 +301,7 @@ export default function App() {
     if (!def) return;
     const merged = mergePositions(active.layout, layout);
     const { w, h } = def.defaultSize;
-    // Land on the drop cell if it's free; otherwise take the nearest fit
-    // instead of overlapping whatever is already there.
+    // Land on the drop cell if it is free. Otherwise take the nearest fit, not an overlap.
     const occupied = merged.some(
       (it) =>
         item.x < it.x + it.w && it.x < item.x + w && item.y < it.y + it.h && it.y < item.y + h,
@@ -360,9 +357,9 @@ export default function App() {
     }
   };
 
-  // Guest mode with no guest view: the screensaver IS the guest experience.
-  // Rendered as an overlay (never an early return) so the board — and
-  // react-grid-layout's container-width observer — stay mounted underneath.
+  // Guest mode with no guest view: the screensaver is the guest experience. An overlay,
+  // never an early return, so the board (and react-grid-layout's width observer) stays
+  // mounted underneath.
   const guestSaver = guest && !guestView;
 
   return (

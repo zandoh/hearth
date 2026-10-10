@@ -20,10 +20,9 @@ type Store struct {
 }
 
 func Open(path string) (*Store, error) {
-	// Pragmas ride in the DSN so EVERY pooled connection gets them. A bare
-	// db.Exec("PRAGMA ...") only configures whichever connection it lands
-	// on: foreign-key enforcement (SET NULL / CASCADE) silently vanished on
-	// the rest of the pool.
+	// Pragmas go in the DSN, so EVERY pooled connection gets them. A
+	// db.Exec("PRAGMA ...") configures only the connection it runs on, and foreign-key
+	// enforcement (SET NULL, CASCADE) silently stopped on the rest of the pool.
 	dsn := "file:" + path +
 		"?_pragma=journal_mode(WAL)" +
 		"&_pragma=foreign_keys(1)" +

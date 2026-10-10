@@ -19,8 +19,8 @@ const (
 	maxHeadlines = 12
 )
 
-// sections maps a widget topic to its Google News section; "top" is the
-// front page, which has no section path.
+// sections maps a widget topic to its Google News section. "top" is the front page,
+// which has no section path.
 var sections = map[string]string{
 	"top":           "",
 	"world":         "WORLD",
@@ -39,8 +39,8 @@ type headline struct {
 	PublishedAt time.Time `json:"publishedAt"`
 }
 
-// feedAPI is the seam between the widget and Google News. googleNewsClient
-// is the production adapter; tests substitute a fake.
+// feedAPI is the seam to Google News. googleNewsClient is the production adapter.
+// Tests use a fake.
 type feedAPI interface {
 	headlines(ctx context.Context, topic string) ([]headline, error)
 }
@@ -76,9 +76,9 @@ func (c *googleNewsClient) headlines(ctx context.Context, topic string) ([]headl
 	return parseFeed(body)
 }
 
-// parseFeed extracts headlines from a Google News RSS document. Item titles
-// arrive as "Headline - Source"; the trailing source is stripped when it
-// matches the item's <source> element so the card doesn't say it twice.
+// parseFeed extracts headlines from a Google News RSS document. Titles come as
+// "Headline - Source". The trailing source is removed when it matches the item's
+// <source>, so the card doesn't say it twice.
 func parseFeed(body []byte) ([]headline, error) {
 	var doc struct {
 		Items []struct {

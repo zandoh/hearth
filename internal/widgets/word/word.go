@@ -17,7 +17,7 @@ import (
 	"github.com/zandoh/hearth/internal/widget"
 )
 
-// entry is one pack word; the JSON shape is the API response minus the day.
+// entry is one pack word. The JSON shape is the API response without the day.
 type entry struct {
 	Word       string `json:"word"`
 	POS        string `json:"pos"` // part of speech, e.g. "noun"
@@ -66,8 +66,8 @@ func (w *Widget) Routes(mux *http.ServeMux) {
 	})
 }
 
-// Jobs: no fetching to do — the only background work is announcing the
-// midnight rollover so open boards re-fetch.
+// Jobs: nothing to fetch. The only background work is announcing midnight, so open
+// boards re-fetch.
 func (w *Widget) Jobs() []widget.Job {
 	return []widget.Job{{
 		Name:     "rollover",

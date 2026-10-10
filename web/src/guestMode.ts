@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { apiFetch } from "./api";
 
-// Guest mode is a per-device state (the wall locks down; phones don't),
-// while the PIN and guest view are household settings on the server.
+// Guest mode is per device (the wall locks down, phones don't). The PIN and guest view
+// are household settings on the server.
 
 const STORAGE_KEY = "hearth-guest";
 const listeners = new Set<() => void>();

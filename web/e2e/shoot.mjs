@@ -1,12 +1,11 @@
-// Re-shoot the README hero screenshots (docs/board-light.png and
-// docs/board-dark.png) against the current build: boots a fresh hearth
-// binary with a throwaway database, seeds the demo household, and captures
-// both color schemes at 1600x1000.
+// Re-shoots the README hero screenshots (docs/board-light.png, docs/board-dark.png)
+// against the current build: a fresh binary with a throwaway database, the demo
+// household, both color schemes at 1600x1000.
 //
 //   make build && bun e2e/shoot.mjs
 //
-// Run this whenever the theme or the board's look changes, then commit the
-// PNGs — the README serves them via <picture> prefers-color-scheme.
+// Run it after the theme or the board's look changes, then commit the PNGs. The README
+// serves them with <picture> prefers-color-scheme.
 import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -132,9 +131,9 @@ async function seed(dbPath) {
   const milk = await post("/api/widgets/grocery", { name: "Milk" });
   await post(`/api/widgets/grocery/${milk.id}/toggle`);
 
-  // The store seeds "Water plants" (3d) and "Wash sheets" (7d), both
-  // never-done (due today). Add one long-cadence chore, then mark Water
-  // plants done today so the board shows a mix of due-today and upcoming.
+  // The store seeds "Water plants" (3d) and "Wash sheets" (7d), both never done (due
+  // today). Add one long-cadence chore, then mark Water plants done, so the board mixes
+  // due-today and upcoming.
   await post("/api/widgets/chores", {
     title: "Replace furnace filter",
     everyDays: 90,

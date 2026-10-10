@@ -2,8 +2,8 @@ import { apiFetch } from "./api";
 import { TOPICS } from "./topics";
 import { useTopicData } from "./useWidgetData";
 
-// Household profiles: the people chores are assigned to and meds belong to.
-// Platform-level (like views); widgets resolve ids against this list.
+// Household profiles: the people chores are assigned to and meds belong to. Platform
+// level (like views). Widgets resolve ids against this list.
 export interface Profile {
   id: number;
   name: string;

@@ -1,9 +1,8 @@
 import { getLayout, makeStepper, newPage, seedView } from "../helpers.mjs";
 
-// Guest Wi-Fi card: fully frontend (the QR is generated in the browser from
-// the instance's config, like countdown/agenda there is no backend half).
-// Covers the unconfigured empty state, the QR + credentials rendering, and
-// the settings flow persisting per-instance config.
+// Guest Wi-Fi card: frontend only (the browser generates the QR from the instance's
+// config, and like countdown and agenda it has no backend half). Covers the
+// unconfigured state, the QR and credentials, and the settings flow.
 
 export default async function wifi({ browser, base }) {
   const { step, failures } = makeStepper();

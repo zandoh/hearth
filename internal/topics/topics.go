@@ -1,8 +1,7 @@
-// Package topics names every SSE topic Hearth publishes on. It is the SSE
-// contract shared with the frontend (web/src/topics.ts mirrors it): each
-// widget publishes on its own ID, platform code publishes on concept
-// topics, and a payload of "changed" means "re-fetch". Adding a topic here
-// means adding it to the frontend mirror too.
+// Package topics names every SSE topic Hearth publishes on: the SSE contract that
+// web/src/topics.ts mirrors. Each widget publishes on its own ID, platform code on
+// concept topics, and the payload "changed" means "re-fetch". Add each new topic to
+// the frontend mirror too.
 package topics
 
 // Widget topics — one per registered widget, equal to the widget's ID.

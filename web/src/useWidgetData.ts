@@ -3,12 +3,11 @@ import { apiFetch } from "./api";
 import { useTopic } from "./useSSE";
 
 /**
- * The data-loading quartet every widget otherwise repeats: fetch on mount,
- * refetch whenever the fetcher changes or the SSE topic fires, hold the
- * latest payload. `fetcher` is usually a named verb from a widget's api
- * module (calendarApi.getCalendars, mealplanApi.getWeek, ...); keep it
- * referentially stable (module-level or useCallback) or the component
- * refetches every render.
+ * The data-loading pattern every widget would repeat: fetch on mount, re-fetch when the
+ * fetcher changes or the SSE topic fires, and hold the latest payload. `fetcher` is
+ * usually a named verb from a widget's api module (calendarApi.getCalendars,
+ * mealplanApi.getWeek, ...). Keep it stable (module level or useCallback), or the
+ * component re-fetches every render.
  */
 export function useTopicData<T>(
   topic: string,
@@ -24,11 +23,11 @@ export function useTopicData<T>(
 }
 
 /**
- * Slug shorthand over useTopicData: the topic and the API root both derive
- * from the slug — the same convention the backend's widget.Base publishes
- * on. `path` extends the widget's API root and may carry query params; the
- * data refetches whenever it changes. e.g. useWidgetData("meds", "/today")
- * fetches /api/widgets/meds/today and refetches on the "meds" topic.
+ * Slug shorthand over useTopicData: the topic and the API root both come from the slug,
+ * the convention the backend's widget.Base publishes on. `path` extends the widget's
+ * API root and may hold query params. The data re-fetches when it changes. Example:
+ * useWidgetData("meds", "/today") fetches /api/widgets/meds/today and re-fetches on
+ * the "meds" topic.
  */
 export function useWidgetData<T>(slug: string, path = ""): { data: T | null; reload: () => void } {
   const fetcher = useCallback(() => apiFetch<T>(`/api/widgets/${slug}${path}`), [slug, path]);
