@@ -5,7 +5,7 @@
 - **Author**: advisor spike, 2026-07-07 (planned at commit `a9659c0`)
 - **Roadmap item**: `README.md` → Roadmap → "utilities trends"
 
-## TL;DR
+## Summary
 
 A keyless / LAN-local data source **does exist**, so this is not the "no-go"
 outcome the plan anticipated. Local energy monitors (Shelly EM family, Fronius
@@ -14,8 +14,8 @@ with **no cloud account and no API key**, which is the same property that keeps
 the weather widget in scope.
 
 But the honesty caveat matters: **there is no universal, zero-config source like
-Open-Meteo for utility data.** Weather works for every household out of the box;
-a utilities widget only works for a household that already *owns* a supported
+Open-Meteo for utility data.** Weather works for every household out of the box.
+A utilities widget only works for a household that already *owns* a supported
 meter and can point the widget at its LAN address. That makes this an opt-in,
 hardware-dependent widget rather than a universal one.
 
@@ -36,7 +36,7 @@ sketched at the end.
 > kindly** — better to find that out before you've written the code.
 
 The weather widget is in scope precisely because Open-Meteo "needs no API key"
-(`internal/widgets/weather/weather.go`, package doc; `openmeteo.go` — "all
+(`internal/widgets/weather/weather.go`, package doc, and `openmeteo.go` — "all
 keyless GETs returning JSON"). The decisive question for utilities is therefore
 **auth model, not feature richness**: any source that requires a per-account key,
 OAuth handshake with a utility, or scraping a login-gated portal is the exact
@@ -45,20 +45,20 @@ data is.
 
 ## Step 1 — Candidate data sources, classified by the scope test
 
-Classification key: **Keyless/open** and **LAN-local** are in scope;
-**per-account key / OAuth / portal-scrape** is out of scope (the treadmill).
+Classification key: **Keyless/open** and **LAN-local** are in scope.
+**Per-account key / OAuth / portal-scrape** is out of scope (the treadmill).
 
 | Source | Data provided | Auth model | Class | In scope? |
 |---|---|---|---|---|
-| **Shelly EM / Pro 3EM / EM Gen3** (clamp energy meter) | Per-phase instantaneous power, voltage, current; accumulated energy; ~60 days at 1-min in device memory | Local HTTP/RPC on LAN; **digest auth disabled by default** (`auth_en:false`) | LAN-local, keyless | **Yes** |
-| **Fronius Solar API** (Symo/Galvo inverters + Datamanager) | Real-time PV production, grid import/export, house consumption; JSON | Local JSON over LAN; docs state **"No API security token or authentication is required"** | LAN-local, keyless | **Yes** |
-| **HomeWizard P1 Meter** (clips onto EU DSMR smart-meter P1 port) | Grid import/export power, energy totals, gas; updates ~1s (DSMR 5.0) | Local API on LAN; **v1 keyless** (enable "Local API" in app, no token). Note: v2 API adds HTTPS + a token | LAN-local, keyless (v1) | **Yes (v1)** |
-| **Home Assistant** (if the household already runs it) | Anything HA already ingests, incl. its Energy dashboard; REST + WebSocket | LAN reachable, but **requires a long-lived access token** (per-instance, self-issued) | LAN-local, token-gated | Borderline — token is self-issued per-instance, not a corporate account, but it *is* a key |
-| **Enphase IQ Gateway / Envoy** (solar) | PV production/consumption; local `/ivp/...` endpoints | LAN, but firmware 7.x (D7) now **requires a token** for all local API access | LAN-local, token-gated | Borderline / drifting toward treadmill |
-| **Emporia Vue / Sense** (whole-home monitors) | Circuit-level energy; good data | **Cloud-only**; no local API; unofficial libs need account email+password | Per-account cloud | **No** |
+| **Shelly EM / Pro 3EM / EM Gen3** (clamp energy meter) | Per-phase instantaneous power, voltage, current. Accumulated energy. ~60 days at 1-min in device memory | Local HTTP/RPC on LAN. **digest auth disabled by default** (`auth_en:false`) | LAN-local, keyless | **Yes** |
+| **Fronius Solar API** (Symo/Galvo inverters + Datamanager) | Real-time PV production, grid import/export, house consumption. JSON | Local JSON over LAN. The docs say it needs **no API security token or authentication** | LAN-local, keyless | **Yes** |
+| **HomeWizard P1 Meter** (clips onto EU DSMR smart-meter P1 port) | Grid import/export power, energy totals, gas. Updates ~1s (DSMR 5.0) | Local API on LAN. **v1 keyless** (enable "Local API" in app, no token). Note: v2 API adds HTTPS + a token | LAN-local, keyless (v1) | **Yes (v1)** |
+| **Home Assistant** (if the household already runs it) | Anything HA already ingests, incl. its Energy dashboard. REST + WebSocket | LAN reachable, but **requires a long-lived access token** (per-instance, self-issued) | LAN-local, token-gated | Borderline — token is self-issued per-instance, not a corporate account, but it *is* a key |
+| **Enphase IQ Gateway / Envoy** (solar) | PV production/consumption. Local `/ivp/...` endpoints | LAN, but firmware 7.x (D7) now **requires a token** for all local API access | LAN-local, token-gated | Borderline / drifting toward treadmill |
+| **Emporia Vue / Sense** (whole-home monitors) | Circuit-level energy. Good data | **Cloud-only**. No local API. Unofficial libs need account email+password | Per-account cloud | **No** |
 | **Green Button Connect My Data** (US utilities) | Interval consumption + cost from the utility of record | **OAuth 2.0 per-account**, third-party client_id/secret, utility authorization redirect | Per-account OAuth | **No** |
 | **Octopus Energy API** (UK) | Half-hourly consumption + tariff/cost | **Personal API key + account number**, HTTP Basic | Per-account key | **No** |
-| **Utility web portals (generic)** | Monthly/interval usage + bills | Login-gated; would require scraping | Portal-scrape | **No** |
+| **Utility web portals (generic)** | Monthly/interval usage + bills | Login-gated. Would require scraping | Portal-scrape | **No** |
 
 **Reading of the table.** The out-of-scope rows are exactly the sources that
 give the "best" data — real billed cost from the utility of record — because
@@ -82,7 +82,7 @@ stretching scope.
    portal scraping — those are the treadmill and stay permanently out of scope.
 2. **One reference device first: the Shelly EM family.** Rationale: it is
    clamp-based so it works on *any* electrical panel worldwide (Fronius requires
-   solar; HomeWizard P1 requires an EU DSMR meter), its Gen2 local RPC has
+   solar. HomeWizard P1 requires an EU DSMR meter), its Gen2 local RPC has
    authentication **disabled by default**, and it exposes both instantaneous
    power and accumulated energy — enough for a glanceable "current draw + today's
    usage + trend" card.
@@ -131,7 +131,7 @@ type utilitiesAPI interface {
 ### Refresh Job and cached shape
 
 - `Jobs()` returns one `refresh` job. Interval: energy is spikier than weather,
-  so **~1 minute** (open question — weather is 15m; see below), still served
+  so **~1 minute** (open question — weather is 15m. See below), still served
   from memory so the kiosk never blocks on the device.
 - Cached in-memory shape served to the frontend (the `forecast` analog):
 
@@ -154,7 +154,7 @@ type snapshot struct {
 
 - A `store.Setting[device]` (typed, JSON on disk) holding the configured device
   **kind + LAN host/port** — the `weather_location` analog. New keys use
-  `store.Setting[T]` per `internal/README.md`; no raw legacy key needed.
+  `store.Setting[T]` per `internal/README.md`. No raw legacy key needed.
 - **Migration:** none required for a live in-memory trend. A numbered migration
   in `store/migrations/` is only needed if the maintainer wants *historical
   retention* across restarts (open question) — the device itself already holds
@@ -164,7 +164,7 @@ type snapshot struct {
 
 - Add `Utilities = "utilities"` to `internal/topics/topics.go` **and**
   `utilities: "utilities"` to `web/src/topics.ts`. The contract test fails until
-  both exist (`internal/topics` package doc; `web/src/topics.ts`).
+  both exist (`internal/topics` package doc, `web/src/topics.ts`).
 
 ### Frontend shape
 
@@ -201,8 +201,8 @@ which is exactly why the seam matters.
 
 **Skipped, deliberately.** Step 4 is optional and only worthwhile "if you can
 reach" a real device. This spike runs in a sandboxed worktree with no Shelly /
-Fronius / HomeWizard meter on the network, so a fetch script would prove
-nothing. The data shapes above are taken from vendor API docs (cited in Sources),
+Fronius / HomeWizard meter on the network, so a probe script would prove
+nothing. The data shapes above come from vendor API docs (cited in Sources),
 not guessed. The follow-up build plan should do this prototype against the
 maintainer's actual meter as its first de-risking step, before writing the
 adapter.
@@ -233,11 +233,11 @@ which makes the "opt-in hardware" objection moot for the primary user.
 - Shelly Gen2 API — [Authentication (auth disabled by default, `auth_en:false`)](https://shelly-api-docs.shelly.cloud/gen2/General/Authentication/),
   [Shelly.GetStatus](https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/Shelly/),
   [Shelly EM (local LAN operation, 60-day 1-min memory)](https://kb.shelly.cloud/knowledge-base/shelly-em)
-- Fronius — [Solar API (JSON), "no API security token or authentication is required"](https://www.fronius.com/en-us/usa/solar-energy/installers-partners/technical-data/all-products/system-monitoring/open-interfaces/fronius-solar-api-json-)
-- HomeWizard — [Local API intro (v1 keyless; v2 adds token)](https://api-documentation.homewizard.com/docs/introduction/),
+- Fronius — [Solar API (JSON): no API security token or authentication needed](https://www.fronius.com/en-us/usa/solar-energy/installers-partners/technical-data/all-products/system-monitoring/open-interfaces/fronius-solar-api-json-)
+- HomeWizard — [Local API intro (v1 keyless. V2 adds token)](https://api-documentation.homewizard.com/docs/introduction/),
   [Integrating Energy with other systems](https://helpdesk.homewizard.com/en/articles/5935977-integrating-energy-with-other-systems-api)
 - Home Assistant — [REST API + long-lived access token](https://developers.home-assistant.io/docs/api/rest/)
 - Enphase — [IQ Gateway local API now requires a token (firmware 7.x/D7)](https://support.enphase.com/s/question/0D53m00008pRVlLCAW/instructions-to-get-access-token)
-- Emporia — [No local API; cloud-only](https://help.emporiaenergy.com/en/articles/9084335-is-an-api-available)
+- Emporia — [No local API. Cloud-only](https://help.emporiaenergy.com/en/articles/9084335-is-an-api-available)
 - Green Button — [Connect My Data OAuth 2.0 per-account](https://utilityapi.com/docs/greenbutton/oauth)
 - Octopus Energy — [REST API needs personal API key + account number](https://docs.octopus.energy/rest/guides/api-basics/)

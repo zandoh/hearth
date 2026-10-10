@@ -26,22 +26,22 @@ Read these before touching code — they're short and they'll save you time:
 - [web/README.md](web/README.md) — frontend layout and the rules that bite.
 - [internal/README.md](internal/README.md) — backend layout, the
   add-a-widget checklist, and the conventions that bite.
-- [docs/adr/](docs/adr/) — decisions already made; don't re-litigate them
-  in a PR, open a discussion instead.
+- [docs/adr/](docs/adr/) — decisions already made. Don't re-litigate them
+  in a PR. Open a discussion instead.
 
 ## The bar for a PR
 
 1. **Conventional Commits v1.0.0** — `type(scope): subject`. This has
-   teeth: release notes are generated from commit messages by git-cliff,
-   so a malformed message becomes a malformed changelog.
+   teeth: git-cliff builds the release notes from commit messages, so a
+   malformed message becomes a malformed changelog.
 2. **Gates pass locally**: `make test && make lint && make e2e`
    (e2e needs `make build` first and headless Chromium via Playwright).
 3. **Behavior changes come with tests.** Pure logic gets unit tests
    (extract it if it's buried in a component/handler — that's the house
-   pattern); user-visible flows get an e2e step in the relevant
+   pattern). User-visible flows get an e2e step in the relevant
    per-concern spec under `web/e2e/specs/`.
 4. **Verify against both the dev server and the built binary.** They
-   differ; the repo learned this the hard way.
+   differ. The repo learned this the hard way.
 
 CI runs the same gates. Green CI + a conventional title is usually a
 same-day review.

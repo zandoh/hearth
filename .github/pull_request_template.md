@@ -4,8 +4,8 @@
 
 ## Checklist
 
-- [ ] Commit messages follow Conventional Commits v1.0.0 (release notes are generated from them)
+- [ ] Commit messages follow Conventional Commits v1.0.0 (git-cliff builds the release notes from them)
 - [ ] `make test && make lint && make e2e` pass locally
 - [ ] Behavior changes include tests (unit for pure logic, e2e for user-visible flows)
 - [ ] Verified against both the dev server and the built binary, if frontend
-- [ ] For features: linked to the issue/discussion where it was agreed
+- [ ] For features: links the issue or discussion that agreed it

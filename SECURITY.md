@@ -13,7 +13,7 @@ Consequences you should understand before deploying:
   it behind something that authenticates — a VPN (Tailscale/WireGuard) is
   the recommended shape.
 - **The guest PIN is a social lock, not a security boundary.** It keeps a
-  houseguest from wandering out of the guest view; it does not protect
+  houseguest from wandering out of the guest view. It does not protect
   data from someone with network access.
 - Google Calendar credentials live in your `.env`/data volume on your own
   hardware and are never transmitted anywhere except to Google.

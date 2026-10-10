@@ -1,8 +1,8 @@
 # hearth — backend
 
 The single Go binary: API, SSE, widget jobs, SQLite, and the embedded web
-app. This file covers the Go half; the project story is in the
-[root README](../README.md) and the shared vocabulary in
+app. This file covers the Go half. The project story is in the
+[root README](../README.md), and the shared vocabulary in
 [CONTEXT.md](../CONTEXT.md). Standard library first — the only runtime
 dependency is `modernc.org/sqlite`.
 
@@ -29,18 +29,18 @@ internal/
 ## Adding a widget
 
 1. `internal/widgets/<name>/` implementing `widget.Widget` — embed
-   `widget.Base{Hub: hub, Slug: topics.<Name>}`; routes under
-   `/api/widgets/<name>/`; end every mutation with `Base.Changed`.
+   `widget.Base{Hub: hub, Slug: topics.<Name>}`. Routes go under
+   `/api/widgets/<name>/`. End every mutation with `Base.Changed`.
 2. Add the topic constant to `internal/topics` **and** `web/src/topics.ts`
    (the contract test fails until both exist).
-3. Register once in `cmd/hearth/main.go`; add the frontend half per
+3. Register once in `cmd/hearth/main.go`. Add the frontend half per
    `web/README.md`.
 4. Data: a numbered migration in `store/migrations/` plus a `store/<name>.go`
    with one `<name>Cols` constant and one scan function per table.
 5. Document the new routes, body shapes, and published topic in
    [`docs/api.md`](../docs/api.md) — it's hand-maintained and drifts otherwise.
 
-The clock widget is the smallest complete example; calendar is the largest
+The clock widget is the smallest complete example. Calendar is the largest
 (external API seam, sync job, write-through).
 
 ## Conventions that bite
@@ -52,13 +52,13 @@ The clock widget is the smallest complete example; calendar is the largest
   strings on purpose — see `docs/adr/0001` before touching them.
 - **External APIs** sit behind an unexported interface with a prod adapter
   and a test fake (calendar's `gcalAPI`, weather's `meteoAPI`). Two adapters
-  make the seam real; new integrations copy the shape.
+  make the seam real. New integrations copy the shape.
 - **Write-throughs run under `context.WithoutCancel`** — a kiosk browser
   dropping the connection mid-delete must not abandon the mutation after the
   remote side applied it. And "already gone" (404/410) is a successful
   delete.
-- **Migrations are append-only** and run in a transaction per file; check
-  `001_init.sql` before creating a table — it may already be scaffolded.
+- **Migrations are append-only** and run in a transaction per file. Check
+  `001_init.sql` before creating a table: it may already exist.
 
 ## Testing
 
@@ -66,7 +66,7 @@ The clock widget is the smallest complete example; calendar is the largest
   `newTestWidget`) — cheap enough that there is no store interface.
 - Platform handlers test through `newTestServer` (`server_test.go`):
   httptest over a real store and hub, `fstest.MapFS` for the dist.
-- External integrations test against their fakes; the Google client's HTTP
-  behaviour (410-tolerant deletes) tests via a static `RoundTripper`.
+- External integrations test against their fakes. A static `RoundTripper`
+  tests the Google client's HTTP behaviour (410-tolerant deletes).
 
 Run everything with `make test` (Go + bun) and `make e2e` from the repo root.

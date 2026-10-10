@@ -2,28 +2,28 @@
 
 A self-hosted home-hub kiosk: one Go binary serving an embedded React board of
 widgets, kept live across devices by SSE. This file names the concepts the code
-is organized around; use these terms in code, docs, and reviews.
+uses. Use these terms in code, docs, and reviews.
 
 ## Language
 
 **Widget**:
 A self-contained board feature (chores, meds, calendar…). On the backend, an
-implementation of `widget.Widget` registered once in `main`; on the frontend, a
+implementation of `widget.Widget` registered once in `main`. On the frontend, a
 component keyed in the widget registry. A widget's ID is simultaneously its
 route prefix, its SSE topic, and its registry key.
 _Avoid_: plugin, module (in the generic sense), card
 
 **Topic**:
-A named SSE channel. Widgets publish on their own ID; platform concerns publish
+A named SSE channel. Widgets publish on their own ID. Platform concerns publish
 on concept names (views, profiles, night, guest). The payload `"changed"` means
-"re-fetch". The contract is defined once in `internal/topics` and mirrored by
-`web/src/topics.ts` — string literals for topics are a smell.
+"re-fetch". `internal/topics` defines the contract, and `web/src/topics.ts`
+mirrors it. String literals for topics are a smell.
 _Avoid_: channel, event name
 
 **Publish-on-write**:
 Every mutation ends by announcing itself on the owning topic. Backend handlers
-get this via `widget.Base.Changed` / `Server.changed`; forgetting it is no
-longer possible in handlers that use them.
+announce through `widget.Base.Changed` / `Server.changed`, which makes the step
+impossible to forget.
 
 **Setting**:
 A typed, keyed value in the store's KV table, accessed through
@@ -39,40 +39,40 @@ contain URL strings.
 _Avoid_: client, service
 
 **Mutation discipline**:
-The one blessed mutate flow, provided by `useMutate`: run the request; on
-success reload then clear the form; on failure surface the server's error
+The one blessed mutate flow, provided by `useMutate`: run the request. On
+success, reload, then clear the form. On failure, show the server's error
 message. Mutations never rely on SSE for their own refresh (e2e-enforced) and
 never swallow errors to the console.
 
 **External API seam**:
 A widget's outbound integration isolated behind an unexported Go interface with
 a prod adapter and a test fake — calendar's `gcalAPI`/`googleClient` and
-weather's `meteoAPI`/`openMeteoClient`. Two adapters make the seam real; new
+weather's `meteoAPI`/`openMeteoClient`. Two adapters make the seam real. New
 integrations follow this shape.
 _Avoid_: wrapper, client abstraction
 
 **Compactor**:
 The free-placement layout engine (`web/src/compactor.ts`): collision-push with
 gesture-home snapshots, spring-back, and jiggle hysteresis. Gesture state lives
-in the closure returned by `createCompactor()`; App.tsx is only an adapter
-binding it to react-grid-layout.
+in the closure returned by `createCompactor()`. App.tsx only binds it to
+react-grid-layout.
 
 **Guest mode**:
 A per-device restricted state: PIN-protected exit, a designated guest view (or
-the screensaver when none is set). Configured in ViewManager, enforced in App,
-persisted as raw settings.
+the screensaver when there is none). ViewManager configures it, App enforces it,
+and raw settings store it.
 
 **View**:
-A named board layout (grid of widget placements). One view is the default; the
-guest view is a view designated for guest mode. Views may be hidden from the
+A named board layout (grid of widget placements). One view is the default. The
+guest view is the view chosen for guest mode. Views may be hidden from the
 switcher and may claim a daily schedule window.
 _Avoid_: page, dashboard, screen
 
 **View selection**:
 The one rule for which view the kiosk shows: guest mode, then a manual pick,
-then a scheduled window, then the default, then the first view. Lives as the
-pure `resolveActiveView` in `web/src/kiosk.ts`; App only supplies state. The
-load-bearing invariant — guest always wins — is asserted there, not commented.
+then a scheduled window, then the default, then the first view. It is the pure
+`resolveActiveView` in `web/src/kiosk.ts`. App only supplies state. A test
+asserts the load-bearing invariant there: guest always wins.
 _Avoid_: routing, active-view logic
 
 **Pointer transport**:
@@ -80,10 +80,10 @@ The gesture plumbing shared by pointer drags (`web/src/usePointerDrag.ts`):
 window-level listeners for the whole gesture (element capture dies when a
 dragged node re-slots) and a ref-carried payload (touch bursts outrun React
 renders). Domain geometry — wall clamping, midpoint re-slotting, collision
-push — stays with each caller; the Compactor keeps its own closure.
+push — stays with each caller. The Compactor keeps its own closure.
 _Avoid_: drag handler, drag-and-drop library
 
 **Idle timer**:
 The kiosk's idle primitive (`web/src/useIdleTimer.ts`): fire after N ms
 without a touch, re-arm on fire. One definition of "a touch" for the
-screensaver and idle-return; the nightly reload is clock-based and separate.
+screensaver and idle-return. The nightly reload is clock-based and separate.
